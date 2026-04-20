@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'com.gradleup.shadow' version '8.3.5'
+}
+
+group = 'sunanticheat'
+version = '1.0.0'
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
+    maven { url = 'https://jitpack.io' }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT'
+    compileOnly 'org.apache.logging.log4j:log4j-core:2.19.0'
+    compileOnly 'me.clip:placeholderapi:2.11.6'
+    compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
+    compileOnly 'com.github.Gypopo:EconomyShopGUI-API:1.9.0'
+
+    // Dashboard — shaded dans le JAR final
+    implementation 'org.java-websocket:Java-WebSocket:1.5.6'
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly    'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly    'io.jsonwebtoken:jjwt-gson:0.12.6'   // utilise Gson fourni par Paper
+    implementation 'at.favre.lib:bcrypt:0.10.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    filesMatching('plugin.yml') {
+        expand 'version': project.version
+    }
+}
+
+shadowJar {
+    archiveBaseName.set('SunAntiCheat')
+    archiveVersion.set(version)
+    archiveClassifier.set('')
+
+    mergeServiceFiles()
+
+    // Relocalisation pour éviter tout conflit classpath côté serveur
+    relocate 'org.java_websocket', 'sunanticheat.deps.websocket'
+    relocate 'io.jsonwebtoken',    'sunanticheat.deps.jwt'
+    relocate 'at.favre.lib',       'sunanticheat.deps.bcrypt'
+
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+    exclude 'META-INF/NOTICE*'
+    exclude 'META-INF/LICENSE*'
+}
+
+// Le JAR standard est remplacé par le shadowJar
+jar.enabled = false
+assemble.dependsOn(shadowJar)

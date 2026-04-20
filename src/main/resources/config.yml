@@ -1,0 +1,247 @@
+# SunAntiCheat - Configuration
+
+# Anti X-Ray (détection renforcée)
+xray:
+  # Nombre minimum de blocs minés avant d'afficher un indice fiable (évite faux positifs sur petits échantillons).
+  min-blocks-for-index: 150
+  # Ratio diamant/pierre suspect : "X diamants pour 1000 blocs de pierre". En vanilla ~0.1-0.5 est déjà rare ; au-delà de 2-3 = très suspect.
+  diamond-per-thousand-common-suspicious: 2.5
+  # Seuils pour le % de minerais précieux (0-100).
+  valuable-percent-very-high: 65
+  valuable-percent-high: 45
+  valuable-percent-medium: 22
+  # Indice composite : combiner % précieux ET ratio diamant/pierre pour le niveau (plus robuste).
+  use-composite-index: true
+
+# Log X-Ray (données jour par jour, rétention 2 semaines)
+xray-log:
+  # Intervalle de sauvegarde en minutes (fichier du jour mis à jour).
+  save-interval-minutes: 5
+  # Nombre de jours à conserver (fichiers plus anciens sont supprimés).
+  retention-days: 14
+
+# Anti Kill Aura (portée, angle, ligne de visée, CPS)
+killaura:
+  enabled: true
+  # Portée max légitime en blocs (vanilla ~3). Au-delà = suspect.
+  max-reach: 3.5
+  # Cône de vision en degrés (la cible doit être devant le joueur).
+  max-angle-degrees: 120.0
+  # Coups par seconde max (au-delà = possible autoclick / Kill Aura).
+  max-cps: 15
+  # Exiger une ligne de visée (détecte les coups à travers les murs).
+  require-line-of-sight: true
+  # Annuler les coups considérés comme suspects (sinon détection seule).
+  cancel-suspicious-hits: false
+
+# Anti Freecam
+freecam:
+  # Annuler les actions suspectes (cassage / interaction hors champ de vision ou portée).
+  # true = le serveur empêche l'action (prévention), false = détection seule (stats).
+  cancel-suspicious-actions: false
+  # Portée max légitime (blocs). Dépassée = action refusée / comptée suspecte.
+  max-reach: 6.0
+  # Cône de vision (degrés). Bloc doit être devant le joueur dans ce cône.
+  view-cone-degrees: 120.0
+
+# Alertes staff (messages cliquables [TP] [Sanctions] quand X-Ray ou Freecam suspect)
+alerts:
+  xray:
+    enabled: true
+    min-blocks: 150
+    alert-above-valuable-percent: 45
+    cooldown-minutes: 5
+    # Commande exécutée par la console après une alerte (vide = désactivé). Placeholder: %player%
+    run-command: ""
+  freecam:
+    enabled: true
+    min-total-actions: 20
+    alert-above-suspicion-percent: 50
+    cooldown-minutes: 5
+    run-command: ""
+  killaura:
+    enabled: true
+    violations-before-alert: 3
+    cooldown-minutes: 5
+    run-command: ""
+
+# Log des violations (fichier audit : chaque alerte enregistrée)
+violation-log:
+  enabled: true
+  file: "violations.log"
+
+# Reports (signalements joueurs)
+reports:
+  cooldown-minutes: 5
+
+# Webhook Discord — envoi restreint aux scans (mvinvscan + chestscan)
+# 1. Discord : Salon → Intégrations → Webhooks → Nouveau webhook → copier l’URL
+# 2. Coller l’URL dans webhook-url ci-dessous
+# 3. Mettre enabled à true (obligatoire : sans ça, aucun message n’est envoyé)
+# 4. Redémarrer le serveur OU exécuter /sunguard reload après modification
+discord:
+  enabled: false
+  # Colle ici l'URL du webhook Discord (ex: https://discord.com/api/webhooks/123456/abcdef...)
+  webhook-url: ""
+  # Seuls ces rapports sont envoyés sur Discord
+  mvinvscan-report: true     # /sunguard mvinvscan (scan complet monde spawn)
+  player-scan-report: true   # /sunguard mvinvscan <joueur>
+  chest-scan-report: true    # /sunguard chestscan <monde1,monde2,...>
+
+# Debug — affiche un bouton "Debug" dans le menu avec des tests (Discord, alertes, etc.)
+# À activer uniquement en dev / test. Nécessite la permission sunguard.debug
+debug:
+  enabled: false
+
+# Sécurité commandes : bloque les commandes d'énumération/info sensibles pour les non-staff.
+# Alerte en temps réel les OP connectés et loggue la tentative en console.
+security:
+  risky-commands:
+    enabled: true
+    blocked-prefixes:
+      - "pl"
+      - "plugins"
+      - "ver"
+      - "version"
+      - "about"
+      - "help plugins"
+      - "bukkit:"
+      - "minecraft:"
+      - "paper:"
+      - "spigot:"
+
+# Log des blocs (cassé / placé / interaction) — clic droit par un staff pour afficher l'historique
+blocklog:
+  enabled: true
+  log-break: true
+  log-place: true
+  log-interact: true
+  # Nombre max d'entrées par bloc (plus anciennes supprimées)
+  max-entries-per-block: 100
+  # Nombre max de blocs suivis en mémoire (éviction des moins récents)
+  max-blocks: 50000
+  # Sauvegarde sur disque (minutes)
+  save-interval-minutes: 5
+
+# Détection WeaponMechanics dans un monde donné (ex. world principal) — rapport Discord + alerte staff
+weapon-mechanics-main-world:
+  enabled: false
+  # Nom exact du monde surveillé (sensible à la casse côté serveur ; comparé en ignoreCase)
+  world: world
+  # Intervalle de scan pour les joueurs déjà dans ce monde (ticks, 20 = 1 s)
+  check-interval-ticks: 100
+  # Anti-spam Discord / alertes (minutes)
+  cooldown-minutes: 15
+  # Message in-game aux staff (permission sunguard.alerts), en plus de Discord
+  alert-staff: true
+  # Ligne dans violations.log
+  log-violation: true
+
+# Monde(s) spawn (Multiverse) : avec une arme à la connexion / téléport → inventaire + potions vidés
+spawn-world-weapon-strip:
+  enabled: false
+  # Liste des noms de mondes (MV). Si vide, utilise la clé "world" ci-dessous.
+  worlds:
+    - spawn
+  # Utilisé seulement si "worlds" est une liste vide
+  world: spawn
+  # Délai après connexion (ticks) — laisse Multiverse téléporter avant le contrôle
+  join-delay-ticks: 25
+  # Délai après changement de monde / téléportation vers le spawn
+  teleport-delay-ticks: 2
+  # N'agir qu'en mode Survie (false = aussi créatif / aventure)
+  only-survival: false
+  notify-player: true
+  message: "&cLes armes ne sont pas autorisées sur ce spawn : inventaire et effets de potion retirés."
+  log: true
+
+# Multiverse-Inventories : scan disque du monde spawn toutes les N secondes.
+# Si un fichier de profil (.json) contient une arme WeaponMechanics, l'inventaire spawn sauvegardé est entièrement vidé (inv, armure, offhand, ender, potions).
+# Manuel : /sunguard mvinvscan ou /sunguard mvinvscan <joueur> — permission sunguard.mvinv.scan
+multiverse-inventories-spawn-wm-scan:
+  enabled: false
+  world: spawn
+  interval-seconds: 5
+  # Dossier racine des données MV-Inv (vide = plugins/Multiverse-Inventories/worlds)
+  data-folder: ""
+  # Si le joueur est en ligne et se trouve dans le monde configuré, vider aussi l'inventaire en jeu
+  clear-online-player-in-spawn: true
+  # À chaque connexion, analyser tout de suite son fichier (UUID.json / pseudo.json), après délai (ticks)
+  analyze-on-login: true
+  analyze-on-login-delay-ticks: 40
+  # Quand le joueur entre dans le monde spawn (ex. /mvtp spawn) — délai court après chargement MV-Inv
+  analyze-on-enter-spawn-world: true
+  analyze-on-enter-spawn-world-delay-ticks: 5
+  # Après déco : rescan fichier seul (MV sauve souvent à la quit ; délai pour laisser l’écriture)
+  analyze-on-quit: true
+  analyze-on-quit-delay-ticks: 60
+  # Téléportation dont la destination est le monde spawn (y compris sans changement de monde)
+  analyze-on-teleport-to-spawn: true
+  analyze-on-teleport-delay-ticks: 3
+  # Après certaines commandes (préfixes sans /, comparaison insensible à la casse)
+  analyze-on-commands: true
+  analyze-after-command-delay-ticks: 2
+  trigger-command-prefixes:
+    - "spawn"
+    - "mvtp spawn"
+    - "mv tp spawn"
+    - "mv tp world"
+    - "mvtp world"
+    - "mctp spawn"
+    - "mctp world"
+    - "essentials:spawn"
+    - "essentials:tp spawn"
+  # Après le scan disque async, passage inventaire réel (API WeaponMechanics) si le joueur est sur le spawn
+  live-sweep-for-weaponmechanics: true
+  live-sweep-offset-after-scan-ticks: 3
+  log-live-sweep: true
+
+# ============================================================
+# Dashboard Web Admin
+# Accès : http://ton-ip:<http-port>
+# WebSocket temps réel : ws://ton-ip:<ws-port>
+# ============================================================
+dashboard:
+  enabled: true
+  # Port de l'API REST + fichiers React compilés
+  http-port: 8765
+  # Port WebSocket (console live, alertes, stats)
+  ws-port: 8766
+  # Secret JWT — OBLIGATOIRE : changer pour une chaîne aléatoire d'au moins 32 caractères
+  jwt-secret: "fgrtdgetdgrcvghfiozsdbvuiolzdbfujioezdbfujihozeqbuivboefiugbhlidkfbnvoildjbh"
+  # Origine CORS autorisée (mettre l'URL exacte du frontend en prod)
+  cors-origin: "*"
+  # Commandes autorisées via le dashboard (whitelist)
+  allowed-commands:
+    - "tps"
+    - "list"
+    - "plugins"
+    - "save-all"
+    - "sunguard"
+    - "kick"
+    - "ban"
+    - "pardon"
+    - "mute"
+    - "op"
+    - "deop"
+  # Comptes dashboard
+  # Rôles : ADMIN (accès complet) | MOD (lecture + kick seulement)
+  # Générer un hash : /sunguard dashboard hashpw <motdepasse>
+  users:
+    - username: admin
+      # Hash bcrypt du mot de passe (laissez vide = généré automatiquement au démarrage)
+      # Mot de passe en clair : admin123!
+      password-hash: "$2b$12$6JRbVXzhOXEZI9GmjqprHu0lM69.jE9aYm6YWQ1iptVoOIdoSbf/S"
+      role: ADMIN
+
+# Première connexion (first join)
+first-join:
+  enabled: true
+  # Délai (ticks) avant exécution, utile pour éviter les soucis de chargement de monde.
+  delay-ticks: 20
+  # Ancien format (conservé pour compatibilité) : une seule commande.
+  command: "mvtp spawn %player%"
+  # Format recommandé : plusieurs commandes exécutées par la console.
+  commands:
+    - "mvtp spawn %player%"
+    - "say Bienvenue %player%"

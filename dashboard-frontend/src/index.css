@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Tokens CSS (themable via [data-theme=...]) ──────────────────────────── */
+:root, .theme-dark {
+  --bg: #0f0f13;
+  --surface: #1a1a24;
+  --surface-2: #20202e;
+  --border: #2d2d3d;
+  --text: #e2e8f0;
+  --text-muted: #64748b;
+  --primary: #7C3AED;
+  --primary-hover: #6d28d9;
+  --scroll-track: #1a1a24;
+  --scroll-thumb: #2d2d3d;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.2);
+  --body-bg-image: none;
+}
+
+.theme-light {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #f9fafb;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --primary: #7C3AED;
+  --primary-hover: #6d28d9;
+  --scroll-track: #e2e8f0;
+  --scroll-thumb: #cbd5e1;
+  --shadow-card: 0 1px 2px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04);
+  --body-bg-image: none;
+}
+
+.theme-minecraft {
+  --bg: #2b2b2b;
+  --surface: #4a3a2a;
+  --surface-2: #5a4530;
+  --border: #2a1f15;
+  --text: #fffbea;
+  --text-muted: #b8a88a;
+  --primary: #55ff55;
+  --primary-hover: #3fbd3f;
+  --scroll-track: #2b2b2b;
+  --scroll-thumb: #55ff55;
+  --font-body: 'Minecraftia', 'Monocraft', 'Courier New', monospace;
+  --font-mono: 'Minecraftia', 'Monocraft', 'Courier New', monospace;
+  --shadow-card: inset -2px -2px 0 rgba(0,0,0,0.35), inset 2px 2px 0 rgba(255,255,255,0.08);
+  --body-bg-image:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0 2px, transparent 2px 32px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0 2px, transparent 2px 32px);
+}
+
+body {
+  background-color: var(--bg);
+  background-image: var(--body-bg-image);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scroll-track); }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+.theme-minecraft .card { border-radius: 0; border-width: 2px; }
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.15s;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.theme-minecraft .btn-primary { border-radius: 0; text-transform: uppercase; }
+
+.btn-danger {
+  background: #EF4444; color: white; font-weight: 600;
+  padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background-color 0.15s;
+}
+.btn-danger:hover { background: #dc2626; }
+
+.btn-ghost {
+  border: 1px solid var(--border); color: var(--text);
+  padding: 0.5rem 1rem; border-radius: 0.5rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-ghost:hover { border-color: var(--primary); }
+
+.input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem; color: var(--text); width: 100%;
+}
+.input:focus { outline: none; border-color: var(--primary); }
+.input::placeholder { color: var(--text-muted); }
+
+.badge-red    { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/50 text-red-300; }
+.badge-orange { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-900/50 text-orange-300; }
+.badge-green  { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/50 text-green-300; }
+.badge-blue   { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900/50 text-blue-300; }
+.badge-purple { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-900/50 text-violet-300; }
+
+/* Command palette ⌘K */
+.kbd {
+  display: inline-flex; align-items: center; padding: 0 6px;
+  border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 11px; min-width: 20px; height: 20px;
+}

@@ -1,0 +1,58 @@
+# Gradle
+.gradle/
+build/
+!gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VSCode
+.vscode/
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Env & secrets
+.env
+.env.local
+*.key
+*.pem
+
+# Runtime data (ne pas commit les données du serveur)
+dashboard/users.json
+dashboard/crates*.json
+dashboard/daily_*.json
+dashboard/honeypot_*.json
+dashboard/toxic_chat*.json
+dashboard/events_*.json
+dashboard/quests*.json
+dashboard/experiments*.json
+dashboard/reports*.json
+dashboard/sanctions*.json
+dashboard/panic*.json
+dashboard/reboot*.json
+dashboard/tasks*.json
+dashboard/transactions*.json
+dashboard/snapshots*.json
+
+# Build artifacts
+*.class
