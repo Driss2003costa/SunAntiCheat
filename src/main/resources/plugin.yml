@@ -4,9 +4,16 @@ main: sunanticheat.SunAntiCheat
 api-version: '1.21'
 description: Plugin anticheat pour Minecraft 1.21.1
 author: Sun
-softdepend: [PlaceholderAPI, Vault, WeaponMechanics, Multiverse-Inventories, EconomyShopGUI, EconomyShopGUI-Premium]
+softdepend: [PlaceholderAPI, Vault, WeaponMechanics, Multiverse-Inventories, EconomyShopGUI, EconomyShopGUI-Premium, ItemsAdder]
 
 commands:
+  crate:
+    description: "Gestion des lootboxes (place/preview/givekey/list)"
+    usage: "/crate <place|preview|givekey|list> [...]"
+  daily:
+    description: "Réclamer sa récompense quotidienne"
+    usage: "/daily"
+    aliases: [dailyreward, dailyrewards]
   sunguard:
     description: "Menu, reload, mvinvscan, chestscan, blocklog, sanctions, reports, rollback, firstjoin"
     usage: "/sunguard [reload|mvinvscan [joueur]|chestscan <monde1,monde2,...>|blocklog|sanction [joueur]|reports|rollback <joueur> [rayon] [min]|firstjoin ...]"

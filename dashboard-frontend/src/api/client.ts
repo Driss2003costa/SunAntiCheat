@@ -177,4 +177,29 @@ export const api = {
   aiStatus:        () => request<{ configured: boolean; model: string }>('/api/ai/status'),
   aiChat:          (messages: Array<{ role: string; content: string }>) =>
     request<any>('/api/ai/chat', { method: 'POST', body: JSON.stringify({ messages }) }),
+
+  // Crates / Lootboxes
+  cratesList:      () => request<any[]>('/api/crates'),
+  crateGet:        (id: string) => request<any>(`/api/crates/${id}`),
+  crateCreate:     (data: any) => request<any>('/api/crates', { method: 'POST', body: JSON.stringify(data) }),
+  crateUpdate:     (id: string, data: any) => request<any>(`/api/crates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  crateDelete:     (id: string) => request<any>(`/api/crates/${id}`, { method: 'DELETE' }),
+  crateOpens:      (id: string, limit = 50) => request<any[]>(`/api/crates/${id}/opens?limit=${limit}`),
+  crateAllOpens:   (limit = 100) => request<any[]>(`/api/crates/opens?limit=${limit}`),
+  crateStats:      (id: string) => request<any>(`/api/crates/${id}/stats`),
+  crateGiveKey:    (id: string, playerName: string, count: number) =>
+    request<any>(`/api/crates/${id}/key/give`, { method: 'POST', body: JSON.stringify({ playerName, count }) }),
+  cratePlayerKeys: (playerName: string) => request<any>(`/api/crates/keys/${encodeURIComponent(playerName)}`),
+  cratesPlaced:    () => request<any[]>('/api/crates/placed'),
+
+  // Daily Rewards
+  dailyConfig:     () => request<any>('/api/daily/config'),
+  dailySaveConfig: (cfg: any) => request<any>('/api/daily/config', { method: 'PUT', body: JSON.stringify(cfg) }),
+  dailyClaims:     (params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))).toString()
+    return request<any[]>(`/api/daily/claims${qs ? '?' + qs : ''}`)
+  },
+  dailyStats:      (days = 7) => request<any>(`/api/daily/stats?days=${days}`),
+  dailyStreak:     (playerName: string) => request<any>(`/api/daily/streak/${encodeURIComponent(playerName)}`),
+  dailyReset:      (playerName: string) => request<any>(`/api/daily/reset/${encodeURIComponent(playerName)}`, { method: 'POST' }),
 }

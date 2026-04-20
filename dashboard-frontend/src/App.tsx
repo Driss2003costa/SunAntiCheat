@@ -25,6 +25,8 @@ import Honeypot from './pages/Honeypot'
 import Panic from './pages/Panic'
 import Assistant from './pages/Assistant'
 import Users from './pages/Users'
+import Crates from './pages/Crates'
+import DailyRewards from './pages/DailyRewards'
 import { useEffect } from 'react'
 import { applyTheme, useThemeStore } from './stores/themeStore'
 
@@ -67,6 +69,8 @@ export default function App() {
                 <Route path="/panic"         element={<Panic />} />
                 <Route path="/assistant"     element={<Assistant />} />
                 <Route path="/users"         element={<Users />} />
+                <Route path="/crates"        element={<Crates />} />
+                <Route path="/daily-rewards" element={<DailyRewards />} />
                 <Route path="/config"        element={<Config />} />
               </Routes>
             </Layout>

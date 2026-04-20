@@ -13,6 +13,10 @@ import sunanticheat.dashboard.economy.TransactionStore;
 import sunanticheat.dashboard.backup.BackupManager;
 import sunanticheat.dashboard.chat.ToxicChatListener;
 import sunanticheat.dashboard.chat.ToxicChatStore;
+import sunanticheat.dashboard.crates.CrateListener;
+import sunanticheat.dashboard.crates.CrateStore;
+import sunanticheat.dashboard.dailyreward.DailyRewardListener;
+import sunanticheat.dashboard.dailyreward.DailyRewardStore;
 import sunanticheat.dashboard.events.EventCalendarStore;
 import sunanticheat.dashboard.experiments.ExperimentStore;
 import sunanticheat.dashboard.handlers.*;
@@ -64,6 +68,8 @@ public final class DashboardModule {
     private HoneypotStore honeypotStore;
     private PanicMode panicMode;
     private UserStore userStore;
+    private CrateStore crateStore;
+    private DailyRewardStore dailyRewardStore;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -105,6 +111,8 @@ public final class DashboardModule {
         toxicChatStore    = new ToxicChatStore(plugin.getDataFolder(), plugin.getLogger());
         honeypotStore     = new HoneypotStore(plugin.getDataFolder(), plugin.getLogger());
         panicMode         = new PanicMode(plugin, plugin.getLogger());
+        crateStore        = new CrateStore(plugin.getDataFolder(), plugin.getLogger());
+        dailyRewardStore  = new DailyRewardStore(plugin.getDataFolder(), plugin.getLogger());
 
         // ── Recorders ─────────────────────────────────────────────────────────
         analyticsRecorder = new AnalyticsRecorder(plugin, snapshotStore, alertStore);
@@ -142,10 +150,36 @@ public final class DashboardModule {
         ExperimentHandler experimentHandler = new ExperimentHandler(experimentStore);
         AiHandler aiHandler = new AiHandler(plugin);
 
+        // Crates & Daily Rewards
+        CrateListener crateListener = new CrateListener(plugin, crateStore);
+        CrateHandler crateHandler = new CrateHandler(plugin, crateStore, crateListener);
+        DailyRewardListener dailyRewardListener = new DailyRewardListener(plugin, dailyRewardStore, economy);
+        DailyRewardHandler dailyRewardHandler = new DailyRewardHandler(dailyRewardStore);
+
         // Listeners
         Bukkit.getPluginManager().registerEvents(new HoneypotListener(honeypotStore, this::pushAlertRaw), plugin);
         Bukkit.getPluginManager().registerEvents(new ToxicChatListener(plugin, toxicChatStore, this::pushAlertRaw), plugin);
         Bukkit.getPluginManager().registerEvents(new QuestListener(questStore), plugin);
+        Bukkit.getPluginManager().registerEvents(crateListener, plugin);
+        Bukkit.getPluginManager().registerEvents(dailyRewardListener, plugin);
+
+        // Commandes /crate et /daily
+        if (plugin.getCommand("crate") != null) {
+            plugin.getCommand("crate").setExecutor(crateListener);
+        } else {
+            plugin.getLogger().warning("[Dashboard] Commande /crate non enregistrée dans plugin.yml");
+        }
+        if (plugin.getCommand("daily") != null) {
+            plugin.getCommand("daily").setExecutor(dailyRewardListener);
+        } else {
+            plugin.getLogger().warning("[Dashboard] Commande /daily non enregistrée dans plugin.yml");
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("ItemsAdder") != null) {
+            plugin.getLogger().info("[Dashboard] ItemsAdder détecté — support items/blocs custom activé.");
+        } else {
+            plugin.getLogger().info("[Dashboard] ItemsAdder absent — fallback Material + CustomModelData.");
+        }
 
         // ── WebSocket ─────────────────────────────────────────────────────────
         wsServer = new DashboardWsServer(wsPort, jwtUtil, users, plugin.getLogger(),
@@ -163,7 +197,8 @@ public final class DashboardModule {
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
                 taskHandler, pluginHandler, configHandler, rebootHandler, backupHandler,
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
-                questHandler, experimentHandler, aiHandler, userHandler);
+                questHandler, experimentHandler, aiHandler, userHandler,
+                crateHandler, dailyRewardHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -201,6 +236,8 @@ public final class DashboardModule {
         if (experimentStore != null) experimentStore.save();
         if (toxicChatStore != null) toxicChatStore.save();
         if (honeypotStore != null) honeypotStore.save();
+        if (crateStore != null) crateStore.save();
+        // DailyRewardStore persiste automatiquement à chaque modification
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }
 

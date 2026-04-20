@@ -34,6 +34,8 @@ public final class DashboardRouter implements HttpHandler {
     private final ExperimentHandler experimentHandler;
     private final AiHandler aiHandler;
     private final UserHandler userHandler;
+    private final CrateHandler crateHandler;
+    private final DailyRewardHandler dailyRewardHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -54,7 +56,9 @@ public final class DashboardRouter implements HttpHandler {
                            QuestHandler questHandler,
                            ExperimentHandler experimentHandler,
                            AiHandler aiHandler,
-                           UserHandler userHandler) {
+                           UserHandler userHandler,
+                           CrateHandler crateHandler,
+                           DailyRewardHandler dailyRewardHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -75,13 +79,15 @@ public final class DashboardRouter implements HttpHandler {
         this.experimentHandler = experimentHandler;
         this.aiHandler = aiHandler;
         this.userHandler = userHandler;
+        this.crateHandler = crateHandler;
+        this.dailyRewardHandler = dailyRewardHandler;
     }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-            exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
             exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type,Authorization");
             exchange.sendResponseHeaders(204, -1);
             return;
@@ -244,6 +250,28 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/ai/status") && GET(method))  { aiHandler.status(ex, jwt, users); return; }
         if (eq(path, "/api/ai/chat")   && POST(method)) { aiHandler.chat(ex, jwt, users); return; }
 
+        // ── Crates / Lootboxes ────────────────────────────────────────────────
+        // ORDRE CRITIQUE : routes spécifiques AVANT /api/crates/{id}
+        if (eq(path, "/api/crates")                 && GET(method))    { crateHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/crates")                 && POST(method))   { crateHandler.create(ex, jwt, users); return; }
+        if (eq(path, "/api/crates/opens")           && GET(method))    { crateHandler.allOpens(ex, jwt, users); return; }
+        if (eq(path, "/api/crates/placed")          && GET(method))    { crateHandler.listPlaced(ex, jwt, users); return; }
+        if (path.startsWith("/api/crates/keys/")    && GET(method))    { crateHandler.playerKeys(ex, jwt, users, id(path, "/api/crates/keys/")); return; }
+        if (path.startsWith("/api/crates/") && path.endsWith("/opens") && GET(method))     { crateHandler.opens(ex, jwt, users, id(path, "/api/crates/", "/opens")); return; }
+        if (path.startsWith("/api/crates/") && path.endsWith("/stats") && GET(method))     { crateHandler.stats(ex, jwt, users, id(path, "/api/crates/", "/stats")); return; }
+        if (path.startsWith("/api/crates/") && path.endsWith("/key/give") && POST(method)) { crateHandler.giveKey(ex, jwt, users, id(path, "/api/crates/", "/key/give")); return; }
+        if (path.startsWith("/api/crates/")         && GET(method))    { crateHandler.get(ex, jwt, users, id(path, "/api/crates/")); return; }
+        if (path.startsWith("/api/crates/")         && (PUT(method) || PATCH(method))) { crateHandler.update(ex, jwt, users, id(path, "/api/crates/")); return; }
+        if (path.startsWith("/api/crates/")         && DELETE(method)) { crateHandler.delete(ex, jwt, users, id(path, "/api/crates/")); return; }
+
+        // ── Daily Rewards ─────────────────────────────────────────────────────
+        if (eq(path, "/api/daily/config")           && GET(method))    { dailyRewardHandler.getConfig(ex, jwt, users); return; }
+        if (eq(path, "/api/daily/config")           && (PUT(method) || POST(method))) { dailyRewardHandler.saveConfig(ex, jwt, users); return; }
+        if (eq(path, "/api/daily/claims")           && GET(method))    { dailyRewardHandler.listClaims(ex, jwt, users); return; }
+        if (eq(path, "/api/daily/stats")            && GET(method))    { dailyRewardHandler.stats(ex, jwt, users); return; }
+        if (path.startsWith("/api/daily/streak/")   && GET(method))    { dailyRewardHandler.playerStreak(ex, jwt, users, id(path, "/api/daily/streak/")); return; }
+        if (path.startsWith("/api/daily/reset/")    && POST(method))   { dailyRewardHandler.resetStreak(ex, jwt, users, id(path, "/api/daily/reset/")); return; }
+
         // ── Users / Accounts ──────────────────────────────────────────────────
         if (eq(path, "/api/users")                  && GET(method))    { userHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/users")                  && POST(method))   { userHandler.create(ex, jwt, users); return; }
@@ -274,6 +302,7 @@ public final class DashboardRouter implements HttpHandler {
     private static boolean eq(String path, String route) { return route.equals(path); }
     private static boolean GET(String m)    { return "GET".equals(m); }
     private static boolean POST(String m)   { return "POST".equals(m); }
+    private static boolean PUT(String m)    { return "PUT".equals(m); }
     private static boolean PATCH(String m)  { return "PATCH".equals(m); }
     private static boolean DELETE(String m) { return "DELETE".equals(m); }
 

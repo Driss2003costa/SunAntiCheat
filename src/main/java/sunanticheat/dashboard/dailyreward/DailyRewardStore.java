@@ -1,0 +1,250 @@
+package sunanticheat.dashboard.dailyreward;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+
+/**
+ * Persistance de la configuration et de l'\u00e9tat du syst\u00e8me Daily Rewards.
+ */
+public final class DailyRewardStore {
+
+    private static final Gson GSON = new GsonBuilder().serializeNulls().setPrettyPrinting().create();
+    private static final int MAX_CLAIMS = 2000;
+
+    public static class PlayerState {
+        public long lastClaimAt;
+        public int currentStreak;
+    }
+
+    private final Logger logger;
+    private final File configFile;
+    private final File claimsFile;
+    private final File stateFile;
+
+    private DailyRewardConfig config;
+    private final List<DailyRewardClaim> claims = new ArrayList<>();
+    private final Map<String, PlayerState> state = new HashMap<>();
+
+    public DailyRewardStore(File dataFolder, Logger logger) {
+        this.logger = logger;
+        File dir = new File(dataFolder, "dashboard");
+        if (!dir.exists()) dir.mkdirs();
+        this.configFile = new File(dir, "daily_config.json");
+        this.claimsFile = new File(dir, "daily_claims.json");
+        this.stateFile = new File(dir, "daily_state.json");
+        load();
+    }
+
+    public synchronized DailyRewardConfig getConfig() { return config; }
+
+    public synchronized void saveConfig(DailyRewardConfig cfg) {
+        if (cfg == null) return;
+        if (cfg.days == null) cfg.days = new ArrayList<>();
+        if (cfg.cycleDays <= 0) cfg.cycleDays = Math.max(1, cfg.days.size());
+        this.config = cfg;
+        persistAll();
+    }
+
+    public synchronized boolean canClaim(String playerUuid) {
+        if (playerUuid == null) return false;
+        PlayerState st = state.get(playerUuid);
+        if (st == null) return true;
+        long timeSince = System.currentTimeMillis() - st.lastClaimAt;
+        return timeSince > TimeUnit.HOURS.toMillis(20);
+    }
+
+    /** Retourne le num\u00e9ro du prochain jour \u00e0 r\u00e9clamer (1-based). */
+    public synchronized int getStreak(String playerUuid) {
+        if (playerUuid == null || config == null) return 1;
+        PlayerState st = state.get(playerUuid);
+        if (st == null) return 1;
+        long hoursSince = (System.currentTimeMillis() - st.lastClaimAt) / 3600000L;
+        if (hoursSince > 48 && config.resetOnMiss) return 1;
+        int cycle = Math.max(1, config.cycleDays);
+        return (st.currentStreak % cycle) + 1;
+    }
+
+    public synchronized DailyRewardDay claim(String playerUuid, String playerName) {
+        if (playerUuid == null || config == null || !config.enabled) return null;
+        if (!canClaim(playerUuid)) return null;
+        int day = getStreak(playerUuid);
+        DailyRewardDay reward = null;
+        for (DailyRewardDay d : config.days) {
+            if (d != null && d.day == day) { reward = d; break; }
+        }
+        if (reward == null) return null;
+
+        PlayerState st = state.computeIfAbsent(playerUuid, k -> new PlayerState());
+        st.lastClaimAt = System.currentTimeMillis();
+        st.currentStreak = day;
+
+        List<String> given = new ArrayList<>();
+        if (reward.items != null) {
+            for (DailyRewardItem it : reward.items) {
+                if (it == null) continue;
+                String name = it.displayName != null ? it.displayName : it.material;
+                given.add(name + " x" + Math.max(1, it.amount));
+            }
+        }
+        DailyRewardClaim claim = new DailyRewardClaim(playerUuid, playerName, day,
+                st.lastClaimAt, given);
+        claims.add(0, claim);
+        while (claims.size() > MAX_CLAIMS) claims.remove(claims.size() - 1);
+
+        persistAll();
+        return reward;
+    }
+
+    public synchronized List<DailyRewardClaim> listClaims(String playerName, int days, int limit) {
+        long cutoff = days > 0
+                ? System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days)
+                : 0L;
+        List<DailyRewardClaim> out = new ArrayList<>();
+        for (DailyRewardClaim c : claims) {
+            if (c == null) continue;
+            if (c.claimedAt < cutoff) continue;
+            if (playerName != null && !playerName.isEmpty()
+                    && !playerName.equalsIgnoreCase(c.playerName)) continue;
+            out.add(c);
+            if (out.size() >= Math.max(1, limit)) break;
+        }
+        return out;
+    }
+
+    public synchronized Map<String, Object> statsOverDays(int days) {
+        int d = Math.max(1, days);
+        long cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(d);
+
+        List<DailyRewardClaim> window = new ArrayList<>();
+        for (DailyRewardClaim c : claims) if (c != null && c.claimedAt >= cutoff) window.add(c);
+
+        int total = window.size();
+        java.util.Set<String> uniqueUuids = new java.util.HashSet<>();
+        Map<String, Integer> claimsPerDayMap = new TreeMap<>();
+        Map<Integer, Integer> claimsByDay = new LinkedHashMap<>();
+        Map<String, int[]> perPlayer = new HashMap<>(); // uuid -> [count]
+        Map<String, String> nameByUuid = new HashMap<>();
+
+        for (DailyRewardClaim c : window) {
+            if (c.playerUuid != null) uniqueUuids.add(c.playerUuid);
+            String dateKey = ZonedDateTime.ofInstant(
+                    java.time.Instant.ofEpochMilli(c.claimedAt), ZoneId.systemDefault())
+                    .toLocalDate().toString();
+            claimsPerDayMap.merge(dateKey, 1, Integer::sum);
+            claimsByDay.merge(c.day, 1, Integer::sum);
+            if (c.playerUuid != null) {
+                perPlayer.computeIfAbsent(c.playerUuid, k -> new int[]{0})[0]++;
+                if (c.playerName != null) nameByUuid.put(c.playerUuid, c.playerName);
+            }
+        }
+
+        List<Map<String, Object>> claimsPerDay = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : claimsPerDayMap.entrySet()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("date", e.getKey());
+            m.put("count", e.getValue());
+            claimsPerDay.add(m);
+        }
+
+        List<Map<String, Object>> topClaimers = new ArrayList<>();
+        List<Map.Entry<String, int[]>> sorted = new ArrayList<>(perPlayer.entrySet());
+        sorted.sort((a, b) -> Integer.compare(b.getValue()[0], a.getValue()[0]));
+        for (int i = 0; i < Math.min(10, sorted.size()); i++) {
+            Map.Entry<String, int[]> e = sorted.get(i);
+            Map<String, Object> m = new LinkedHashMap<>();
+            String uuid = e.getKey();
+            PlayerState st = state.get(uuid);
+            m.put("playerName", nameByUuid.getOrDefault(uuid, uuid));
+            m.put("playerUuid", uuid);
+            m.put("currentStreak", st == null ? 0 : st.currentStreak);
+            m.put("totalClaims", e.getValue()[0]);
+            topClaimers.add(m);
+        }
+
+        double avgStreak = 0.0;
+        if (!state.isEmpty()) {
+            long sum = 0L;
+            for (PlayerState st : state.values()) sum += st == null ? 0 : st.currentStreak;
+            avgStreak = (double) sum / state.size();
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("totalClaims", total);
+        out.put("uniquePlayers", uniqueUuids.size());
+        out.put("claimsPerDay", claimsPerDay);
+        out.put("claimsByDay", claimsByDay);
+        out.put("topClaimers", topClaimers);
+        out.put("avgStreak", avgStreak);
+        return out;
+    }
+
+    public synchronized void resetPlayerStreak(String playerUuid) {
+        if (playerUuid == null) return;
+        state.remove(playerUuid);
+        persistAll();
+    }
+
+    public synchronized PlayerState getPlayerState(String playerUuid) {
+        if (playerUuid == null) return null;
+        return state.get(playerUuid);
+    }
+
+    // ── Persist ───────────────────────────────────────────────────────────────
+
+    private void persistAll() {
+        try {
+            Files.writeString(configFile.toPath(), GSON.toJson(config), StandardCharsets.UTF_8);
+            Files.writeString(claimsFile.toPath(), GSON.toJson(claims), StandardCharsets.UTF_8);
+            Files.writeString(stateFile.toPath(), GSON.toJson(state), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            logger.warning("[Dashboard/DailyReward] save fail: " + e.getMessage());
+        }
+    }
+
+    private void load() {
+        try {
+            if (configFile.exists()) {
+                config = GSON.fromJson(
+                        Files.readString(configFile.toPath(), StandardCharsets.UTF_8),
+                        DailyRewardConfig.class);
+            }
+            if (config == null) {
+                config = DailyRewardConfig.createDefault();
+            }
+            if (config.days == null) config.days = new ArrayList<>();
+
+            if (claimsFile.exists()) {
+                Type t = new TypeToken<List<DailyRewardClaim>>(){}.getType();
+                List<DailyRewardClaim> list = GSON.fromJson(
+                        Files.readString(claimsFile.toPath(), StandardCharsets.UTF_8), t);
+                if (list != null) claims.addAll(list);
+            }
+            if (stateFile.exists()) {
+                Type t = new TypeToken<Map<String, PlayerState>>(){}.getType();
+                Map<String, PlayerState> m = GSON.fromJson(
+                        Files.readString(stateFile.toPath(), StandardCharsets.UTF_8), t);
+                if (m != null) state.putAll(m);
+            }
+        } catch (Exception e) {
+            logger.warning("[Dashboard/DailyReward] load fail: " + e.getMessage());
+            if (config == null) config = DailyRewardConfig.createDefault();
+        }
+    }
+}
