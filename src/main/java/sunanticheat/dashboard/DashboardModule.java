@@ -28,6 +28,11 @@ import sunanticheat.dashboard.honeypot.HoneypotStore;
 import sunanticheat.dashboard.shop.ShopEconomyListener;
 import sunanticheat.dashboard.shop.ShopStore;
 import sunanticheat.dashboard.shop.ShopSyncService;
+import sunanticheat.dashboard.vip.PayPalService;
+import sunanticheat.dashboard.vip.StripeService;
+import sunanticheat.dashboard.vip.VipActivationService;
+import sunanticheat.dashboard.vip.VipExpirationScheduler;
+import sunanticheat.dashboard.vip.VipStore;
 import sunanticheat.dashboard.panic.PanicMode;
 import sunanticheat.dashboard.quests.QuestListener;
 import sunanticheat.dashboard.quests.QuestStore;
@@ -80,6 +85,8 @@ public final class DashboardModule {
     private AnnouncementService announcementService;
     private ShopStore shopStore;
     private ShopSyncService shopSyncService;
+    private VipStore vipStore;
+    private VipExpirationScheduler vipScheduler;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -128,6 +135,7 @@ public final class DashboardModule {
         announcementService.start();
         shopStore = new ShopStore(plugin.getDataFolder(), plugin.getLogger());
         shopSyncService = new ShopSyncService(plugin, shopStore, plugin.getLogger());
+        vipStore = new VipStore(plugin.getDataFolder(), plugin.getLogger());
 
         // ── Recorders ─────────────────────────────────────────────────────────
         analyticsRecorder = new AnalyticsRecorder(plugin, snapshotStore, alertStore);
@@ -185,6 +193,23 @@ public final class DashboardModule {
             plugin.getLogger().info("[Dashboard] LuckPerms absent — gestion des rangs désactivée.");
         }
 
+        // VIP / Subscriptions (Stripe + PayPal)
+        StripeService stripeService = new StripeService(plugin, plugin.getLogger());
+        PayPalService payPalService = new PayPalService(plugin, plugin.getLogger());
+        VipActivationService vipActivation = new VipActivationService(plugin, vipStore, plugin.getLogger());
+        vipScheduler = new VipExpirationScheduler(plugin, vipStore, vipActivation, plugin.getLogger());
+        vipScheduler.start();
+        VipHandler vipHandler = new VipHandler(plugin, vipStore, vipActivation, stripeService, payPalService);
+        VipPublicHandler vipPublicHandler = new VipPublicHandler(plugin, vipStore, vipActivation, stripeService, payPalService, plugin.getLogger());
+
+        boolean stripeConfigured = !cfg.getString("vip.stripe.secret-key", "").isBlank();
+        boolean paypalConfigured = !cfg.getString("vip.paypal.client-id", "").isBlank();
+        if (stripeConfigured) plugin.getLogger().info("[Dashboard] Stripe configuré — paiements VIP activés.");
+        if (paypalConfigured) plugin.getLogger().info("[Dashboard] PayPal configuré — paiements VIP activés.");
+        if (!stripeConfigured && !paypalConfigured) {
+            plugin.getLogger().info("[Dashboard] VIP : aucune passerelle de paiement configurée (vip.stripe.* / vip.paypal.* dans config.yml).");
+        }
+
         // Shop Manager (EconomyShopGUI sync)
         ShopHandler shopHandler = new ShopHandler(plugin, shopStore, shopSyncService);
         if (Bukkit.getPluginManager().getPlugin("EconomyShopGUI") != null
@@ -238,7 +263,7 @@ public final class DashboardModule {
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
-                shopHandler);
+                shopHandler, vipHandler, vipPublicHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -281,6 +306,8 @@ public final class DashboardModule {
         if (announcementService != null) announcementService.stop();
         if (announcementStore != null) announcementStore.save();
         if (shopStore != null) shopStore.save();
+        if (vipScheduler != null) vipScheduler.stop();
+        if (vipStore != null) vipStore.save();
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }
 

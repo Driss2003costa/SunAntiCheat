@@ -245,4 +245,37 @@ export const api = {
   },
   shopStats:       (shopId: string, days = 7) => request<any>(`/api/shops/${shopId}/stats?days=${days}`),
   shopsGlobalStats:(days = 7) => request<any>(`/api/shops/stats?days=${days}`),
+
+  // VIP / Subscriptions (admin)
+  vipPlans:        () => request<any[]>('/api/vip/plans'),
+  vipCreatePlan:   (data: any) => request<any>('/api/vip/plans', { method: 'POST', body: JSON.stringify(data) }),
+  vipUpdatePlan:   (id: string, data: any) => request<any>(`/api/vip/plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  vipDeletePlan:   (id: string) => request<any>(`/api/vip/plans/${id}`, { method: 'DELETE' }),
+  vipSubscriptions:(params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))).toString()
+    return request<any[]>(`/api/vip/subscriptions${qs ? '?' + qs : ''}`)
+  },
+  vipGetSubscription: (id: string) => request<any>(`/api/vip/subscriptions/${id}`),
+  vipExtend:       (id: string, days: number) =>
+    request<any>(`/api/vip/subscriptions/${id}/extend`, { method: 'POST', body: JSON.stringify({ days }) }),
+  vipRevoke:       (id: string, reason: string) =>
+    request<any>(`/api/vip/subscriptions/${id}/revoke`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  vipGift:         (playerName: string, planId: string) =>
+    request<any>('/api/vip/gift', { method: 'POST', body: JSON.stringify({ playerName, planId }) }),
+  vipTransactions: (days = 30, limit = 200) => request<any[]>(`/api/vip/transactions?days=${days}&limit=${limit}`),
+  vipStats:        (days = 30) => request<any>(`/api/vip/stats?days=${days}`),
+  vipGateways:     () => request<any>('/api/vip/gateways/status'),
+
+  // VIP — endpoints publics (pas d'auth, pour la page /buy)
+  vipPublicPlans:  () => fetch('/api/public/vip/plans').then(r => r.json()) as Promise<any[]>,
+  vipPublicCheckout: (planId: string, playerName: string, gateway: 'STRIPE' | 'PAYPAL') =>
+    fetch('/api/public/vip/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId, playerName, gateway }),
+    }).then(async r => {
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || r.statusText)
+      return data as { redirectUrl: string }
+    }),
 }

@@ -38,6 +38,7 @@ const NAV_CATEGORIES = [
       { to: '/economy',      label: 'Économie',        icon: '💵' },
       { to: '/economy/shop', label: 'Shop Tracking',   icon: '📈' },
       { to: '/shops',        label: 'Shops (éditeur)', icon: '🛒' },
+      { to: '/vip',          label: 'VIP & Subs',      icon: '👑' },
     ],
   },
   {

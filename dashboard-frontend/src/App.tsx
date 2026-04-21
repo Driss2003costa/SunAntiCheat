@@ -30,6 +30,8 @@ import DailyRewards from './pages/DailyRewards'
 import Announcements from './pages/Announcements'
 import Ranks from './pages/Ranks'
 import Shops from './pages/Shops'
+import Vip from './pages/Vip'
+import Buy from './pages/Buy'
 import { useEffect } from 'react'
 import { applyTheme, useThemeStore } from './stores/themeStore'
 
@@ -46,6 +48,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/buy"   element={<Buy />} />
         <Route path="/*" element={
           <Protected>
             <Layout>
@@ -77,6 +80,7 @@ export default function App() {
                 <Route path="/announcements" element={<Announcements />} />
                 <Route path="/ranks"         element={<Ranks />} />
                 <Route path="/shops"         element={<Shops />} />
+                <Route path="/vip"           element={<Vip />} />
                 <Route path="/config"        element={<Config />} />
               </Routes>
             </Layout>

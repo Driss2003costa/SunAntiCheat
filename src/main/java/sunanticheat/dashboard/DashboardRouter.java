@@ -39,6 +39,8 @@ public final class DashboardRouter implements HttpHandler {
     private final AnnouncementHandler announcementHandler;
     private final LuckPermsHandler luckPermsHandler;
     private final ShopHandler shopHandler;
+    private final VipHandler vipHandler;
+    private final VipPublicHandler vipPublicHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -64,7 +66,9 @@ public final class DashboardRouter implements HttpHandler {
                            DailyRewardHandler dailyRewardHandler,
                            AnnouncementHandler announcementHandler,
                            LuckPermsHandler luckPermsHandler,
-                           ShopHandler shopHandler) {
+                           ShopHandler shopHandler,
+                           VipHandler vipHandler,
+                           VipPublicHandler vipPublicHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -90,6 +94,8 @@ public final class DashboardRouter implements HttpHandler {
         this.announcementHandler = announcementHandler;
         this.luckPermsHandler = luckPermsHandler;
         this.shopHandler = shopHandler;
+        this.vipHandler = vipHandler;
+        this.vipPublicHandler = vipPublicHandler;
     }
 
     @Override
@@ -106,6 +112,14 @@ public final class DashboardRouter implements HttpHandler {
         String method = exchange.getRequestMethod();
 
         try {
+            // ── Routes 100% publiques (webhooks Stripe/PayPal, page de vente publique) ──
+            // PAS d'auth, PAS de pare-feu VIEWER. Ces handlers gèrent eux-mêmes
+            // la sécurité (signature webhook, rate-limit IP).
+            if (path.startsWith("/api/public/")) {
+                dispatch(exchange, path, method);
+                return;
+            }
+
             // ── Pare-feu VIEWER ────────────────────────────────────────────────
             // Les VIEWER ne peuvent pas effectuer d'actions d'écriture,
             // sauf les routes explicitement autorisées ci-dessous.
@@ -338,6 +352,26 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/shops/") && GET(method))    { shopHandler.get(ex, jwt, users, id(path, "/api/shops/")); return; }
         if (path.startsWith("/api/shops/") && (PUT(method) || PATCH(method))) { shopHandler.update(ex, jwt, users, id(path, "/api/shops/")); return; }
         if (path.startsWith("/api/shops/") && DELETE(method)) { shopHandler.delete(ex, jwt, users, id(path, "/api/shops/")); return; }
+
+        // ── VIP / Subscriptions (ADMIN/MOD) ──────────────────────────────────
+        if (eq(path, "/api/vip/plans")              && GET(method))    { vipHandler.listPlans(ex, jwt, users); return; }
+        if (eq(path, "/api/vip/plans")              && POST(method))   { vipHandler.createPlan(ex, jwt, users); return; }
+        if (path.startsWith("/api/vip/plans/")      && (PUT(method) || PATCH(method))) { vipHandler.updatePlan(ex, jwt, users, id(path, "/api/vip/plans/")); return; }
+        if (path.startsWith("/api/vip/plans/")      && DELETE(method)) { vipHandler.deletePlan(ex, jwt, users, id(path, "/api/vip/plans/")); return; }
+        if (eq(path, "/api/vip/subscriptions")      && GET(method))    { vipHandler.listSubscriptions(ex, jwt, users); return; }
+        if (path.startsWith("/api/vip/subscriptions/") && path.endsWith("/extend") && POST(method)) { vipHandler.extend(ex, jwt, users, id(path, "/api/vip/subscriptions/", "/extend")); return; }
+        if (path.startsWith("/api/vip/subscriptions/") && path.endsWith("/revoke") && POST(method)) { vipHandler.revoke(ex, jwt, users, id(path, "/api/vip/subscriptions/", "/revoke")); return; }
+        if (path.startsWith("/api/vip/subscriptions/") && GET(method)) { vipHandler.getSubscription(ex, jwt, users, id(path, "/api/vip/subscriptions/")); return; }
+        if (eq(path, "/api/vip/gift")               && POST(method))   { vipHandler.gift(ex, jwt, users); return; }
+        if (eq(path, "/api/vip/transactions")       && GET(method))    { vipHandler.listTransactions(ex, jwt, users); return; }
+        if (eq(path, "/api/vip/stats")              && GET(method))    { vipHandler.stats(ex, jwt, users); return; }
+        if (eq(path, "/api/vip/gateways/status")    && GET(method))    { vipHandler.gatewaysStatus(ex, jwt, users); return; }
+
+        // ── VIP routes PUBLIQUES (sans auth — webhooks + page d'achat) ───────
+        if (eq(path, "/api/public/vip/plans")           && GET(method))   { vipPublicHandler.listPublicPlans(ex); return; }
+        if (eq(path, "/api/public/vip/checkout")        && POST(method))  { vipPublicHandler.createCheckout(ex); return; }
+        if (eq(path, "/api/public/vip/webhook/stripe")  && POST(method))  { vipPublicHandler.stripeWebhook(ex); return; }
+        if (eq(path, "/api/public/vip/webhook/paypal")  && POST(method))  { vipPublicHandler.paypalWebhook(ex); return; }
 
         // ── Users / Accounts ──────────────────────────────────────────────────
         if (eq(path, "/api/users")                  && GET(method))    { userHandler.list(ex, jwt, users); return; }

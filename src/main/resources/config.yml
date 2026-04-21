@@ -245,3 +245,33 @@ first-join:
   commands:
     - "mvtp spawn %player%"
     - "say Bienvenue %player%"
+
+# ── VIP / Subscriptions (Stripe + PayPal) ──────────────────────────────────
+# Configurez les clés API pour activer les paiements depuis le dashboard.
+# Sans ces clés, le système VIP fonctionne en mode "gift admin" uniquement.
+vip:
+  # URLs de redirection après paiement (mettre votre domaine public en prod)
+  success-url: "http://localhost:8765/buy?success=true"
+  cancel-url: "http://localhost:8765/buy?cancelled=true"
+  # Webhook Discord pour notifier les achats (optionnel)
+  discord-webhook: ""
+
+  stripe:
+    # Clé secrète depuis https://dashboard.stripe.com/apikeys
+    # sk_test_... pour le mode test, sk_live_... pour la prod
+    secret-key: ""
+    # Webhook signing secret (créer un endpoint sur https://dashboard.stripe.com/webhooks
+    # pointant vers https://votre-domaine/api/public/vip/webhook/stripe
+    # Events à activer : checkout.session.completed, charge.refunded
+    webhook-secret: ""
+    currency: "eur"
+
+  paypal:
+    # Credentials depuis https://developer.paypal.com/dashboard/applications
+    client-id: ""
+    client-secret: ""
+    # Webhook ID (créer un webhook pointant vers /api/public/vip/webhook/paypal
+    # Events : PAYMENT.CAPTURE.COMPLETED, PAYMENT.CAPTURE.REFUNDED)
+    webhook-id: ""
+    # "sandbox" pour test, "live" pour la prod
+    mode: "sandbox"
