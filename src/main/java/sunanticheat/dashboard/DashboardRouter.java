@@ -36,6 +36,7 @@ public final class DashboardRouter implements HttpHandler {
     private final UserHandler userHandler;
     private final CrateHandler crateHandler;
     private final DailyRewardHandler dailyRewardHandler;
+    private final ShopLibraryHandler shopLibraryHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -58,7 +59,8 @@ public final class DashboardRouter implements HttpHandler {
                            AiHandler aiHandler,
                            UserHandler userHandler,
                            CrateHandler crateHandler,
-                           DailyRewardHandler dailyRewardHandler) {
+                           DailyRewardHandler dailyRewardHandler,
+                           ShopLibraryHandler shopLibraryHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -81,6 +83,7 @@ public final class DashboardRouter implements HttpHandler {
         this.userHandler = userHandler;
         this.crateHandler = crateHandler;
         this.dailyRewardHandler = dailyRewardHandler;
+        this.shopLibraryHandler = shopLibraryHandler;
     }
 
     @Override
@@ -271,6 +274,14 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/daily/stats")            && GET(method))    { dailyRewardHandler.stats(ex, jwt, users); return; }
         if (path.startsWith("/api/daily/streak/")   && GET(method))    { dailyRewardHandler.playerStreak(ex, jwt, users, id(path, "/api/daily/streak/")); return; }
         if (path.startsWith("/api/daily/reset/")    && POST(method))   { dailyRewardHandler.resetStreak(ex, jwt, users, id(path, "/api/daily/reset/")); return; }
+
+        // ── Shop Library (Vanilla + Modded) ───────────────────────────────────
+        if (eq(path, "/api/shop/library/providers") && GET(method))  { shopLibraryHandler.providers(ex, jwt, users); return; }
+        if (eq(path, "/api/shop/library/modded")    && GET(method))  { shopLibraryHandler.modded(ex, jwt, users); return; }
+        if (eq(path, "/api/shop/library/match")     && POST(method)) { shopLibraryHandler.match(ex, jwt, users); return; }
+        if (path.startsWith("/api/shop/library/player/") && GET(method)) {
+            shopLibraryHandler.playerInventory(ex, jwt, users, id(path, "/api/shop/library/player/")); return;
+        }
 
         // ── Users / Accounts ──────────────────────────────────────────────────
         if (eq(path, "/api/users")                  && GET(method))    { userHandler.list(ex, jwt, users); return; }

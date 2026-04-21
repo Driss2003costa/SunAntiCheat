@@ -27,6 +27,7 @@ import sunanticheat.dashboard.quests.QuestListener;
 import sunanticheat.dashboard.quests.QuestStore;
 import sunanticheat.dashboard.auth.UserStore;
 import sunanticheat.dashboard.reboot.RebootScheduler;
+import sunanticheat.dashboard.shop.ModdedItemBridge;
 import sunanticheat.dashboard.tasks.ScheduledTaskStore;
 import sunanticheat.dashboard.ws.ConsoleLogCapture;
 import sunanticheat.dashboard.ws.DashboardWsServer;
@@ -70,6 +71,7 @@ public final class DashboardModule {
     private UserStore userStore;
     private CrateStore crateStore;
     private DailyRewardStore dailyRewardStore;
+    private ModdedItemBridge moddedItemBridge;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -113,6 +115,7 @@ public final class DashboardModule {
         panicMode         = new PanicMode(plugin, plugin.getLogger());
         crateStore        = new CrateStore(plugin.getDataFolder(), plugin.getLogger());
         dailyRewardStore  = new DailyRewardStore(plugin.getDataFolder(), plugin.getLogger());
+        moddedItemBridge  = new ModdedItemBridge(plugin.getLogger());
 
         // ── Recorders ─────────────────────────────────────────────────────────
         analyticsRecorder = new AnalyticsRecorder(plugin, snapshotStore, alertStore);
@@ -155,6 +158,7 @@ public final class DashboardModule {
         CrateHandler crateHandler = new CrateHandler(plugin, crateStore, crateListener);
         DailyRewardListener dailyRewardListener = new DailyRewardListener(plugin, dailyRewardStore, economy);
         DailyRewardHandler dailyRewardHandler = new DailyRewardHandler(dailyRewardStore);
+        ShopLibraryHandler shopLibraryHandler = new ShopLibraryHandler(moddedItemBridge);
 
         // Listeners
         Bukkit.getPluginManager().registerEvents(new HoneypotListener(honeypotStore, this::pushAlertRaw), plugin);
@@ -198,7 +202,7 @@ public final class DashboardModule {
                 taskHandler, pluginHandler, configHandler, rebootHandler, backupHandler,
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
-                crateHandler, dailyRewardHandler);
+                crateHandler, dailyRewardHandler, shopLibraryHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
