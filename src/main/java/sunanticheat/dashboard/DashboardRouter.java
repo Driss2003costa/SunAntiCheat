@@ -38,6 +38,7 @@ public final class DashboardRouter implements HttpHandler {
     private final DailyRewardHandler dailyRewardHandler;
     private final AnnouncementHandler announcementHandler;
     private final LuckPermsHandler luckPermsHandler;
+    private final ShopHandler shopHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -62,7 +63,8 @@ public final class DashboardRouter implements HttpHandler {
                            CrateHandler crateHandler,
                            DailyRewardHandler dailyRewardHandler,
                            AnnouncementHandler announcementHandler,
-                           LuckPermsHandler luckPermsHandler) {
+                           LuckPermsHandler luckPermsHandler,
+                           ShopHandler shopHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -87,6 +89,7 @@ public final class DashboardRouter implements HttpHandler {
         this.dailyRewardHandler = dailyRewardHandler;
         this.announcementHandler = announcementHandler;
         this.luckPermsHandler = luckPermsHandler;
+        this.shopHandler = shopHandler;
     }
 
     @Override
@@ -310,6 +313,31 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/luckperms/player/") && GET(method))    {
             luckPermsHandler.playerInfo(ex, jwt, users, id(path, "/api/luckperms/player/")); return;
         }
+
+        // ── Shops / EconomyShopGUI sync ──────────────────────────────────────
+        // ORDRE CRITIQUE : routes spécifiques AVANT /api/shops/{id}
+        if (eq(path, "/api/shops")                  && GET(method))    { shopHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/shops")                  && POST(method))   { shopHandler.create(ex, jwt, users); return; }
+        if (eq(path, "/api/shops/stats")            && GET(method))    { shopHandler.globalStats(ex, jwt, users); return; }
+        if (eq(path, "/api/shops/esg-status")       && GET(method))    { shopHandler.esgStatus(ex, jwt, users); return; }
+        if (eq(path, "/api/shops/sync")             && POST(method))   { shopHandler.sync(ex, jwt, users); return; }
+        if (eq(path, "/api/shops/import-esg")       && POST(method))   { shopHandler.importFromESG(ex, jwt, users); return; }
+        if (path.matches("/api/shops/[^/]+/items/[^/]+") && PUT(method)) {
+            String rest = path.substring("/api/shops/".length());
+            int s = rest.indexOf("/items/");
+            shopHandler.updateItem(ex, jwt, users, rest.substring(0, s), rest.substring(s + "/items/".length())); return;
+        }
+        if (path.matches("/api/shops/[^/]+/items/[^/]+") && DELETE(method)) {
+            String rest = path.substring("/api/shops/".length());
+            int s = rest.indexOf("/items/");
+            shopHandler.removeItem(ex, jwt, users, rest.substring(0, s), rest.substring(s + "/items/".length())); return;
+        }
+        if (path.startsWith("/api/shops/") && path.endsWith("/items") && POST(method))  { shopHandler.addItem(ex, jwt, users, id(path, "/api/shops/", "/items")); return; }
+        if (path.startsWith("/api/shops/") && path.endsWith("/transactions") && GET(method)) { shopHandler.transactions(ex, jwt, users, id(path, "/api/shops/", "/transactions")); return; }
+        if (path.startsWith("/api/shops/") && path.endsWith("/stats") && GET(method))   { shopHandler.stats(ex, jwt, users, id(path, "/api/shops/", "/stats")); return; }
+        if (path.startsWith("/api/shops/") && GET(method))    { shopHandler.get(ex, jwt, users, id(path, "/api/shops/")); return; }
+        if (path.startsWith("/api/shops/") && (PUT(method) || PATCH(method))) { shopHandler.update(ex, jwt, users, id(path, "/api/shops/")); return; }
+        if (path.startsWith("/api/shops/") && DELETE(method)) { shopHandler.delete(ex, jwt, users, id(path, "/api/shops/")); return; }
 
         // ── Users / Accounts ──────────────────────────────────────────────────
         if (eq(path, "/api/users")                  && GET(method))    { userHandler.list(ex, jwt, users); return; }

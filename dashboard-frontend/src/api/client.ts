@@ -223,4 +223,26 @@ export const api = {
   lpSetPrimary:    (playerName: string, group: string) =>
     request<any>(`/api/luckperms/player/${encodeURIComponent(playerName)}/primary`, { method: 'PUT', body: JSON.stringify({ group }) }),
   lpOnline:        () => request<any[]>('/api/luckperms/online'),
+
+  // Shops (EconomyShopGUI sync)
+  shopsList:       () => request<any[]>('/api/shops'),
+  shopGet:         (id: string) => request<any>(`/api/shops/${id}`),
+  shopCreate:      (data: any) => request<any>('/api/shops', { method: 'POST', body: JSON.stringify(data) }),
+  shopUpdate:      (id: string, data: any) => request<any>(`/api/shops/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  shopDelete:      (id: string) => request<any>(`/api/shops/${id}`, { method: 'DELETE' }),
+  shopAddItem:     (shopId: string, item: any) =>
+    request<any>(`/api/shops/${shopId}/items`, { method: 'POST', body: JSON.stringify(item) }),
+  shopUpdateItem:  (shopId: string, itemId: string, item: any) =>
+    request<any>(`/api/shops/${shopId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(item) }),
+  shopRemoveItem:  (shopId: string, itemId: string) =>
+    request<any>(`/api/shops/${shopId}/items/${itemId}`, { method: 'DELETE' }),
+  shopSync:        () => request<any>('/api/shops/sync', { method: 'POST' }),
+  shopImportESG:   () => request<any[]>('/api/shops/import-esg', { method: 'POST' }),
+  shopEsgStatus:   () => request<any>('/api/shops/esg-status'),
+  shopTransactions:(shopId: string, params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))).toString()
+    return request<any[]>(`/api/shops/${shopId}/transactions${qs ? '?' + qs : ''}`)
+  },
+  shopStats:       (shopId: string, days = 7) => request<any>(`/api/shops/${shopId}/stats?days=${days}`),
+  shopsGlobalStats:(days = 7) => request<any>(`/api/shops/stats?days=${days}`),
 }

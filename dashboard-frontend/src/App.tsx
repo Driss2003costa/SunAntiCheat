@@ -29,6 +29,7 @@ import Crates from './pages/Crates'
 import DailyRewards from './pages/DailyRewards'
 import Announcements from './pages/Announcements'
 import Ranks from './pages/Ranks'
+import Shops from './pages/Shops'
 import { useEffect } from 'react'
 import { applyTheme, useThemeStore } from './stores/themeStore'
 
@@ -75,6 +76,7 @@ export default function App() {
                 <Route path="/daily-rewards" element={<DailyRewards />} />
                 <Route path="/announcements" element={<Announcements />} />
                 <Route path="/ranks"         element={<Ranks />} />
+                <Route path="/shops"         element={<Shops />} />
                 <Route path="/config"        element={<Config />} />
               </Routes>
             </Layout>

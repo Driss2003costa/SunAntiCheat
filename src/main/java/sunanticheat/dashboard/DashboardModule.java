@@ -25,6 +25,9 @@ import sunanticheat.dashboard.experiments.ExperimentStore;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
 import sunanticheat.dashboard.honeypot.HoneypotStore;
+import sunanticheat.dashboard.shop.ShopEconomyListener;
+import sunanticheat.dashboard.shop.ShopStore;
+import sunanticheat.dashboard.shop.ShopSyncService;
 import sunanticheat.dashboard.panic.PanicMode;
 import sunanticheat.dashboard.quests.QuestListener;
 import sunanticheat.dashboard.quests.QuestStore;
@@ -75,6 +78,8 @@ public final class DashboardModule {
     private DailyRewardStore dailyRewardStore;
     private AnnouncementStore announcementStore;
     private AnnouncementService announcementService;
+    private ShopStore shopStore;
+    private ShopSyncService shopSyncService;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -121,6 +126,8 @@ public final class DashboardModule {
         announcementStore = new AnnouncementStore(plugin.getDataFolder(), plugin.getLogger());
         announcementService = new AnnouncementService(plugin, announcementStore, plugin.getLogger());
         announcementService.start();
+        shopStore = new ShopStore(plugin.getDataFolder(), plugin.getLogger());
+        shopSyncService = new ShopSyncService(plugin, shopStore, plugin.getLogger());
 
         // ── Recorders ─────────────────────────────────────────────────────────
         analyticsRecorder = new AnalyticsRecorder(plugin, snapshotStore, alertStore);
@@ -178,6 +185,16 @@ public final class DashboardModule {
             plugin.getLogger().info("[Dashboard] LuckPerms absent — gestion des rangs désactivée.");
         }
 
+        // Shop Manager (EconomyShopGUI sync)
+        ShopHandler shopHandler = new ShopHandler(plugin, shopStore, shopSyncService);
+        if (Bukkit.getPluginManager().getPlugin("EconomyShopGUI") != null
+                || Bukkit.getPluginManager().getPlugin("EconomyShopGUI-Premium") != null) {
+            Bukkit.getPluginManager().registerEvents(new ShopEconomyListener(shopStore, plugin.getLogger()), plugin);
+            plugin.getLogger().info("[Dashboard] EconomyShopGUI détecté — sync shops et tracking transactions activés.");
+        } else {
+            plugin.getLogger().info("[Dashboard] EconomyShopGUI absent — sync shops désactivé.");
+        }
+
         // Listeners
         Bukkit.getPluginManager().registerEvents(new HoneypotListener(honeypotStore, this::pushAlertRaw), plugin);
         Bukkit.getPluginManager().registerEvents(new ToxicChatListener(plugin, toxicChatStore, this::pushAlertRaw), plugin);
@@ -220,7 +237,8 @@ public final class DashboardModule {
                 taskHandler, pluginHandler, configHandler, rebootHandler, backupHandler,
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
-                crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler);
+                crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
+                shopHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -262,6 +280,7 @@ public final class DashboardModule {
         // DailyRewardStore persiste automatiquement à chaque modification
         if (announcementService != null) announcementService.stop();
         if (announcementStore != null) announcementStore.save();
+        if (shopStore != null) shopStore.save();
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }
 
