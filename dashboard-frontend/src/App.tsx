@@ -27,6 +27,8 @@ import Assistant from './pages/Assistant'
 import Users from './pages/Users'
 import Crates from './pages/Crates'
 import DailyRewards from './pages/DailyRewards'
+import Announcements from './pages/Announcements'
+import Ranks from './pages/Ranks'
 import { useEffect } from 'react'
 import { applyTheme, useThemeStore } from './stores/themeStore'
 
@@ -71,6 +73,8 @@ export default function App() {
                 <Route path="/users"         element={<Users />} />
                 <Route path="/crates"        element={<Crates />} />
                 <Route path="/daily-rewards" element={<DailyRewards />} />
+                <Route path="/announcements" element={<Announcements />} />
+                <Route path="/ranks"         element={<Ranks />} />
                 <Route path="/config"        element={<Config />} />
               </Routes>
             </Layout>

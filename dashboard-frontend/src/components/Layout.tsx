@@ -57,6 +57,7 @@ const NAV_CATEGORIES = [
       { to: '/quests',       label: 'Quêtes',          icon: '🎯' },
       { to: '/crates',       label: 'Lootboxes',       icon: '📦' },
       { to: '/daily-rewards',label: 'Daily Rewards',    icon: '🎁' },
+      { to: '/announcements',label: 'Annonces',         icon: '📢' },
     ],
   },
   {
@@ -70,6 +71,7 @@ const NAV_CATEGORIES = [
       { to: '/reboot',       label: 'Reboot',          icon: '🔄' },
       { to: '/backups',      label: 'Sauvegardes',     icon: '💾' },
       { to: '/users',        label: 'Comptes & Rôles', icon: '👤' },
+      { to: '/ranks',        label: 'Rangs LuckPerms', icon: '🎖️' },
       { to: '/config',       label: 'Paramètres',      icon: '🔧' },
     ],
   },

@@ -23,14 +23,14 @@ function formatUptime(ms: number) {
 
 // ── Quick action shortcuts ────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
-  { label: 'Console',     icon: '⌨️', to: '/console',     color: '#7C3AED' },
-  { label: 'Joueurs',     icon: '👥', to: '/players',     color: '#3B82F6' },
-  { label: 'Sanctions',   icon: '⚖️', to: '/sanctions',   color: '#EF4444' },
-  { label: 'Events',      icon: '📅', to: '/events',      color: '#F59E0B' },
-  { label: 'Quêtes',      icon: '🎯', to: '/quests',      color: '#10B981' },
-  { label: 'Sauvegardes', icon: '💾', to: '/backups',     color: '#8B5CF6' },
-  { label: 'Plugins',     icon: '🧩', to: '/plugins',     color: '#06B6D4' },
-  { label: 'Assistant IA',icon: '🤖', to: '/assistant',   color: '#EC4899' },
+  { label: 'Console',     icon: '⌨️', to: '/console',       color: '#7C3AED' },
+  { label: 'Joueurs',     icon: '👥', to: '/players',       color: '#3B82F6' },
+  { label: 'Annonces',    icon: '📢', to: '/announcements', color: '#F97316' },
+  { label: 'Rangs',       icon: '🎖️', to: '/ranks',         color: '#EAB308' },
+  { label: 'Lootboxes',   icon: '📦', to: '/crates',        color: '#F59E0B' },
+  { label: 'Sanctions',   icon: '⚖️', to: '/sanctions',     color: '#EF4444' },
+  { label: 'Plugins',     icon: '🧩', to: '/plugins',       color: '#06B6D4' },
+  { label: 'Assistant IA',icon: '🤖', to: '/assistant',     color: '#EC4899' },
 ]
 
 export default function Overview() {

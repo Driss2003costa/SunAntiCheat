@@ -16,6 +16,7 @@ repositories {
     maven { url = 'https://repo.papermc.io/repository/maven-public/' }
     maven { url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
     maven { url = 'https://jitpack.io' }
+    maven { url = 'https://repo.lucko.me/' }
 }
 
 dependencies {
@@ -24,6 +25,7 @@ dependencies {
     compileOnly 'me.clip:placeholderapi:2.11.6'
     compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
     compileOnly 'com.github.Gypopo:EconomyShopGUI-API:1.9.0'
+    compileOnly 'net.luckperms:api:5.4'
 
     // Dashboard — shaded dans le JAR final
     implementation 'org.java-websocket:Java-WebSocket:1.5.6'

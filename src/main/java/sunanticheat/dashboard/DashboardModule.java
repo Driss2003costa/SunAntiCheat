@@ -11,6 +11,9 @@ import sunanticheat.dashboard.analytics.SnapshotStore;
 import sunanticheat.dashboard.economy.EconomyRecorder;
 import sunanticheat.dashboard.economy.TransactionStore;
 import sunanticheat.dashboard.backup.BackupManager;
+import sunanticheat.dashboard.announcements.AnnouncementService;
+import sunanticheat.dashboard.announcements.AnnouncementStore;
+import sunanticheat.dashboard.announcements.SunAnnCommand;
 import sunanticheat.dashboard.chat.ToxicChatListener;
 import sunanticheat.dashboard.chat.ToxicChatStore;
 import sunanticheat.dashboard.crates.CrateListener;
@@ -70,6 +73,8 @@ public final class DashboardModule {
     private UserStore userStore;
     private CrateStore crateStore;
     private DailyRewardStore dailyRewardStore;
+    private AnnouncementStore announcementStore;
+    private AnnouncementService announcementService;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -113,6 +118,9 @@ public final class DashboardModule {
         panicMode         = new PanicMode(plugin, plugin.getLogger());
         crateStore        = new CrateStore(plugin.getDataFolder(), plugin.getLogger());
         dailyRewardStore  = new DailyRewardStore(plugin.getDataFolder(), plugin.getLogger());
+        announcementStore = new AnnouncementStore(plugin.getDataFolder(), plugin.getLogger());
+        announcementService = new AnnouncementService(plugin, announcementStore, plugin.getLogger());
+        announcementService.start();
 
         // ── Recorders ─────────────────────────────────────────────────────────
         analyticsRecorder = new AnalyticsRecorder(plugin, snapshotStore, alertStore);
@@ -156,6 +164,20 @@ public final class DashboardModule {
         DailyRewardListener dailyRewardListener = new DailyRewardListener(plugin, dailyRewardStore, economy);
         DailyRewardHandler dailyRewardHandler = new DailyRewardHandler(dailyRewardStore);
 
+        // Announcements & LuckPerms
+        AnnouncementHandler announcementHandler = new AnnouncementHandler(plugin, announcementStore, announcementService);
+        LuckPermsHandler luckPermsHandler = new LuckPermsHandler(plugin);
+        SunAnnCommand sunAnnCommand = new SunAnnCommand(plugin, announcementStore);
+        if (plugin.getCommand("sunann") != null) {
+            plugin.getCommand("sunann").setExecutor(sunAnnCommand);
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("LuckPerms") != null) {
+            plugin.getLogger().info("[Dashboard] LuckPerms détecté — gestion des rangs activée.");
+        } else {
+            plugin.getLogger().info("[Dashboard] LuckPerms absent — gestion des rangs désactivée.");
+        }
+
         // Listeners
         Bukkit.getPluginManager().registerEvents(new HoneypotListener(honeypotStore, this::pushAlertRaw), plugin);
         Bukkit.getPluginManager().registerEvents(new ToxicChatListener(plugin, toxicChatStore, this::pushAlertRaw), plugin);
@@ -198,7 +220,7 @@ public final class DashboardModule {
                 taskHandler, pluginHandler, configHandler, rebootHandler, backupHandler,
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
-                crateHandler, dailyRewardHandler);
+                crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -238,6 +260,8 @@ public final class DashboardModule {
         if (honeypotStore != null) honeypotStore.save();
         if (crateStore != null) crateStore.save();
         // DailyRewardStore persiste automatiquement à chaque modification
+        if (announcementService != null) announcementService.stop();
+        if (announcementStore != null) announcementStore.save();
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }
 

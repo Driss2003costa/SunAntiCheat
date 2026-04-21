@@ -36,6 +36,8 @@ public final class DashboardRouter implements HttpHandler {
     private final UserHandler userHandler;
     private final CrateHandler crateHandler;
     private final DailyRewardHandler dailyRewardHandler;
+    private final AnnouncementHandler announcementHandler;
+    private final LuckPermsHandler luckPermsHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -58,7 +60,9 @@ public final class DashboardRouter implements HttpHandler {
                            AiHandler aiHandler,
                            UserHandler userHandler,
                            CrateHandler crateHandler,
-                           DailyRewardHandler dailyRewardHandler) {
+                           DailyRewardHandler dailyRewardHandler,
+                           AnnouncementHandler announcementHandler,
+                           LuckPermsHandler luckPermsHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -81,6 +85,8 @@ public final class DashboardRouter implements HttpHandler {
         this.userHandler = userHandler;
         this.crateHandler = crateHandler;
         this.dailyRewardHandler = dailyRewardHandler;
+        this.announcementHandler = announcementHandler;
+        this.luckPermsHandler = luckPermsHandler;
     }
 
     @Override
@@ -271,6 +277,39 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/daily/stats")            && GET(method))    { dailyRewardHandler.stats(ex, jwt, users); return; }
         if (path.startsWith("/api/daily/streak/")   && GET(method))    { dailyRewardHandler.playerStreak(ex, jwt, users, id(path, "/api/daily/streak/")); return; }
         if (path.startsWith("/api/daily/reset/")    && POST(method))   { dailyRewardHandler.resetStreak(ex, jwt, users, id(path, "/api/daily/reset/")); return; }
+
+        // ── Announcements ─────────────────────────────────────────────────────
+        if (eq(path, "/api/announcements")          && GET(method))    { announcementHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/announcements")          && POST(method))   { announcementHandler.create(ex, jwt, users); return; }
+        if (eq(path, "/api/announcements/stats")    && GET(method))    { announcementHandler.stats(ex, jwt, users); return; }
+        if (path.startsWith("/api/announcements/") && path.endsWith("/test-send") && POST(method)) {
+            announcementHandler.testSend(ex, jwt, users, id(path, "/api/announcements/", "/test-send")); return;
+        }
+        if (path.startsWith("/api/announcements/")  && GET(method))    { announcementHandler.get(ex, jwt, users, id(path, "/api/announcements/")); return; }
+        if (path.startsWith("/api/announcements/")  && (PUT(method) || PATCH(method))) { announcementHandler.update(ex, jwt, users, id(path, "/api/announcements/")); return; }
+        if (path.startsWith("/api/announcements/")  && DELETE(method)) { announcementHandler.delete(ex, jwt, users, id(path, "/api/announcements/")); return; }
+
+        // ── LuckPerms ─────────────────────────────────────────────────────────
+        if (eq(path, "/api/luckperms/status")       && GET(method))    { luckPermsHandler.status(ex, jwt, users); return; }
+        if (eq(path, "/api/luckperms/groups")       && GET(method))    { luckPermsHandler.listGroups(ex, jwt, users); return; }
+        if (eq(path, "/api/luckperms/online")       && GET(method))    { luckPermsHandler.onlinePlayersWithGroups(ex, jwt, users); return; }
+        if (path.startsWith("/api/luckperms/player/") && path.endsWith("/primary") && PUT(method)) {
+            luckPermsHandler.setPrimary(ex, jwt, users, id(path, "/api/luckperms/player/", "/primary")); return;
+        }
+        if (path.matches("/api/luckperms/player/[^/]+/group/[^/]+") && DELETE(method)) {
+            // Extract playerName and group from path
+            String rest = path.substring("/api/luckperms/player/".length());
+            int slashGroup = rest.indexOf("/group/");
+            String playerName = rest.substring(0, slashGroup);
+            String groupName = rest.substring(slashGroup + "/group/".length());
+            luckPermsHandler.removeGroup(ex, jwt, users, playerName, groupName); return;
+        }
+        if (path.startsWith("/api/luckperms/player/") && path.endsWith("/group") && POST(method)) {
+            luckPermsHandler.addGroup(ex, jwt, users, id(path, "/api/luckperms/player/", "/group")); return;
+        }
+        if (path.startsWith("/api/luckperms/player/") && GET(method))    {
+            luckPermsHandler.playerInfo(ex, jwt, users, id(path, "/api/luckperms/player/")); return;
+        }
 
         // ── Users / Accounts ──────────────────────────────────────────────────
         if (eq(path, "/api/users")                  && GET(method))    { userHandler.list(ex, jwt, users); return; }

@@ -202,4 +202,25 @@ export const api = {
   dailyStats:      (days = 7) => request<any>(`/api/daily/stats?days=${days}`),
   dailyStreak:     (playerName: string) => request<any>(`/api/daily/streak/${encodeURIComponent(playerName)}`),
   dailyReset:      (playerName: string) => request<any>(`/api/daily/reset/${encodeURIComponent(playerName)}`, { method: 'POST' }),
+
+  // Announcements
+  annList:         () => request<any[]>('/api/announcements'),
+  annGet:          (id: string) => request<any>(`/api/announcements/${id}`),
+  annCreate:       (data: any) => request<any>('/api/announcements', { method: 'POST', body: JSON.stringify(data) }),
+  annUpdate:       (id: string, data: any) => request<any>(`/api/announcements/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  annDelete:       (id: string) => request<any>(`/api/announcements/${id}`, { method: 'DELETE' }),
+  annTestSend:     (id: string) => request<any>(`/api/announcements/${id}/test-send`, { method: 'POST' }),
+  annStats:        () => request<any>('/api/announcements/stats'),
+
+  // LuckPerms
+  lpStatus:        () => request<{ available: boolean; version: string | null }>('/api/luckperms/status'),
+  lpGroups:        () => request<any[]>('/api/luckperms/groups'),
+  lpPlayer:        (playerName: string) => request<any>(`/api/luckperms/player/${encodeURIComponent(playerName)}`),
+  lpAddGroup:      (playerName: string, group: string) =>
+    request<any>(`/api/luckperms/player/${encodeURIComponent(playerName)}/group`, { method: 'POST', body: JSON.stringify({ group }) }),
+  lpRemoveGroup:   (playerName: string, group: string) =>
+    request<any>(`/api/luckperms/player/${encodeURIComponent(playerName)}/group/${encodeURIComponent(group)}`, { method: 'DELETE' }),
+  lpSetPrimary:    (playerName: string, group: string) =>
+    request<any>(`/api/luckperms/player/${encodeURIComponent(playerName)}/primary`, { method: 'PUT', body: JSON.stringify({ group }) }),
+  lpOnline:        () => request<any[]>('/api/luckperms/online'),
 }
