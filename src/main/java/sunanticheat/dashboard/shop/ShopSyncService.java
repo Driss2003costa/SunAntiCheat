@@ -58,85 +58,185 @@ public final class ShopSyncService {
         return f != null && "EconomyShopGUI-Premium".equals(f.getName());
     }
 
-    /** Exporte les shops du store vers plugins/EconomyShopGUI(-Premium)/shops.yml, puis recharge ESG. */
+    /**
+     * Exporte chaque shop vers :
+     *  - plugins/EconomyShopGUI(-Premium)/shops/{name}.yml  (items du shop)
+     *  - plugins/EconomyShopGUI-Premium/sections/{name}.yml (entrée menu /shop, Premium uniquement)
+     *  - plugins/EconomyShopGUI/menu.yml                    (Free uniquement, à implémenter si besoin)
+     * Puis recharge ESG.
+     */
     public SyncResult syncToESG() {
         try {
             File folder = getESGFolder();
             if (folder == null) {
                 return new SyncResult(false, "EconomyShopGUI n'est pas installé", null);
             }
-            File shopsFile = new File(folder, "shops.yml");
 
-            // Backup
-            if (shopsFile.exists()) {
-                try {
-                    String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
-                    File backup = new File(folder, "shops.yml.backup-" + stamp);
-                    Files.copy(shopsFile.toPath(), backup.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException ioe) {
-                    logger.warning("[Dashboard/Shop] Backup échoué: " + ioe.getMessage());
-                }
-            }
+            File shopsDir = new File(folder, "shops");
+            File sectionsDir = new File(folder, "sections");
+            if (!shopsDir.exists()) shopsDir.mkdirs();
+            if (isPremium() && !sectionsDir.exists()) sectionsDir.mkdirs();
 
-            YamlConfiguration yaml = new YamlConfiguration();
+            String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
+            int shopsWritten = 0;
+            boolean premium = isPremium();
 
             for (Shop shop : store.listShops()) {
                 if (shop == null || !shop.enabled) continue;
                 if (shop.name == null || shop.name.isBlank()) continue;
 
-                ConfigurationSection sec = yaml.createSection(shop.name);
-                sec.set("displayName", shop.displayName != null ? shop.displayName : shop.name);
-                sec.set("displayItem", shop.iconMaterial != null && !shop.iconMaterial.isBlank()
-                        ? shop.iconMaterial : "CHEST");
-                sec.set("rows", Math.max(1, Math.min(6, shop.rows)));
-                sec.set("commandToOpen", shop.commandToOpen != null && !shop.commandToOpen.isBlank()
-                        ? List.of(shop.commandToOpen) : List.of());
-                sec.set("permission", shop.permission != null ? shop.permission : "");
+                // ── Backup + écriture shops/{name}.yml (items) ────────────────────
+                File shopFile = new File(shopsDir, shop.name + ".yml");
+                backup(shopFile, stamp);
 
-                ConfigurationSection itemsSec = sec.createSection("items");
+                YamlConfiguration shopYaml = new YamlConfiguration();
+                buildShopItemsYaml(shopYaml, shop, premium);
+                shopYaml.save(shopFile);
 
-                List<ShopItem> items = shop.items != null ? new ArrayList<>(shop.items) : new ArrayList<>();
-                items.removeIf(i -> i == null);
-                items.sort(Comparator.comparingInt(i -> i.slot));
-
-                for (ShopItem item : items) {
-                    // Slots ESG en 1-indexé
-                    ConfigurationSection iSec = itemsSec.createSection(String.valueOf(item.slot + 1));
-                    iSec.set("material", item.material != null ? item.material : "STONE");
-                    iSec.set("amount", Math.max(1, item.amount));
-                    if (item.displayName != null && !item.displayName.isBlank()) {
-                        iSec.set("name", item.displayName);
-                    }
-                    if (item.lore != null && !item.lore.isEmpty()) {
-                        iSec.set("lore", item.lore);
-                    }
-                    if (item.buyPrice != null) iSec.set("buyPrice", item.buyPrice);
-                    if (item.sellPrice != null) iSec.set("sellPrice", item.sellPrice);
-                    iSec.set("stock", item.stockLimit);
-                    iSec.set("limit", item.buyLimit);
-                    iSec.set("priceType", item.priceType != null ? item.priceType : "MONEY");
-                    iSec.set("permission", item.permission != null ? item.permission : "");
-                    if (item.commandsOnBuy != null && !item.commandsOnBuy.isEmpty()) {
-                        iSec.set("commands", item.commandsOnBuy);
-                    }
-                    if (item.customModelData > 0) iSec.set("customModelData", item.customModelData);
-                    if (item.enchantments != null && !item.enchantments.isEmpty()) {
-                        iSec.set("enchantments", item.enchantments);
-                    }
+                // ── Écriture sections/{name}.yml (Premium) pour apparaitre dans /shop ──
+                if (premium) {
+                    File sectionFile = new File(sectionsDir, shop.name + ".yml");
+                    backup(sectionFile, stamp);
+                    YamlConfiguration sectionYaml = new YamlConfiguration();
+                    buildSectionYaml(sectionYaml, shop);
+                    sectionYaml.save(sectionFile);
                 }
+
+                shopsWritten++;
             }
 
-            try {
-                yaml.save(shopsFile);
-            } catch (IOException ioe) {
-                return new SyncResult(false, "Erreur I/O : " + ioe.getMessage(), null);
+            // ── Free version : on met à jour menu.yml avec tous les shops ─────────
+            if (!premium) {
+                File menuFile = new File(folder, "menu.yml");
+                backup(menuFile, stamp);
+                YamlConfiguration menuYaml = YamlConfiguration.loadConfiguration(
+                        menuFile.exists() ? menuFile : new File(folder, "menu.yml.empty"));
+                // On repart propre sur la section "items" des shops
+                menuYaml.set("items", null);
+                ConfigurationSection itemsSec = menuYaml.createSection("items");
+                int slotCursor = 10;
+                for (Shop shop : store.listShops()) {
+                    if (shop == null || !shop.enabled || shop.name == null || shop.name.isBlank()) continue;
+                    ConfigurationSection iSec = itemsSec.createSection(String.valueOf(slotCursor));
+                    iSec.set("material", shop.iconMaterial != null ? shop.iconMaterial : "CHEST");
+                    iSec.set("displayName", shop.displayName != null ? shop.displayName : shop.name);
+                    iSec.set("shop", shop.name);
+                    if (shop.description != null && !shop.description.isBlank()) {
+                        iSec.set("lore", List.of("&7" + shop.description, "", "&eClique pour ouvrir"));
+                    }
+                    slotCursor++;
+                    if (slotCursor % 9 == 8) slotCursor += 2; // saute les bords
+                }
+                menuYaml.save(menuFile);
             }
 
             reloadESG();
-            return new SyncResult(true, "Shops synchronisés et ESG rechargé", shopsFile.getAbsolutePath());
+            return new SyncResult(true,
+                    shopsWritten + " shops synchronisés vers " + (premium ? "Premium" : "Free") + " et ESG rechargé",
+                    folder.getAbsolutePath());
         } catch (Throwable t) {
             logger.warning("[Dashboard/Shop] syncToESG erreur: " + t.getMessage());
+            t.printStackTrace();
             return new SyncResult(false, "Erreur : " + t.getMessage(), null);
+        }
+    }
+
+    /**
+     * Construit le YAML du contenu d'un shop au format ESG attendu.
+     * Premium : pages.page1.gui-rows + pages.page1.items.{slot}
+     * Free    : clé racine {slot}.* + settings (rows, title, etc.)
+     */
+    private void buildShopItemsYaml(YamlConfiguration yaml, Shop shop, boolean premium) {
+        List<ShopItem> items = shop.items != null ? new ArrayList<>(shop.items) : new ArrayList<>();
+        items.removeIf(i -> i == null);
+        items.sort(Comparator.comparingInt(i -> i.slot));
+        int rows = Math.max(1, Math.min(6, shop.rows));
+
+        if (premium) {
+            ConfigurationSection page = yaml.createSection("pages.page1");
+            page.set("gui-rows", rows);
+            page.set("title", shop.displayName != null ? shop.displayName : shop.name);
+            ConfigurationSection itemsSec = page.createSection("items");
+            for (ShopItem item : items) {
+                ConfigurationSection iSec = itemsSec.createSection(String.valueOf(item.slot + 1));
+                iSec.set("material", item.material != null ? item.material : "STONE");
+                if (item.amount > 1) iSec.set("amount", item.amount);
+                if (item.buyPrice != null) iSec.set("buy", item.buyPrice);
+                if (item.sellPrice != null) iSec.set("sell", item.sellPrice);
+                if (item.displayName != null && !item.displayName.isBlank()) iSec.set("name", item.displayName);
+                if (item.lore != null && !item.lore.isEmpty()) iSec.set("lore", item.lore);
+                if (item.permission != null && !item.permission.isBlank()) iSec.set("permission", item.permission);
+                if (item.buyLimit > 0) iSec.set("buy-limit", item.buyLimit);
+                if (item.sellLimit > 0) iSec.set("sell-limit", item.sellLimit);
+                if (item.stockLimit > 0) iSec.set("stock", item.stockLimit);
+                if (item.customModelData > 0) iSec.set("model-data", item.customModelData);
+                if (item.enchantments != null && !item.enchantments.isEmpty()) {
+                    iSec.set("enchantments", item.enchantments);
+                }
+                if (item.commandsOnBuy != null && !item.commandsOnBuy.isEmpty()) {
+                    iSec.set("commands", item.commandsOnBuy);
+                }
+            }
+        } else {
+            // Free : settings en haut, puis chaque slot en clé racine
+            yaml.set("displayName", shop.displayName != null ? shop.displayName : shop.name);
+            yaml.set("rows", rows);
+            if (shop.permission != null && !shop.permission.isBlank()) yaml.set("permission", shop.permission);
+
+            for (ShopItem item : items) {
+                ConfigurationSection iSec = yaml.createSection(String.valueOf(item.slot + 1));
+                iSec.set("material", item.material != null ? item.material : "STONE");
+                iSec.set("type", "item");
+                if (item.buyPrice != null) iSec.set("buyPrice", item.buyPrice);
+                if (item.sellPrice != null) iSec.set("sellPrice", item.sellPrice);
+                if (item.displayName != null && !item.displayName.isBlank()) iSec.set("name", item.displayName);
+                if (item.lore != null && !item.lore.isEmpty()) iSec.set("lore", item.lore);
+                if (item.permission != null && !item.permission.isBlank()) iSec.set("permission", item.permission);
+                iSec.set("stock", item.stockLimit);
+                iSec.set("limit", item.buyLimit);
+                if (item.amount > 1) iSec.set("amount", item.amount);
+                if (item.customModelData > 0) iSec.set("modelData", item.customModelData);
+                if (item.commandsOnBuy != null && !item.commandsOnBuy.isEmpty()) {
+                    iSec.set("commands", item.commandsOnBuy);
+                }
+            }
+        }
+    }
+
+    /** Construit le YAML d'une section ESG Premium pour le menu principal /shop. */
+    private void buildSectionYaml(YamlConfiguration yaml, Shop shop) {
+        yaml.set("enable", true);
+        yaml.set("slot", 9 + Math.max(0, shop.order));  // ligne 2 + offset
+        yaml.set("title", shop.displayName != null ? shop.displayName : shop.name);
+        yaml.set("hidden", false);
+        yaml.set("sub-section", false);
+        yaml.set("display-item", false);
+
+        ConfigurationSection fill = yaml.createSection("fill-item");
+        fill.set("material", "AIR");
+
+        ConfigurationSection nav = yaml.createSection("nav-bar");
+        nav.set("mode", "INHERIT");
+
+        ConfigurationSection item = yaml.createSection("item");
+        item.set("material", shop.iconMaterial != null && !shop.iconMaterial.isBlank() ? shop.iconMaterial : "CHEST");
+        item.set("displayname", shop.displayName != null ? shop.displayName : shop.name);
+        if (shop.description != null && !shop.description.isBlank()) {
+            item.set("lore", List.of("&7" + shop.description, "", "&eClique pour ouvrir"));
+        }
+        if (shop.permission != null && !shop.permission.isBlank()) {
+            yaml.set("permission", shop.permission);
+        }
+    }
+
+    /** Backup d'un fichier avec timestamp (si existe). */
+    private void backup(File file, String stamp) {
+        if (!file.exists()) return;
+        try {
+            File bak = new File(file.getParentFile(), file.getName() + ".backup-" + stamp);
+            Files.copy(file.toPath(), bak.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException ioe) {
+            logger.warning("[Dashboard/Shop] Backup échoué: " + ioe.getMessage());
         }
     }
 

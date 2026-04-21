@@ -698,8 +698,10 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
                 <div key={it.m}
                      draggable={canEdit}
                      onDragStart={e => {
-                       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'new', material: it.m }))
-                       e.dataTransfer.effectAllowed = 'copy'
+                       const payload = JSON.stringify({ type: 'new', material: it.m })
+                       try { e.dataTransfer.setData('text/plain', payload) } catch {}
+                       try { e.dataTransfer.setData('application/json', payload) } catch {}
+                       e.dataTransfer.effectAllowed = 'copyMove'
                      }}
                      title={`${it.name} (${it.m}) — glisser dans la grille`}
                      className="aspect-square rounded flex items-center justify-center text-xl transition hover:scale-110 cursor-grab"
@@ -758,24 +760,38 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
                          draggable={canEdit && !!item}
                          onDragStart={e => {
                            if (!item) return
-                           e.dataTransfer.setData('application/json', JSON.stringify({ type: 'move', fromSlot: i }))
-                           e.dataTransfer.effectAllowed = 'move'
+                           const payload = JSON.stringify({ type: 'move', fromSlot: i })
+                           try { e.dataTransfer.setData('text/plain', payload) } catch {}
+                           try { e.dataTransfer.setData('application/json', payload) } catch {}
+                           e.dataTransfer.effectAllowed = 'copyMove'
                          }}
                          onDragOver={e => {
                            if (!canEdit) return
                            e.preventDefault()
+                           e.dataTransfer.dropEffect = 'copy'
                            setDragOverSlot(i)
+                         }}
+                         onDragEnter={e => {
+                           if (!canEdit) return
+                           e.preventDefault()
                          }}
                          onDragLeave={() => setDragOverSlot(null)}
                          onDrop={e => {
                            e.preventDefault()
+                           e.stopPropagation()
                            setDragOverSlot(null)
                            if (!canEdit) return
+                           // Essaie les deux MIME types (text/plain fallback)
+                           let raw = e.dataTransfer.getData('text/plain')
+                           if (!raw) raw = e.dataTransfer.getData('application/json')
+                           if (!raw) return
                            try {
-                             const data = JSON.parse(e.dataTransfer.getData('application/json'))
+                             const data = JSON.parse(raw)
                              if (data.type === 'new') placeItem(i, data.material)
                              else if (data.type === 'move') moveItem(data.fromSlot, i)
-                           } catch {}
+                           } catch (err) {
+                             console.error('Drop parse error:', err, 'raw:', raw)
+                           }
                          }}
                          onClick={() => setSelectedSlot(i)}
                          onContextMenu={e => {
