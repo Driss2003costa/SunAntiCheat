@@ -28,6 +28,7 @@ import sunanticheat.dashboard.quests.QuestStore;
 import sunanticheat.dashboard.auth.UserStore;
 import sunanticheat.dashboard.reboot.RebootScheduler;
 import sunanticheat.dashboard.shop.ModdedItemBridge;
+import sunanticheat.dashboard.shop.ShopYamlManager;
 import sunanticheat.dashboard.tasks.ScheduledTaskStore;
 import sunanticheat.dashboard.ws.ConsoleLogCapture;
 import sunanticheat.dashboard.ws.DashboardWsServer;
@@ -72,6 +73,7 @@ public final class DashboardModule {
     private CrateStore crateStore;
     private DailyRewardStore dailyRewardStore;
     private ModdedItemBridge moddedItemBridge;
+    private ShopYamlManager shopYamlManager;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -116,6 +118,12 @@ public final class DashboardModule {
         crateStore        = new CrateStore(plugin.getDataFolder(), plugin.getLogger());
         dailyRewardStore  = new DailyRewardStore(plugin.getDataFolder(), plugin.getLogger());
         moddedItemBridge  = new ModdedItemBridge(plugin.getLogger());
+        shopYamlManager   = new ShopYamlManager(plugin.getDataFolder().getParentFile(), plugin.getLogger());
+        if (shopYamlManager.isReady()) {
+            plugin.getLogger().info("[Shop] EconomyShopGUI détecté — édition des shops via dashboard activée.");
+        } else {
+            plugin.getLogger().info("[Shop] EconomyShopGUI absent — l'éditeur de shops renverra 503.");
+        }
 
         // ── Recorders ─────────────────────────────────────────────────────────
         analyticsRecorder = new AnalyticsRecorder(plugin, snapshotStore, alertStore);
@@ -159,6 +167,7 @@ public final class DashboardModule {
         DailyRewardListener dailyRewardListener = new DailyRewardListener(plugin, dailyRewardStore, economy);
         DailyRewardHandler dailyRewardHandler = new DailyRewardHandler(dailyRewardStore);
         ShopLibraryHandler shopLibraryHandler = new ShopLibraryHandler(moddedItemBridge);
+        ShopHandler shopHandler = new ShopHandler(plugin, shopYamlManager);
 
         // Listeners
         Bukkit.getPluginManager().registerEvents(new HoneypotListener(honeypotStore, this::pushAlertRaw), plugin);
@@ -202,7 +211,7 @@ public final class DashboardModule {
                 taskHandler, pluginHandler, configHandler, rebootHandler, backupHandler,
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
-                crateHandler, dailyRewardHandler, shopLibraryHandler);
+                crateHandler, dailyRewardHandler, shopLibraryHandler, shopHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

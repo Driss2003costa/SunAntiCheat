@@ -37,6 +37,7 @@ public final class DashboardRouter implements HttpHandler {
     private final CrateHandler crateHandler;
     private final DailyRewardHandler dailyRewardHandler;
     private final ShopLibraryHandler shopLibraryHandler;
+    private final ShopHandler shopHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -60,7 +61,8 @@ public final class DashboardRouter implements HttpHandler {
                            UserHandler userHandler,
                            CrateHandler crateHandler,
                            DailyRewardHandler dailyRewardHandler,
-                           ShopLibraryHandler shopLibraryHandler) {
+                           ShopLibraryHandler shopLibraryHandler,
+                           ShopHandler shopHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -84,6 +86,7 @@ public final class DashboardRouter implements HttpHandler {
         this.crateHandler = crateHandler;
         this.dailyRewardHandler = dailyRewardHandler;
         this.shopLibraryHandler = shopLibraryHandler;
+        this.shopHandler = shopHandler;
     }
 
     @Override
@@ -281,6 +284,27 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/shop/library/match")     && POST(method)) { shopLibraryHandler.match(ex, jwt, users); return; }
         if (path.startsWith("/api/shop/library/player/") && GET(method)) {
             shopLibraryHandler.playerInventory(ex, jwt, users, id(path, "/api/shop/library/player/")); return;
+        }
+
+        // ── Shop Sections (EconomyShopGUI YAMLs) ──────────────────────────────
+        if (eq(path, "/api/shop/sections")           && GET(method))  { shopHandler.listSections(ex, jwt, users); return; }
+        if (eq(path, "/api/shop/sections")           && POST(method)) { shopHandler.createSection(ex, jwt, users); return; }
+        if (eq(path, "/api/shop/reload")             && POST(method)) { shopHandler.reload(ex, jwt, users); return; }
+        if (path.startsWith("/api/shop/sections/")) {
+            String rest = path.substring("/api/shop/sections/".length());
+            int slash = rest.indexOf('/');
+            String sectionId = slash < 0 ? rest : rest.substring(0, slash);
+            String suffix = slash < 0 ? "" : rest.substring(slash);
+            if (suffix.isEmpty() && GET(method))                 { shopHandler.getSection(ex, jwt, users, sectionId); return; }
+            if (suffix.equals("/items") && POST(method))         { shopHandler.upsertItem(ex, jwt, users, sectionId); return; }
+            if (suffix.equals("/move") && POST(method))          { shopHandler.moveItem(ex, jwt, users, sectionId); return; }
+            if (suffix.startsWith("/items/") && DELETE(method)) {
+                String slotStr = suffix.substring("/items/".length());
+                int slot;
+                try { slot = Integer.parseInt(slotStr); }
+                catch (NumberFormatException e) { HttpHelper.error(ex, 400, "slot invalide"); return; }
+                shopHandler.deleteItem(ex, jwt, users, sectionId, slot); return;
+            }
         }
 
         // ── Users / Accounts ──────────────────────────────────────────────────
