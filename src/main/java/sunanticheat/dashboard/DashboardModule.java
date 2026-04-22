@@ -100,20 +100,21 @@ public final class DashboardModule {
 
         var cfg = plugin.getConfig();
         // ── Auto-migration des anciens ports (serveurs mis à jour) ──────────
-        // Si le config.yml existant utilise les anciens ports 8765/8766,
-        // on les force aux nouveaux (60346/60767) et on sauvegarde.
+        // Migre vers les nouveaux ports 60180/60036 depuis n'importe quel ancien défaut.
         boolean migrated = false;
-        if (cfg.getInt("dashboard.http-port", 0) == 8765) {
-            cfg.set("dashboard.http-port", 60346);
+        int currentHttp = cfg.getInt("dashboard.http-port", 0);
+        int currentWs   = cfg.getInt("dashboard.ws-port", 0);
+        if (currentHttp == 8765 || currentHttp == 60346) {
+            cfg.set("dashboard.http-port", 60180);
             migrated = true;
         }
-        if (cfg.getInt("dashboard.ws-port", 0) == 8766) {
-            cfg.set("dashboard.ws-port", 60767);
+        if (currentWs == 8766 || currentWs == 60767) {
+            cfg.set("dashboard.ws-port", 60036);
             migrated = true;
         }
         if (migrated) {
             plugin.saveConfig();
-            plugin.getLogger().info("[Dashboard] Migration auto des ports : http=60346, ws=60767");
+            plugin.getLogger().info("[Dashboard] Migration auto des ports : http=60180, ws=60036");
         }
 
         if (!cfg.getBoolean("dashboard.enabled", false)) {
@@ -121,8 +122,8 @@ public final class DashboardModule {
             return;
         }
 
-        int httpPort = cfg.getInt("dashboard.http-port", 60346);
-        int wsPort   = cfg.getInt("dashboard.ws-port",   60767);
+        int httpPort = cfg.getInt("dashboard.http-port", 60180);
+        int wsPort   = cfg.getInt("dashboard.ws-port",   60036);
         String jwtSecret = cfg.getString("dashboard.jwt-secret", "changez-moi-secret-aleatoire-32chars!");
 
         // ── Utilisateurs ──────────────────────────────────────────────────────

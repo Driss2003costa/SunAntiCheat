@@ -204,9 +204,9 @@ multiverse-inventories-spawn-wm-scan:
 dashboard:
   enabled: true
   # Port de l'API REST + fichiers React compilés
-  http-port: 60346
+  http-port: 60180
   # Port WebSocket (console live, alertes, stats)
-  ws-port: 60767
+  ws-port: 60036
   # Secret JWT — OBLIGATOIRE : changer pour une chaîne aléatoire d'au moins 32 caractères
   jwt-secret: "fgrtdgetdgrcvghfiozsdbvuiolzdbfujioezdbfujihozeqbuivboefiugbhlidkfbnvoildjbh"
   # Origine CORS autorisée (mettre l'URL exacte du frontend en prod)
@@ -269,8 +269,8 @@ first-join:
 # Sans ces clés, le système VIP fonctionne en mode "gift admin" uniquement.
 vip:
   # URLs de redirection après paiement (mettre votre domaine public en prod)
-  success-url: "http://localhost:60346/buy?success=true"
-  cancel-url: "http://localhost:60346/buy?cancelled=true"
+  success-url: "http://83.143.117.40:60180/buy?success=true"
+  cancel-url: "http://83.143.117.40:60180/buy?cancelled=true"
   # Webhook Discord pour notifier les achats (optionnel)
   discord-webhook: ""
 

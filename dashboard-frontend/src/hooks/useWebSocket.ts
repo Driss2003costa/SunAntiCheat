@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
 
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:60767`
+const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:60036`
 
 type MessageHandler = (msg: any) => void
 
