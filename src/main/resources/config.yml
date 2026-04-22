@@ -211,6 +211,13 @@ dashboard:
   jwt-secret: "fgrtdgetdgrcvghfiozsdbvuiolzdbfujioezdbfujihozeqbuivboefiugbhlidkfbnvoildjbh"
   # Origine CORS autorisée (mettre l'URL exacte du frontend en prod)
   cors-origin: "*"
+
+  # ── Assistant IA (Google Gemini) ─────────────────────────────────────────
+  # Clé API gratuite : https://aistudio.google.com/apikey
+  # Quota gratuit : 1 million de tokens/jour, 15 requêtes/minute
+  ai:
+    api-key: ""                  # AIzaSy... (laisser vide pour désactiver l'assistant IA)
+    model: "gemini-2.0-flash"    # autres options : gemini-2.0-flash-lite, gemini-2.5-pro, gemini-1.5-flash
   # Commandes autorisées via le dashboard (whitelist)
   allowed-commands:
     - "tps"

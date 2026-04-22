@@ -174,9 +174,11 @@ export const api = {
     request<any>('/api/users/me/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
 
   // AI Assistant
-  aiStatus:        () => request<{ configured: boolean; model: string }>('/api/ai/status'),
+  aiStatus:        () => request<{ configured: boolean; model: string; provider: string; availableModels: Array<{id: string; name: string; desc: string; tier: string}> }>('/api/ai/status'),
   aiChat:          (messages: Array<{ role: string; content: string }>) =>
     request<any>('/api/ai/chat', { method: 'POST', body: JSON.stringify({ messages }) }),
+  aiSetConfig:     (data: { model?: string; apiKey?: string }) =>
+    request<any>('/api/ai/config', { method: 'POST', body: JSON.stringify(data) }),
 
   // Crates / Lootboxes
   cratesList:      () => request<any[]>('/api/crates'),
