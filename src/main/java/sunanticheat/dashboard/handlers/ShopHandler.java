@@ -183,6 +183,17 @@ public final class ShopHandler {
         } catch (Exception e) { fail(ex, e); }
     }
 
+    /** POST /api/shops/rollback — restaure les backups ESG, désactive le menu cassé. ADMIN. */
+    public void rollback(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        try {
+            DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+            if (u == null) return;
+            if (!HttpHelper.requireAdmin(ex, u)) return;
+            SyncResult r = sync.rollbackESG();
+            HttpHelper.json(ex, r.success() ? 200 : 500, r);
+        } catch (Exception e) { fail(ex, e); }
+    }
+
     public void importFromESG(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);

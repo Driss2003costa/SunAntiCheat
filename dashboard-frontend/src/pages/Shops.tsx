@@ -363,6 +363,24 @@ export default function Shops() {
               {syncing ? '⏳ Sync...' : '🔄 Synchroniser ESG'}
             </button>
           )}
+          {isAdmin && (
+            <button onClick={async () => {
+                      if (!confirm('Restaurer les fichiers ESG originaux ?\n\nCeci supprimera les sections créées par le dashboard et restaurera les backups. À utiliser si /shop ne fonctionne plus.')) return
+                      setSyncing(true)
+                      try {
+                        const r = await api.shopRollback()
+                        if (r.success) showFlash('✓ ' + r.message)
+                        else showFlash('⚠ ' + r.message, false)
+                      } catch (e: any) { showFlash('✗ ' + e.message, false) }
+                      finally { setSyncing(false); refresh() }
+                    }}
+                    disabled={syncing}
+                    title="Restaurer la config ESG d'origine (fix /shop cassé)"
+                    className="px-3 py-2 rounded text-sm"
+                    style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+              🔙 Rollback ESG
+            </button>
+          )}
           {canEdit && (
             <button onClick={createNew}
                     className="px-4 py-2 rounded-lg text-white font-medium"

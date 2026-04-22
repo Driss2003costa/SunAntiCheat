@@ -336,6 +336,7 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/shops/stats")            && GET(method))    { shopHandler.globalStats(ex, jwt, users); return; }
         if (eq(path, "/api/shops/esg-status")       && GET(method))    { shopHandler.esgStatus(ex, jwt, users); return; }
         if (eq(path, "/api/shops/sync")             && POST(method))   { shopHandler.sync(ex, jwt, users); return; }
+        if (eq(path, "/api/shops/rollback")         && POST(method))   { shopHandler.rollback(ex, jwt, users); return; }
         if (eq(path, "/api/shops/import-esg")       && POST(method))   { shopHandler.importFromESG(ex, jwt, users); return; }
         if (path.matches("/api/shops/[^/]+/items/[^/]+") && PUT(method)) {
             String rest = path.substring("/api/shops/".length());

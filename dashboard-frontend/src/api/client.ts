@@ -239,6 +239,7 @@ export const api = {
   shopRemoveItem:  (shopId: string, itemId: string) =>
     request<any>(`/api/shops/${shopId}/items/${itemId}`, { method: 'DELETE' }),
   shopSync:        () => request<any>('/api/shops/sync', { method: 'POST' }),
+  shopRollback:    () => request<any>('/api/shops/rollback', { method: 'POST' }),
   shopImportESG:   () => request<any[]>('/api/shops/import-esg', { method: 'POST' }),
   shopEsgStatus:   () => request<any>('/api/shops/esg-status'),
   shopTransactions:(shopId: string, params: Record<string, any> = {}) => {

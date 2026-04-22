@@ -61,8 +61,13 @@ public final class ShopSyncService {
     /**
      * Exporte chaque shop vers :
      *  - plugins/EconomyShopGUI(-Premium)/shops/{name}.yml  (items du shop)
-     *  - plugins/EconomyShopGUI-Premium/sections/{name}.yml (entrée menu /shop, Premium uniquement)
-     *  - plugins/EconomyShopGUI/menu.yml                    (Free uniquement, à implémenter si besoin)
+     *  - plugins/EconomyShopGUI/menu.yml                    (Free uniquement)
+     *
+     * ⚠️ On ne touche PLUS aux fichiers sections/*.yml en Premium :
+     * leur format est trop complexe (skull-texture, fill-item, nav-bar...)
+     * et une mauvaise génération casse le menu principal d'ESG.
+     * Les shops dashboard restent accessibles via /shop &lt;nom&gt; directement.
+     *
      * Puis recharge ESG.
      */
     public SyncResult syncToESG() {
@@ -73,9 +78,7 @@ public final class ShopSyncService {
             }
 
             File shopsDir = new File(folder, "shops");
-            File sectionsDir = new File(folder, "sections");
             if (!shopsDir.exists()) shopsDir.mkdirs();
-            if (isPremium() && !sectionsDir.exists()) sectionsDir.mkdirs();
 
             String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
             int shopsWritten = 0;
@@ -93,14 +96,9 @@ public final class ShopSyncService {
                 buildShopItemsYaml(shopYaml, shop, premium);
                 shopYaml.save(shopFile);
 
-                // ── Écriture sections/{name}.yml (Premium) pour apparaitre dans /shop ──
-                if (premium) {
-                    File sectionFile = new File(sectionsDir, shop.name + ".yml");
-                    backup(sectionFile, stamp);
-                    YamlConfiguration sectionYaml = new YamlConfiguration();
-                    buildSectionYaml(sectionYaml, shop);
-                    sectionYaml.save(sectionFile);
-                }
+                // NOTE : on n'écrit PAS dans sections/ pour ne pas casser le menu principal d'ESG Premium.
+                // L'admin devra manuellement ajouter une entrée dans sections/{name}.yml s'il veut
+                // le voir dans le menu /shop. Sinon /shop {name} fonctionne directement.
 
                 shopsWritten++;
             }
@@ -139,6 +137,117 @@ public final class ShopSyncService {
             t.printStackTrace();
             return new SyncResult(false, "Erreur : " + t.getMessage(), null);
         }
+    }
+
+    /**
+     * Restaure les backups ESG écrasés par des syncs précédentes.
+     * Parcourt shops/ et sections/ à la recherche de fichiers .backup-*
+     * et les restaure sur les fichiers .yml correspondants.
+     *
+     * Supprime aussi les fichiers que le dashboard a créés pour des shops
+     * qui n'existent plus dans le store, et les sections/*.yml générées
+     * par l'ancien code qui cassaient le menu /shop.
+     */
+    public SyncResult rollbackESG() {
+        try {
+            File folder = getESGFolder();
+            if (folder == null) {
+                return new SyncResult(false, "EconomyShopGUI n'est pas installé", null);
+            }
+            File shopsDir = new File(folder, "shops");
+            File sectionsDir = new File(folder, "sections");
+
+            int restored = 0;
+            int sectionsDeleted = 0;
+
+            // Récupère les noms de shops connus par le dashboard
+            java.util.Set<String> dashboardShopNames = new java.util.HashSet<>();
+            for (Shop s : store.listShops()) {
+                if (s != null && s.name != null && !s.name.isBlank()) dashboardShopNames.add(s.name);
+            }
+
+            // ── 1. Restaure les backups dans shops/ ───────────────────────────
+            if (shopsDir.exists() && shopsDir.isDirectory()) {
+                restored += restoreBackupsIn(shopsDir);
+            }
+
+            // ── 2. Supprime les sections/*.yml créées par NOTRE ancienne sync ──
+            // Heuristique : une section générée par nous a un backup .backup-* à côté
+            // qu'on peut restaurer. Si pas de backup, on supprime juste notre fichier
+            // si le shop porte le même nom qu'un dashboard shop (= ajouté par nous).
+            if (sectionsDir.exists() && sectionsDir.isDirectory()) {
+                int secRestored = restoreBackupsIn(sectionsDir);
+                restored += secRestored;
+
+                // Supprime les sections sans backup qui matchent nos shops dashboard
+                File[] leftover = sectionsDir.listFiles((d, n) ->
+                        n.endsWith(".yml") && !n.contains(".backup-"));
+                if (leftover != null) {
+                    for (File f : leftover) {
+                        String name = f.getName().replaceFirst("\\.yml$", "");
+                        if (dashboardShopNames.contains(name)) {
+                            // Vérifie qu'il n'y a PAS de backup (sinon déjà restauré au dessus)
+                            File backup = findLatestBackup(sectionsDir, name);
+                            if (backup == null) {
+                                if (f.delete()) sectionsDeleted++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            reloadESG();
+            String msg = "Rollback : " + restored + " fichiers restaurés"
+                    + (sectionsDeleted > 0 ? ", " + sectionsDeleted + " sections dashboard supprimées" : "")
+                    + ". ESG rechargé. /shop devrait re-fonctionner.";
+            return new SyncResult(true, msg, folder.getAbsolutePath());
+        } catch (Throwable t) {
+            logger.warning("[Dashboard/Shop] rollback erreur: " + t.getMessage());
+            return new SyncResult(false, "Erreur : " + t.getMessage(), null);
+        }
+    }
+
+    /** Parcourt un dossier, pour chaque .yml.backup-* restaure sur le .yml cible. */
+    private int restoreBackupsIn(File dir) {
+        int restored = 0;
+        File[] backups = dir.listFiles((d, n) -> n.contains(".yml.backup-"));
+        if (backups == null) return 0;
+
+        // Groupe par nom cible, garde le backup le plus récent
+        Map<String, File> latestBackup = new LinkedHashMap<>();
+        for (File b : backups) {
+            String n = b.getName();
+            int idx = n.indexOf(".yml.backup-");
+            if (idx < 0) continue;
+            String target = n.substring(0, idx) + ".yml";
+            File existing = latestBackup.get(target);
+            if (existing == null || b.lastModified() > existing.lastModified()) {
+                latestBackup.put(target, b);
+            }
+        }
+
+        for (Map.Entry<String, File> e : latestBackup.entrySet()) {
+            File target = new File(dir, e.getKey());
+            File backup = e.getValue();
+            try {
+                Files.copy(backup.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                restored++;
+                // Nettoie tous les .backup-* correspondants après restauration réussie
+                File[] allBackups = dir.listFiles((d, nm) -> nm.startsWith(e.getKey() + ".backup-"));
+                if (allBackups != null) for (File bk : allBackups) bk.delete();
+            } catch (IOException ioe) {
+                logger.warning("[Dashboard/Shop] Restore failed " + target.getName() + ": " + ioe.getMessage());
+            }
+        }
+        return restored;
+    }
+
+    private File findLatestBackup(File dir, String name) {
+        File[] backups = dir.listFiles((d, n) -> n.startsWith(name + ".yml.backup-"));
+        if (backups == null || backups.length == 0) return null;
+        File latest = backups[0];
+        for (File b : backups) if (b.lastModified() > latest.lastModified()) latest = b;
+        return latest;
     }
 
     /**
