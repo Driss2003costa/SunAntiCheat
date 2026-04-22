@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { usePermission } from '../hooks/usePermission'
+import { uuid } from '../utils/uuid'
 
 /**
  * Éditeur d'annonces : preview live, A/B testing, planification, ciblage.
@@ -40,7 +41,7 @@ const TEMPLATES: { name: string; icon: string; content: string; hover: string; c
 
 function blankVariant(name = 'Variante A') {
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     name,
     content: '&6&l[INFO] &fTexte de l\'annonce',
     hoverText: '',

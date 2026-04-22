@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { usePermission } from '../hooks/usePermission'
+import { uuid } from '../utils/uuid'
 
 const RARITIES = [
   { key: 'COMMON',    color: '#9CA3AF', label: 'Commun' },
@@ -27,7 +28,7 @@ function rarityInfo(key: string) {
 
 function blankItem() {
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     displayName: 'Nouvel item',
     material: 'DIAMOND',
     customModelData: 0,

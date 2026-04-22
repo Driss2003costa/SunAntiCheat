@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { api } from '../api/client'
 import { usePermission } from '../hooks/usePermission'
+import { uuid } from '../utils/uuid'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid } from 'recharts'
 
 /**
@@ -181,7 +182,7 @@ function blankShop() {
 
 function blankItem(slot: number, material = 'DIAMOND') {
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     slot,
     material,
     customModelData: 0,
