@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
- * Serveur WebSocket sur le port dashboard.ws-port (défaut 8766).
+ * Serveur WebSocket sur le port dashboard.ws-port (défaut 60767).
  * Channels : "console", "alerts", "stats"
  * Protocole :
  *   Client → {"type":"auth","token":"<jwt>"}

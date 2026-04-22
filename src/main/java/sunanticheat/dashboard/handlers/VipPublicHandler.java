@@ -127,9 +127,9 @@ public final class VipPublicHandler {
         if (plan == null || !plan.enabled) { HttpHelper.error(ex, 404, "Plan introuvable ou désactivé"); return; }
 
         String successUrl = plugin.getConfig().getString("vip.success-url",
-                "http://localhost:8765/buy?success=true");
+                "http://localhost:60346/buy?success=true");
         String cancelUrl = plugin.getConfig().getString("vip.cancel-url",
-                "http://localhost:8765/buy?cancelled=true");
+                "http://localhost:60346/buy?cancelled=true");
 
         try {
             if (gateway.equalsIgnoreCase("STRIPE")) {

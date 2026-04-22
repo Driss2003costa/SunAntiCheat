@@ -97,13 +97,30 @@ public final class DashboardModule {
                       Economy economy) throws Exception {
 
         var cfg = plugin.getConfig();
+        // ── Auto-migration des anciens ports (serveurs mis à jour) ──────────
+        // Si le config.yml existant utilise les anciens ports 8765/8766,
+        // on les force aux nouveaux (60346/60767) et on sauvegarde.
+        boolean migrated = false;
+        if (cfg.getInt("dashboard.http-port", 0) == 8765) {
+            cfg.set("dashboard.http-port", 60346);
+            migrated = true;
+        }
+        if (cfg.getInt("dashboard.ws-port", 0) == 8766) {
+            cfg.set("dashboard.ws-port", 60767);
+            migrated = true;
+        }
+        if (migrated) {
+            plugin.saveConfig();
+            plugin.getLogger().info("[Dashboard] Migration auto des ports : http=60346, ws=60767");
+        }
+
         if (!cfg.getBoolean("dashboard.enabled", false)) {
             plugin.getLogger().info("[Dashboard] Désactivé (dashboard.enabled: false dans config.yml)");
             return;
         }
 
-        int httpPort = cfg.getInt("dashboard.http-port", 8765);
-        int wsPort   = cfg.getInt("dashboard.ws-port",   8766);
+        int httpPort = cfg.getInt("dashboard.http-port", 60346);
+        int wsPort   = cfg.getInt("dashboard.ws-port",   60767);
         String jwtSecret = cfg.getString("dashboard.jwt-secret", "changez-moi-secret-aleatoire-32chars!");
 
         // ── Utilisateurs ──────────────────────────────────────────────────────
