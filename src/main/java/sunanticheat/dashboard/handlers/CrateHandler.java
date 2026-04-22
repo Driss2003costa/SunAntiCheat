@@ -10,6 +10,7 @@ import sunanticheat.dashboard.DashboardRole;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.crates.Crate;
 import sunanticheat.dashboard.crates.CrateItem;
 import sunanticheat.dashboard.crates.CrateListener;
@@ -55,7 +56,7 @@ public final class CrateHandler {
     public void create(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Crate c;
         try { c = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Crate.class); }
         catch (Exception e) { HttpHelper.error(ex, 400, "Body invalide"); return; }
@@ -67,7 +68,7 @@ public final class CrateHandler {
     public void update(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         if (store.getCrate(id) == null) { HttpHelper.error(ex, 404, "Crate introuvable"); return; }
         Crate c;
         try { c = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Crate.class); }
@@ -80,7 +81,7 @@ public final class CrateHandler {
     public void delete(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         if (store.getCrate(id) == null) { HttpHelper.error(ex, 404, "Crate introuvable"); return; }
         store.deleteCrate(id);
         HttpHelper.noContent(ex);
@@ -102,7 +103,7 @@ public final class CrateHandler {
     public void giveKey(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String crateId) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Crate crate = store.getCrate(crateId);
         if (crate == null) { HttpHelper.error(ex, 404, "Crate introuvable"); return; }
         Map<String, Object> body;

@@ -23,6 +23,7 @@ import sunanticheat.dashboard.dailyreward.DailyRewardStore;
 import sunanticheat.dashboard.events.EventCalendarStore;
 import sunanticheat.dashboard.experiments.ExperimentStore;
 import sunanticheat.dashboard.ai.AiMonitor;
+import sunanticheat.dashboard.auth.PermissionStore;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
 import sunanticheat.dashboard.honeypot.HoneypotStore;
@@ -126,6 +127,10 @@ public final class DashboardModule {
         int wsPort   = cfg.getInt("dashboard.ws-port",   60036);
         String jwtSecret = cfg.getString("dashboard.jwt-secret", "changez-moi-secret-aleatoire-32chars!");
 
+        // ── Permission Store (matrice rôle × permissions) ─────────────────────
+        PermissionStore permissionStore = new PermissionStore(plugin.getDataFolder(), plugin.getLogger());
+        HttpHelper.setPermissionStore(permissionStore);
+
         // ── Utilisateurs ──────────────────────────────────────────────────────
         userStore = new UserStore(plugin.getDataFolder(), plugin.getLogger(), cfg);
         Map<String, DashboardUser> users = new java.util.concurrent.ConcurrentHashMap<>(userStore.asMap());
@@ -175,6 +180,7 @@ public final class DashboardModule {
         List<String> allowedCmds = cfg.getStringList("dashboard.allowed-commands");
         AuthHandler     authHandler     = new AuthHandler(users, jwtUtil, userStore);
         UserHandler     userHandler     = new UserHandler(userStore);
+        PermissionsHandler permsHandler  = new PermissionsHandler(permissionStore);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
         SecurityHandler securityHandler = new SecurityHandler(plugin, sanctionHistory, reportStorage, alertStore);
         EconomyHandler  economyHandler  = new EconomyHandler(plugin, economy, transactionStore);
@@ -290,7 +296,7 @@ public final class DashboardModule {
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
-                shopHandler, vipHandler, vipPublicHandler);
+                shopHandler, vipHandler, vipPublicHandler, permsHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

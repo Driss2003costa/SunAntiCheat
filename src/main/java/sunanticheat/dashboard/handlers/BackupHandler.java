@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.backup.BackupManager;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ public final class BackupHandler {
     public void create(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.BACKUP_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         String world = body != null ? (String) body.get("world") : null;
         if (world == null) { HttpHelper.error(ex, 400, "world manquant"); return; }
@@ -39,7 +40,7 @@ public final class BackupHandler {
     public void delete(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.BACKUP_MANAGE)) return;
         String world = HttpHelper.queryParam(ex, "world");
         String filename = HttpHelper.queryParam(ex, "filename");
         if (world == null || filename == null) { HttpHelper.error(ex, 400, "world+filename requis"); return; }

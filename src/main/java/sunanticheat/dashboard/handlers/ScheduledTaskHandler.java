@@ -5,6 +5,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.tasks.ScheduledTask;
 import sunanticheat.dashboard.tasks.ScheduledTaskStore;
 
@@ -35,7 +36,7 @@ public final class ScheduledTaskHandler {
     public void create(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.TASKS_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         ScheduledTask t = store.add(
@@ -53,7 +54,7 @@ public final class ScheduledTaskHandler {
     public void update(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.TASKS_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         Boolean enabled = body.containsKey("enabled") ? (Boolean) body.get("enabled") : null;
@@ -72,7 +73,7 @@ public final class ScheduledTaskHandler {
     public void delete(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.TASKS_MANAGE)) return;
         boolean ok = store.delete(id);
         if (!ok) { HttpHelper.error(ex, 404, "Tâche introuvable"); return; }
         HttpHelper.noContent(ex);
@@ -82,7 +83,7 @@ public final class ScheduledTaskHandler {
     public void run(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.TASKS_MANAGE)) return;
         boolean ok = store.runNow(plugin, id);
         if (!ok) { HttpHelper.error(ex, 404, "Tâche introuvable"); return; }
         HttpHelper.json(ex, 200, Map.of("ok", true));

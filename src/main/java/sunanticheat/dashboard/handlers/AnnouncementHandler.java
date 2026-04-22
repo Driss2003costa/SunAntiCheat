@@ -6,6 +6,7 @@ import sunanticheat.dashboard.DashboardRole;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.announcements.Announcement;
 import sunanticheat.dashboard.announcements.AnnouncementService;
 import sunanticheat.dashboard.announcements.AnnouncementStore;
@@ -51,7 +52,7 @@ public final class AnnouncementHandler {
     public void create(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Announcement a = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Announcement.class);
         if (a == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         Announcement created = store.create(a);
@@ -62,7 +63,7 @@ public final class AnnouncementHandler {
     public void update(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Announcement patch = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Announcement.class);
         if (patch == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         Announcement updated = store.update(id, patch);
@@ -74,7 +75,7 @@ public final class AnnouncementHandler {
     public void delete(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         boolean ok = store.delete(id);
         if (!ok) { HttpHelper.error(ex, 404, "Annonce introuvable"); return; }
         HttpHelper.noContent(ex);
@@ -84,7 +85,7 @@ public final class AnnouncementHandler {
     public void testSend(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Announcement a = store.get(id);
         if (a == null) { HttpHelper.error(ex, 404, "Annonce introuvable"); return; }
         service.triggerTestSend(a);

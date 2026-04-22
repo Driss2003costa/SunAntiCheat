@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.quests.Quest;
 import sunanticheat.dashboard.quests.QuestStore;
 
@@ -32,7 +33,7 @@ public final class QuestHandler {
     public void create(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "body manquant"); return; }
 
@@ -60,7 +61,7 @@ public final class QuestHandler {
     public void update(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "body manquant"); return; }
         Quest q = store.update(id, body);
@@ -71,7 +72,7 @@ public final class QuestHandler {
     public void delete(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         boolean ok = store.delete(id);
         HttpHelper.json(ex, ok ? 200 : 404, Map.of("ok", ok));
     }

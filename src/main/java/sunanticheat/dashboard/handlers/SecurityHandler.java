@@ -8,6 +8,7 @@ import sunanticheat.SunAntiCheat;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.alerts.AlertStore;
 import sunanticheat.report.ReportEntry;
 import sunanticheat.report.ReportStorage;
@@ -56,7 +57,7 @@ public final class SecurityHandler {
     public void createSanction(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireMod(ex, user)) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.MODERATE_PLAYERS)) return;
 
         JsonObject req;
         try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }
@@ -89,7 +90,7 @@ public final class SecurityHandler {
     public void revokeSanction(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireMod(ex, user)) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.MODERATE_PLAYERS)) return;
         // La révocation dépend de la structure interne de SanctionHistoryStorage
         // On expose l'info et laisse l'admin utiliser la commande /pardon
         HttpHelper.json(ex, 200, Map.of("message", "Utilisez /pardon <joueur> en console pour révoquer un ban."));
@@ -116,7 +117,7 @@ public final class SecurityHandler {
     public void resolveReport(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireMod(ex, user)) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.MODERATE_PLAYERS)) return;
         reportStorage.markResolved(id);
         HttpHelper.json(ex, 200, Map.of("success", true));
     }
@@ -137,7 +138,7 @@ public final class SecurityHandler {
     public void chestscanStart(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireMod(ex, user)) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.CHESTSCAN_RUN)) return;
 
         JsonObject req;
         try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }
@@ -185,7 +186,7 @@ public final class SecurityHandler {
     public void patchConfig(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireAdmin(ex, user)) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.SECURITY_CONFIG)) return;
 
         JsonObject req;
         try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }

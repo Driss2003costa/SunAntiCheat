@@ -6,6 +6,7 @@ import sunanticheat.dashboard.DashboardRole;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.vip.PayPalService;
 import sunanticheat.dashboard.vip.StripeService;
 import sunanticheat.dashboard.vip.VipActivationService;
@@ -48,7 +49,7 @@ public final class VipHandler {
     public void createPlan(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.VIP_MANAGE)) return;
         VipPlan plan = HttpHelper.GSON.fromJson(HttpHelper.body(ex), VipPlan.class);
         if (plan == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         VipPlan created = store.createPlan(plan);
@@ -58,7 +59,7 @@ public final class VipHandler {
     public void updatePlan(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.VIP_MANAGE)) return;
         VipPlan plan = HttpHelper.GSON.fromJson(HttpHelper.body(ex), VipPlan.class);
         if (plan == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         VipPlan updated = store.updatePlan(id, plan);
@@ -69,7 +70,7 @@ public final class VipHandler {
     public void deletePlan(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.VIP_MANAGE)) return;
         store.deletePlan(id);
         HttpHelper.noContent(ex);
     }
@@ -94,7 +95,7 @@ public final class VipHandler {
     public void gift(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.VIP_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         String playerName = (String) body.get("playerName");
@@ -113,7 +114,7 @@ public final class VipHandler {
     public void extend(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.VIP_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "Body invalide"); return; }
         Number n = (Number) body.get("days");
@@ -128,7 +129,7 @@ public final class VipHandler {
     public void revoke(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.VIP_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         String reason = body == null ? "Révocation admin" : (String) body.getOrDefault("reason", "Révocation admin");
         VipSubscription sub = store.getSubscription(id);

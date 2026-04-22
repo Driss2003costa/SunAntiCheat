@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.auth.UserStore;
 
 import java.io.IOException;
@@ -20,7 +21,7 @@ public final class UserHandler {
     public void list(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.USERS_MANAGE)) return;
         HttpHelper.json(ex, 200, Map.of("users", store.listPublic()));
     }
 
@@ -29,7 +30,7 @@ public final class UserHandler {
     public void create(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.USERS_MANAGE)) return;
 
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "body manquant"); return; }
@@ -53,7 +54,7 @@ public final class UserHandler {
     public void changeRole(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String target) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.USERS_MANAGE)) return;
 
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         String role = body != null ? (String) body.get("role") : null;
@@ -71,7 +72,7 @@ public final class UserHandler {
     public void resetPassword(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String target) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.USERS_MANAGE)) return;
 
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         String newPw = body != null ? (String) body.get("newPassword") : null;
@@ -105,7 +106,7 @@ public final class UserHandler {
     public void delete(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String target) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.USERS_MANAGE)) return;
 
         String err = store.delete(target, u.username());
         if (err != null) { HttpHelper.error(ex, 400, err); return; }

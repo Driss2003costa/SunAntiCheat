@@ -14,6 +14,12 @@ public final class HttpHelper {
 
     public static final Gson GSON = new GsonBuilder().serializeNulls().create();
 
+    /** Store des permissions (injecté par DashboardModule au boot). */
+    private static volatile sunanticheat.dashboard.auth.PermissionStore permStore;
+
+    public static void setPermissionStore(sunanticheat.dashboard.auth.PermissionStore store) { permStore = store; }
+    public static sunanticheat.dashboard.auth.PermissionStore permissions() { return permStore; }
+
     private HttpHelper() {}
 
     public static void json(HttpExchange ex, int status, Object data) throws IOException {
@@ -87,6 +93,24 @@ public final class HttpHelper {
     public static boolean requireMod(HttpExchange ex, DashboardUser user) throws IOException {
         if (!user.role().atLeast(DashboardRole.MOD)) {
             error(ex, 403, "Accès réservé aux modérateurs ou administrateurs");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Vérifie que l'utilisateur a une permission spécifique via le PermissionStore.
+     * Si le store n'est pas initialisé, fallback sur requireAdmin.
+     * Envoie 403 avec un message clair si refusé.
+     */
+    public static boolean requirePermission(HttpExchange ex, DashboardUser user,
+                                             sunanticheat.dashboard.auth.Permission perm) throws IOException {
+        if (permStore == null) {
+            // Safety fallback : si le store n'est pas initialisé, ADMIN only
+            return requireAdmin(ex, user);
+        }
+        if (!permStore.has(user.role(), perm)) {
+            error(ex, 403, "Permission refusée : " + perm.label + " (rôle " + user.role() + ")");
             return false;
         }
         return true;

@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.chat.ToxicChatStore;
 
 import java.io.IOException;
@@ -31,7 +32,7 @@ public final class ToxicChatHandler {
     public void updateWordlist(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         List<String> words = body != null ? (List<String>) body.get("words") : null;
         if (words == null) { HttpHelper.error(ex, 400, "words manquant"); return; }
@@ -44,7 +45,7 @@ public final class ToxicChatHandler {
     public void reset(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireMod(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.MODERATE_PLAYERS)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         String player = body != null ? (String) body.get("player") : null;
         if (player == null) { HttpHelper.error(ex, 400, "player manquant"); return; }

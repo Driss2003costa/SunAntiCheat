@@ -6,6 +6,7 @@ import sunanticheat.dashboard.DashboardRole;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.shop.Shop;
 import sunanticheat.dashboard.shop.ShopItem;
 import sunanticheat.dashboard.shop.ShopStore;
@@ -78,7 +79,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             Shop incoming;
             try { incoming = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Shop.class); }
             catch (Exception e) { HttpHelper.error(ex, 400, "JSON invalide"); return; }
@@ -96,7 +97,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             Shop incoming;
             try { incoming = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Shop.class); }
             catch (Exception e) { HttpHelper.error(ex, 400, "JSON invalide"); return; }
@@ -112,7 +113,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             store.deleteShop(id);
             SyncResult r = safeSync();
             Map<String, Object> body = new LinkedHashMap<>();
@@ -128,7 +129,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             if (store.getShop(shopId) == null) { HttpHelper.error(ex, 404, "Shop introuvable"); return; }
             ShopItem item;
             try { item = HttpHelper.GSON.fromJson(HttpHelper.body(ex), ShopItem.class); }
@@ -144,7 +145,9 @@ public final class ShopHandler {
     public void updateItem(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
                            String shopId, String itemId) throws IOException {
         try {
-            if (HttpHelper.requireAtLeast(ex, jwt, users, DashboardRole.MOD) == null) return;
+            DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+            if (u == null) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_EDIT_PRICES)) return;
             if (store.getShop(shopId) == null) { HttpHelper.error(ex, 404, "Shop introuvable"); return; }
             ShopItem item;
             try { item = HttpHelper.GSON.fromJson(HttpHelper.body(ex), ShopItem.class); }
@@ -161,7 +164,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             store.removeItem(shopId, itemId);
             SyncResult r = safeSync();
             Map<String, Object> body = new LinkedHashMap<>();
@@ -177,7 +180,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             SyncResult r = sync.syncToESG();
             HttpHelper.json(ex, r.success() ? 200 : 500, r);
         } catch (Exception e) { fail(ex, e); }
@@ -188,7 +191,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             SyncResult r = sync.rollbackESG();
             HttpHelper.json(ex, r.success() ? 200 : 500, r);
         } catch (Exception e) { fail(ex, e); }
@@ -198,7 +201,7 @@ public final class ShopHandler {
         try {
             DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
             if (u == null) return;
-            if (!HttpHelper.requireAdmin(ex, u)) return;
+            if (!HttpHelper.requirePermission(ex, u, Permission.SHOPS_MANAGE)) return;
             List<Map<String, Object>> preview = sync.importFromESG();
             HttpHelper.json(ex, 200, preview);
         } catch (Exception e) { fail(ex, e); }

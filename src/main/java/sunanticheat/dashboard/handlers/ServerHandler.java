@@ -9,6 +9,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -110,7 +111,7 @@ public final class ServerHandler {
     public void command(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireMod(ex, user)) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.SERVER_COMMAND)) return;
 
         JsonObject req;
         try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }
@@ -144,7 +145,7 @@ public final class ServerHandler {
     public void togglePvp(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String worldName) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireMod(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.WORLD_PVP)) return;
 
         var future = new CompletableFuture<Map<String, Object>>();
         Bukkit.getScheduler().runTask(plugin, () -> {

@@ -173,6 +173,15 @@ export const api = {
   userChangeOwnPassword: (currentPassword: string, newPassword: string) =>
     request<any>('/api/users/me/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
 
+  // Permissions matrix
+  permsGet:        () => request<{
+    roles: Record<string, string[]>
+    catalog: Array<{ id: string; label: string; description: string; category: string }>
+  }>('/api/permissions'),
+  permsUpdate:     (role: string, permissions: string[]) =>
+    request<any>('/api/permissions', { method: 'PUT', body: JSON.stringify({ role, permissions }) }),
+  permsReset:      () => request<any>('/api/permissions/reset', { method: 'POST' }),
+
   // AI Assistant
   aiStatus:        () => request<{
     configured: boolean

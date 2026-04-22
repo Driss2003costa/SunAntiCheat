@@ -7,6 +7,7 @@ import org.bukkit.plugin.PluginManager;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,7 +42,7 @@ public final class PluginManagerHandler {
     public void toggle(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String name) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.PLUGIN_MANAGE)) return;
         Plugin p = Bukkit.getPluginManager().getPlugin(name);
         if (p == null) { HttpHelper.error(ex, 404, "Plugin introuvable"); return; }
         if ("SunAntiCheat".equalsIgnoreCase(name)) { HttpHelper.error(ex, 400, "Impossible de désactiver SunAntiCheat depuis lui-même"); return; }
@@ -57,7 +58,7 @@ public final class PluginManagerHandler {
     public void reload(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String name) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.PLUGIN_MANAGE)) return;
         Plugin p = Bukkit.getPluginManager().getPlugin(name);
         if (p == null) { HttpHelper.error(ex, 404, "Plugin introuvable"); return; }
         if ("SunAntiCheat".equalsIgnoreCase(name)) { HttpHelper.error(ex, 400, "Impossible de se recharger soi-même"); return; }
@@ -75,7 +76,7 @@ public final class PluginManagerHandler {
     public void reloadConfig(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String name) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.PLUGIN_MANAGE)) return;
         Plugin p = Bukkit.getPluginManager().getPlugin(name);
         if (p == null) { HttpHelper.error(ex, 404, "Plugin introuvable"); return; }
         try {

@@ -32,6 +32,7 @@ import Ranks from './pages/Ranks'
 import Shops from './pages/Shops'
 import Vip from './pages/Vip'
 import Buy from './pages/Buy'
+import PermissionsPage from './pages/Permissions'
 import { useEffect } from 'react'
 import { applyTheme, useThemeStore } from './stores/themeStore'
 
@@ -81,6 +82,7 @@ export default function App() {
                 <Route path="/ranks"         element={<Ranks />} />
                 <Route path="/shops"         element={<Shops />} />
                 <Route path="/vip"           element={<Vip />} />
+                <Route path="/permissions"   element={<PermissionsPage />} />
                 <Route path="/config"        element={<Config />} />
               </Routes>
             </Layout>

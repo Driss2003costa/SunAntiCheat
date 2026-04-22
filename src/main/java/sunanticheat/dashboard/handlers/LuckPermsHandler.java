@@ -9,6 +9,7 @@ import sunanticheat.dashboard.DashboardRole;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.luckperms.LuckPermsBridge;
 
 import java.io.IOException;
@@ -68,7 +69,7 @@ public final class LuckPermsHandler {
                          String playerName) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.LUCKPERMS_EDIT)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null || body.get("group") == null) {
             HttpHelper.error(ex, 400, "body { group } requis");
@@ -95,7 +96,7 @@ public final class LuckPermsHandler {
                             String playerName, String group) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.LUCKPERMS_EDIT)) return;
         if (playerName == null || group == null) {
             HttpHelper.error(ex, 400, "playerName/group requis");
             return;
@@ -121,7 +122,7 @@ public final class LuckPermsHandler {
                            String playerName) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.LUCKPERMS_EDIT)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null || body.get("group") == null) {
             HttpHelper.error(ex, 400, "body { group } requis");

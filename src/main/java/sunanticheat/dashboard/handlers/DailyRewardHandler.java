@@ -7,6 +7,7 @@ import sunanticheat.dashboard.DashboardRole;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.dailyreward.DailyRewardConfig;
 import sunanticheat.dashboard.dailyreward.DailyRewardStore;
 
@@ -36,7 +37,7 @@ public final class DailyRewardHandler {
     public void saveConfig(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         DailyRewardConfig cfg;
         try { cfg = HttpHelper.GSON.fromJson(HttpHelper.body(ex), DailyRewardConfig.class); }
         catch (Exception e) { HttpHelper.error(ex, 400, "Body invalide"); return; }
@@ -78,7 +79,7 @@ public final class DailyRewardHandler {
     public void resetStreak(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String playerName) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         if (playerName == null || playerName.isEmpty()) { HttpHelper.error(ex, 400, "playerName requis"); return; }
         OfflinePlayer off = Bukkit.getOfflinePlayer(playerName);
         UUID uuid = off.getUniqueId();

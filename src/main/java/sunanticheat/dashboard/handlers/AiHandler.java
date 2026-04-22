@@ -13,6 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.ai.AiProviderClient;
 import sunanticheat.dashboard.ai.AiUsageStore;
 import sunanticheat.dashboard.ws.DashboardWsServer;
@@ -148,7 +149,7 @@ public final class AiHandler {
     public void setConfig(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.AI_CONFIG)) return;
 
         Map<String, Object> body;
         try {
@@ -591,7 +592,7 @@ public final class AiHandler {
     public void applyPatch(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireAdmin(ex, user)) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.AI_APPLY_PATCH)) return;
 
         Map<String, Object> body;
         try {
