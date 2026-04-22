@@ -20,10 +20,14 @@ export default function Console() {
   const [input, setInput]     = useState('')
   const [history, setHistory] = useState<string[]>([])
   const [histIdx, setHistIdx] = useState(-1)
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'authed' | 'subscribed' | 'error'>('connecting')
   const bottomRef = useRef<HTMLDivElement>(null)
   const isAdmin = useAuthStore(s => s.isAdmin())
 
   const { send } = useWebSocket(['console'], (msg) => {
+    if (msg.type === 'auth_ok') setWsStatus('authed')
+    if (msg.type === 'subscribed' && msg.channel === 'console') setWsStatus('subscribed')
+    if (msg.type === 'error') setWsStatus('error')
     if (msg.channel === 'console' && msg.data) {
       setLines(prev => [...prev.slice(-500), stripMinecraftColors(msg.data)])
     }
@@ -53,9 +57,22 @@ export default function Console() {
     }
   }
 
+  const statusBadge = () => {
+    if (wsStatus === 'subscribed') return { color: '#10b981', label: '● Connecté & abonné' }
+    if (wsStatus === 'authed')     return { color: '#f59e0b', label: '● Authentifié (abonnement...)' }
+    if (wsStatus === 'error')      return { color: '#ef4444', label: '● Erreur WebSocket' }
+    return { color: '#6b7280', label: '● Connexion en cours...' }
+  }
+  const badge = statusBadge()
+
   return (
     <div className="p-6 h-full flex flex-col gap-4">
-      <h1 className="text-2xl font-bold shrink-0">Console serveur</h1>
+      <div className="flex items-center justify-between shrink-0">
+        <h1 className="text-2xl font-bold">Console serveur</h1>
+        <div className="text-xs font-medium" style={{ color: badge.color }}>
+          {badge.label}
+        </div>
+      </div>
 
       {/* Raccourcis */}
       {isAdmin && (

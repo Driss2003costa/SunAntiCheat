@@ -36,6 +36,10 @@ public final class DashboardWsServer extends WebSocketServer {
     // conn → authenticated user
     private final Map<WebSocket, DashboardUser> authenticated = new ConcurrentHashMap<>();
 
+    /** Ring buffer des N dernières lignes console — renvoyé à chaque nouvelle souscription. */
+    private static final int CONSOLE_BUFFER_SIZE = 300;
+    private final java.util.Deque<String> consoleBuffer = new java.util.concurrent.ConcurrentLinkedDeque<>();
+
     public DashboardWsServer(int port,
                              JwtUtil jwt,
                              Map<String, DashboardUser> users,
@@ -96,6 +100,9 @@ public final class DashboardWsServer extends WebSocketServer {
     // -------------------------------------------------------------------------
 
     public void broadcastConsole(String line) {
+        // Enregistre dans le buffer (pour les nouveaux clients qui souscrivent)
+        consoleBuffer.offerLast(line);
+        while (consoleBuffer.size() > CONSOLE_BUFFER_SIZE) consoleBuffer.pollFirst();
         broadcast("console", line);
     }
 
@@ -141,6 +148,15 @@ public final class DashboardWsServer extends WebSocketServer {
         ok.addProperty("type", "subscribed");
         ok.addProperty("channel", channel);
         conn.send(ok.toString());
+
+        // ── Si le client souscrit à "console", lui envoyer le buffer d'historique ──
+        if ("console".equals(channel)) {
+            try {
+                for (String line : consoleBuffer) {
+                    conn.send(buildPayload("console", line));
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     private void handleConsoleInput(WebSocket conn, JsonObject msg) {
