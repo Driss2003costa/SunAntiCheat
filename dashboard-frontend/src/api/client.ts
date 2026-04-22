@@ -179,6 +179,10 @@ export const api = {
     request<any>('/api/ai/chat', { method: 'POST', body: JSON.stringify({ messages }) }),
   aiSetConfig:     (data: { model?: string; apiKey?: string }) =>
     request<any>('/api/ai/config', { method: 'POST', body: JSON.stringify(data) }),
+  aiDiagnose:      (focus: 'full' | 'tps' | 'ram' | 'plugins' = 'full') =>
+    request<{ analysis: string; context: string; model: string; timestamp: number }>(
+      '/api/ai/diagnose', { method: 'POST', body: JSON.stringify({ focus }) }
+    ),
 
   // Crates / Lootboxes
   cratesList:      () => request<any[]>('/api/crates'),

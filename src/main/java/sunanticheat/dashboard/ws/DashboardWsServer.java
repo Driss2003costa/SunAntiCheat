@@ -106,6 +106,13 @@ public final class DashboardWsServer extends WebSocketServer {
         broadcast("console", line);
     }
 
+    /** Renvoie une copie des N dernières lignes de console (exposé pour l'IA / diagnostic). */
+    public java.util.List<String> getRecentConsoleLines(int maxLines) {
+        java.util.List<String> snapshot = new java.util.ArrayList<>(consoleBuffer);
+        if (maxLines <= 0 || snapshot.size() <= maxLines) return snapshot;
+        return snapshot.subList(snapshot.size() - maxLines, snapshot.size());
+    }
+
     public void broadcastAlert(Object alertData) {
         broadcastJson("alerts", alertData);
     }

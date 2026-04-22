@@ -7,10 +7,16 @@ import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.World;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.ws.DashboardWsServer;
+
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 
 import java.io.IOException;
 import java.net.URI;
@@ -40,10 +46,13 @@ public final class AiHandler {
 
     private final JavaPlugin plugin;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    private DashboardWsServer wsServer;  // injecté après construction pour casser le cycle
 
     public AiHandler(JavaPlugin plugin) {
         this.plugin = plugin;
     }
+
+    public void setWsServer(DashboardWsServer ws) { this.wsServer = ws; }
 
     /** Liste des modèles Gemini supportés (affichés dans le dropdown frontend). */
     private static final List<Map<String, Object>> AVAILABLE_MODELS = List.of(
@@ -250,6 +259,243 @@ public final class AiHandler {
             }
         } catch (Throwable ignored) {}
         return "HTTP " + status + " : " + (body.length() > 200 ? body.substring(0, 200) + "..." : body);
+    }
+
+    /**
+     * POST /api/ai/diagnose
+     *
+     * Collecte automatiquement les métriques serveur (TPS, RAM, entités, chunks,
+     * plugins, dernières erreurs dans la console) et demande à Gemini de faire
+     * un diagnostic complet des problèmes de performance.
+     *
+     * Body optionnel : { focus: "tps" | "ram" | "plugins" | "full" }
+     * Par défaut : "full"
+     */
+    @SuppressWarnings("unchecked")
+    public void diagnose(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+
+        String apiKey = plugin.getConfig().getString("dashboard.ai.api-key", "");
+        if (apiKey == null || apiKey.isBlank()) {
+            HttpHelper.error(ex, 503, "Gemini API non configurée. Ajoutez dashboard.ai.api-key dans config.yml.");
+            return;
+        }
+        String model = plugin.getConfig().getString("dashboard.ai.model", DEFAULT_MODEL);
+
+        String focus = "full";
+        try {
+            Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            if (body != null && body.get("focus") instanceof String s) focus = s;
+        } catch (Exception ignored) {}
+
+        // ── Collecte du contexte de diagnostic ──
+        String diagnosticContext = buildDiagnosticContext();
+
+        // ── Prompt spécifique diagnostic ──
+        String systemPrompt = ""
+                + "Tu es un expert Paper/Spigot server admin. Tu analyses les métriques "
+                + "du serveur Minecraft pour diagnostiquer les problèmes de performance.\n\n"
+                + "Réponds en français, structuré en 3 sections markdown :\n\n"
+                + "## 🔍 Constat\n"
+                + "Résume l'état du serveur en 2-3 phrases. Indique TPS, RAM, mondes actifs.\n\n"
+                + "## ⚠️ Problèmes détectés\n"
+                + "Liste à puces des problèmes RÉELS trouvés dans les données (TPS bas, RAM saturée,\n"
+                + "trop d'entités, erreurs répétées, plugin lent, etc.). Pour chaque problème,\n"
+                + "indique la SÉVÉRITÉ (🔴 Critique / 🟠 Majeur / 🟡 Mineur).\n"
+                + "Si rien à signaler : 'Aucun problème notable détecté'.\n\n"
+                + "## 💡 Actions recommandées\n"
+                + "Liste numérotée de commandes concrètes à exécuter (ex: /mvunload monde,\n"
+                + "plugins à désactiver, config à changer). Une seule action par ligne,\n"
+                + "la plus impactante en premier.\n\n"
+                + "RÈGLES :\n"
+                + "- Sois concis et technique\n"
+                + "- Ne recommande PAS de choses génériques (ex: 'optimisez Paper') — sois précis\n"
+                + "- Si tu vois une stack trace Java, identifie le plugin coupable par son package\n"
+                + "- TPS < 18 = problème, TPS < 15 = critique\n"
+                + "- RAM > 85% = problème, > 95% = critique\n"
+                + "- > 2000 entités dans un monde = problème\n"
+                + "- > 10000 chunks chargés = problème\n\n"
+                + "Focus de cette analyse : " + focus + "\n";
+
+        String userPrompt = "Analyse le diagnostic serveur ci-dessous et dis-moi ce qui cloche :\n\n"
+                + "```\n" + diagnosticContext + "\n```";
+
+        // ── Construit payload Gemini ──
+        JsonObject payload = new JsonObject();
+        JsonObject systemInstruction = new JsonObject();
+        JsonArray sysParts = new JsonArray();
+        JsonObject sysPart = new JsonObject();
+        sysPart.addProperty("text", systemPrompt);
+        sysParts.add(sysPart);
+        systemInstruction.add("parts", sysParts);
+        payload.add("systemInstruction", systemInstruction);
+
+        JsonArray contents = new JsonArray();
+        JsonObject turn = new JsonObject();
+        turn.addProperty("role", "user");
+        JsonArray parts = new JsonArray();
+        JsonObject part = new JsonObject();
+        part.addProperty("text", userPrompt);
+        parts.add(part);
+        turn.add("parts", parts);
+        contents.add(turn);
+        payload.add("contents", contents);
+
+        JsonObject genConfig = new JsonObject();
+        genConfig.addProperty("temperature", 0.3);  // plus déterministe pour diagnostic
+        genConfig.addProperty("maxOutputTokens", 4096);
+        payload.add("generationConfig", genConfig);
+
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
+                + URLEncoder.encode(model, StandardCharsets.UTF_8)
+                + ":generateContent?key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(90))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload), StandardCharsets.UTF_8))
+                .build();
+
+        CompletableFuture<HttpResponse<String>> future = http.sendAsync(req, HttpResponse.BodyHandlers.ofString());
+        try {
+            HttpResponse<String> res = future.get();
+            if (res.statusCode() < 200 || res.statusCode() >= 300) {
+                HttpHelper.error(ex, 502, "Gemini : " + extractGeminiError(res.body(), res.statusCode()));
+                return;
+            }
+            String analysis = extractGeminiText(res.body());
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("analysis", analysis);
+            out.put("context", diagnosticContext);
+            out.put("model", model);
+            out.put("timestamp", System.currentTimeMillis());
+            HttpHelper.json(ex, 200, out);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 502, "Erreur diagnostic IA : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Collecte toutes les métriques serveur dans un format textuel lisible par l'IA.
+     * Tout est sur main thread ou read-only, donc safe même depuis un thread HTTP.
+     */
+    private String buildDiagnosticContext() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== DIAGNOSTIC SERVEUR MINECRAFT (").append(new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date())).append(") ===\n\n");
+
+        // ── Serveur général ──
+        sb.append("## Serveur\n");
+        sb.append("Version : ").append(Bukkit.getVersion()).append("\n");
+        sb.append("Bukkit version : ").append(Bukkit.getBukkitVersion()).append("\n");
+        sb.append("Joueurs : ").append(Bukkit.getOnlinePlayers().size())
+                .append(" / ").append(Bukkit.getMaxPlayers()).append("\n");
+        sb.append("View distance : ").append(Bukkit.getViewDistance()).append("\n");
+        sb.append("Simulation distance : ").append(Bukkit.getSimulationDistance()).append("\n");
+
+        // ── TPS ──
+        sb.append("\n## TPS (ticks per second — cible 20)\n");
+        try {
+            double[] tps = Bukkit.getTPS();
+            sb.append("  1 min : ").append(String.format("%.2f", tps[0])).append(tpsLabel(tps[0])).append("\n");
+            sb.append("  5 min : ").append(String.format("%.2f", tps[1])).append(tpsLabel(tps[1])).append("\n");
+            sb.append(" 15 min : ").append(String.format("%.2f", tps[2])).append(tpsLabel(tps[2])).append("\n");
+        } catch (Throwable t) { sb.append("  Non disponible\n"); }
+
+        // ── MSPT (ms per tick — cible <50) ──
+        try {
+            double[] mspt = Bukkit.getAverageTickTime() > 0
+                    ? new double[]{ Bukkit.getAverageTickTime() }
+                    : null;
+            if (mspt != null) {
+                sb.append("MSPT moyen : ").append(String.format("%.2f", mspt[0])).append(" ms");
+                sb.append(mspt[0] > 50 ? " 🔴 SURCHARGE" : mspt[0] > 35 ? " 🟠 CHARGE" : " ✓");
+                sb.append("\n");
+            }
+        } catch (Throwable ignored) {}
+
+        // ── RAM ──
+        sb.append("\n## RAM\n");
+        try {
+            MemoryMXBean mem = ManagementFactory.getMemoryMXBean();
+            long usedMb = mem.getHeapMemoryUsage().getUsed() / (1024 * 1024);
+            long maxMb  = mem.getHeapMemoryUsage().getMax() / (1024 * 1024);
+            long pct    = maxMb > 0 ? (usedMb * 100 / maxMb) : 0;
+            sb.append("Heap : ").append(usedMb).append(" / ").append(maxMb).append(" Mo (").append(pct).append("%)");
+            if (pct > 95) sb.append(" 🔴 SATURÉE");
+            else if (pct > 85) sb.append(" 🟠 ÉLEVÉE");
+            else sb.append(" ✓");
+            sb.append("\n");
+            long nonHeapMb = mem.getNonHeapMemoryUsage().getUsed() / (1024 * 1024);
+            sb.append("Non-heap : ").append(nonHeapMb).append(" Mo\n");
+        } catch (Throwable t) { sb.append("  Non disponible : ").append(t.getMessage()).append("\n"); }
+
+        // ── Mondes ──
+        sb.append("\n## Mondes (nom | joueurs | entités | chunks chargés | tile entities)\n");
+        for (World w : Bukkit.getWorlds()) {
+            int players = w.getPlayers().size();
+            int entities = 0;
+            int tiles = 0;
+            int chunks = 0;
+            try { entities = w.getEntities().size(); } catch (Throwable ignored) {}
+            try { chunks = w.getLoadedChunks().length; } catch (Throwable ignored) {}
+            try {
+                for (org.bukkit.Chunk c : w.getLoadedChunks()) tiles += c.getTileEntities().length;
+            } catch (Throwable ignored) {}
+            sb.append("  - ").append(w.getName()).append(" | ")
+                    .append(players).append("p | ")
+                    .append(entities).append("e");
+            if (entities > 2000) sb.append("🔴");
+            else if (entities > 1000) sb.append("🟠");
+            sb.append(" | ").append(chunks).append("c");
+            if (chunks > 10000) sb.append("🔴");
+            else if (chunks > 5000) sb.append("🟠");
+            sb.append(" | ").append(tiles).append("t\n");
+        }
+
+        // ── Plugins ──
+        sb.append("\n## Plugins chargés\n");
+        Plugin[] plugins = Bukkit.getPluginManager().getPlugins();
+        sb.append("Total : ").append(plugins.length).append("\n");
+        for (Plugin p : plugins) {
+            sb.append("  - ").append(p.getName())
+                    .append(" v").append(p.getDescription().getVersion())
+                    .append(p.isEnabled() ? " ✓" : " ✗ DÉSACTIVÉ")
+                    .append("\n");
+        }
+
+        // ── Logs console récents ──
+        sb.append("\n## Derniers logs console (200 lignes)\n");
+        if (wsServer != null) {
+            java.util.List<String> recent = wsServer.getRecentConsoleLines(200);
+            if (recent.isEmpty()) {
+                sb.append("  (buffer vide — aucun log capturé récemment)\n");
+            } else {
+                // Priorise les erreurs/warnings en fin de liste
+                for (String line : recent) sb.append(line).append("\n");
+            }
+        } else {
+            sb.append("  (capture console non disponible)\n");
+        }
+
+        // ── Anticheat alerts récentes (via SunAntiCheat) ──
+        try {
+            sunanticheat.dashboard.DashboardModule dm =
+                    ((sunanticheat.SunAntiCheat) plugin).getDashboardModule();
+            if (dm != null) {
+                sb.append("\n## Alertes anticheat récentes : intégrées dans les logs ci-dessus\n");
+            }
+        } catch (Throwable ignored) {}
+
+        return sb.toString();
+    }
+
+    private static String tpsLabel(double tps) {
+        if (tps >= 19.5) return " ✓";
+        if (tps >= 18)   return " 🟡";
+        if (tps >= 15)   return " 🟠";
+        return " 🔴 CRITIQUE";
     }
 
     private String buildSystemPrompt() {

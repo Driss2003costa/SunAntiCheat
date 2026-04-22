@@ -18,6 +18,8 @@ export default function Assistant() {
   const [loading, setLoading] = useState(false)
   const [showModelPicker, setShowModelPicker] = useState(false)
   const [switching, setSwitching] = useState<string | null>(null)
+  const [diagnosing, setDiagnosing] = useState(false)
+  const [showContext, setShowContext] = useState<string | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   const refreshStatus = () => api.aiStatus().then(setStatus).catch(() => {})
@@ -39,6 +41,26 @@ export default function Assistant() {
       setMessages([...history, { role: 'assistant', content: '⚠ Erreur : ' + e.message }])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const runDiagnostic = async (focus: 'full' | 'tps' | 'ram' | 'plugins' = 'full') => {
+    if (diagnosing) return
+    const focusLabel = { full: 'complet', tps: 'TPS', ram: 'RAM', plugins: 'plugins' }[focus]
+    const userMsg: Msg = { role: 'user', content: `🔍 Diagnostic ${focusLabel} du serveur` }
+    setMessages(prev => [...prev, userMsg])
+    setDiagnosing(true)
+    try {
+      const res = await api.aiDiagnose(focus)
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: res.analysis + '\n\n---\n_Analysé avec ' + res.model + ' · [Voir les métriques brutes]_',
+      }])
+      setShowContext(res.context)
+    } catch (e: any) {
+      setMessages(prev => [...prev, { role: 'assistant', content: '⚠ Erreur diagnostic : ' + e.message }])
+    } finally {
+      setDiagnosing(false)
     }
   }
 
@@ -185,15 +207,55 @@ export default function Assistant() {
            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {messages.length === 0 && (
           <div className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>
-            Posez une question sur le serveur, les joueurs, la modération...
-            <div className="mt-4 flex flex-wrap gap-2 justify-center">
-              {['Qui est en ligne ?', 'Analyse des alertes', 'Comment optimiser les TPS ?', 'Résumé du serveur'].map(q => (
-                <button key={q} onClick={() => setInput(q)}
-                        className="px-3 py-1 rounded-full text-xs"
-                        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
-                  {q}
+            <div className="mb-6">
+              <div className="text-4xl mb-2">🤖</div>
+              <div className="font-semibold" style={{ color: 'var(--text)' }}>Posez une question ou lancez un diagnostic</div>
+            </div>
+
+            {/* Boutons diagnostic automatique */}
+            <div className="mb-4">
+              <div className="text-xs mb-2 uppercase tracking-wider opacity-60">Diagnostic auto</div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <button onClick={() => runDiagnostic('full')} disabled={!status?.configured || diagnosing}
+                        className="px-4 py-2 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
+                        style={{ background: '#8b5cf6' }}>
+                  🔍 {diagnosing ? 'Analyse en cours...' : 'Diagnostiquer le serveur'}
                 </button>
-              ))}
+                <button onClick={() => runDiagnostic('tps')} disabled={!status?.configured || diagnosing}
+                        className="px-3 py-2 rounded-lg text-xs disabled:opacity-50"
+                        style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+                  ⚡ TPS/Lag
+                </button>
+                <button onClick={() => runDiagnostic('ram')} disabled={!status?.configured || diagnosing}
+                        className="px-3 py-2 rounded-lg text-xs disabled:opacity-50"
+                        style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+                  🧠 RAM
+                </button>
+                <button onClick={() => runDiagnostic('plugins')} disabled={!status?.configured || diagnosing}
+                        className="px-3 py-2 rounded-lg text-xs disabled:opacity-50"
+                        style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+                  🧩 Plugins
+                </button>
+              </div>
+            </div>
+
+            {/* Suggestions questions */}
+            <div>
+              <div className="text-xs mb-2 uppercase tracking-wider opacity-60">Questions rapides</div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {[
+                  'Pourquoi mon serveur ralentit ?',
+                  'Qui est en ligne ?',
+                  'Quels plugins consomment le plus ?',
+                  'Résumé des alertes récentes',
+                ].map(q => (
+                  <button key={q} onClick={() => setInput(q)}
+                          className="px-3 py-1.5 rounded-full text-xs"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -208,14 +270,33 @@ export default function Assistant() {
             </div>
           </div>
         ))}
-        {loading && (
+        {(loading || diagnosing) && (
           <div className="text-sm flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
             <span className="animate-pulse">⏳</span>
-            <span>Gemini réfléchit...</span>
+            <span>{diagnosing ? 'Collecte des métriques + analyse IA...' : 'Gemini réfléchit...'}</span>
           </div>
         )}
         <div ref={endRef}/>
       </div>
+
+      {/* Bouton diagnostic rapide (visible dans les messages) */}
+      {messages.length > 0 && status?.configured && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          <button onClick={() => runDiagnostic('full')} disabled={diagnosing}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                  style={{ background: '#8b5cf6' }}>
+            🔍 Diagnostic complet
+          </button>
+          {showContext && (
+            <button onClick={() => alert(showContext)}
+                    className="px-3 py-1.5 rounded-lg text-xs"
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+                    title="Voir les métriques brutes envoyées à l'IA">
+              📊 Voir contexte
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Input */}
       <div className="flex gap-2">

@@ -270,6 +270,9 @@ public final class DashboardModule {
                 }));
         wsServer.start();
 
+        // Injection du wsServer dans AiHandler pour accès buffer console (diagnostic IA)
+        aiHandler.setWsServer(wsServer);
+
         // ── Console capture ───────────────────────────────────────────────────
         consoleCapture = ConsoleLogCapture.install(wsServer::broadcastConsole);
 
