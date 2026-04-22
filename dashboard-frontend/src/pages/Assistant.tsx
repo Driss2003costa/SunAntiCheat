@@ -5,6 +5,7 @@ import PatchCards, { parseAiPatches } from '../components/PatchCards'
 
 type Msg = { role: 'user' | 'assistant'; content: string; patches?: any[] }
 type ModelInfo = { id: string; name: string; desc: string; tier: string }
+type ProviderInfo = { id: string; name: string; keyUrl: string }
 
 export default function Assistant() {
   const { isAdmin } = usePermission()
@@ -13,6 +14,7 @@ export default function Assistant() {
     model: string
     provider: string
     availableModels: ModelInfo[]
+    availableProviders: ProviderInfo[]
   } | null>(null)
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
@@ -87,6 +89,17 @@ export default function Assistant() {
     }
   }
 
+  const switchProvider = async (providerId: string) => {
+    if (!confirm(`Passer à ${providerId.toUpperCase()} ?\n\nTu devras fournir la clé API correspondante dans config.yml (dashboard.ai.api-key).`)) return
+    try {
+      await api.aiSetConfig({ provider: providerId })
+      await refreshStatus()
+      alert(`Provider changé pour ${providerId}. N'oublie pas de mettre à jour dashboard.ai.api-key dans config.yml.`)
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
+    }
+  }
+
   const currentModelInfo = status?.availableModels?.find(m => m.id === status.model)
 
   return (
@@ -96,7 +109,23 @@ export default function Assistant() {
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>🤖 Assistant IA</h1>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Propulsé par Google Gemini</p>
+            <div className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+              <span>Propulsé par</span>
+              {isAdmin && status?.availableProviders ? (
+                <select value={status.provider}
+                        onChange={e => switchProvider(e.target.value)}
+                        className="bg-transparent cursor-pointer font-semibold"
+                        style={{ color: 'var(--text)' }}>
+                  {status.availableProviders.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="font-semibold" style={{ color: 'var(--text)' }}>
+                  {status?.provider === 'openai' ? 'OpenAI (GPT)' : 'Google Gemini'}
+                </span>
+              )}
+            </div>
           </div>
           {usage && status?.configured && <UsageBadge usage={usage} onOpen={() => setShowUsage(true)}/>}
         </div>
@@ -133,10 +162,12 @@ export default function Assistant() {
                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <div className="p-3" style={{ borderBottom: '1px solid var(--border)' }}>
                     <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
-                      Choisir un modèle Gemini
+                      Choisir un modèle {status.provider === 'openai' ? 'OpenAI' : 'Gemini'}
                     </div>
                     <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Les modèles <b>🆓 gratuits</b> ont un quota généreux (1M tokens/jour).
+                      {status.provider === 'gemini'
+                        ? <>Les modèles <b>🆓 gratuits</b> ont un quota généreux (1M tokens/jour).</>
+                        : <>Tous les modèles OpenAI sont <b>payants</b>. Le moins cher : <code>gpt-4o-mini</code>.</>}
                     </div>
                   </div>
                   <div className="max-h-[400px] overflow-y-auto">
@@ -192,28 +223,36 @@ export default function Assistant() {
         )}
       </div>
 
-      {/* Banner d'erreur si pas configuré */}
-      {status && !status.configured && (
-        <div className="rounded-xl p-4 mb-4 text-sm"
-             style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444' }}>
-          <div className="font-semibold mb-2">⚠ Clé API Gemini non configurée</div>
-          <div>
-            Ajoutez votre clé <b>Google Gemini</b> dans <code>config.yml</code> :
-          </div>
-          <pre className="mt-2 text-xs opacity-80" style={{ color: 'var(--text)' }}>dashboard:
+      {/* Banner d'erreur si pas configuré — adapté au provider */}
+      {status && !status.configured && (() => {
+        const isOpenAi = status.provider === 'openai'
+        const providerInfo = status.availableProviders?.find(p => p.id === status.provider)
+        const keyUrl = providerInfo?.keyUrl || 'https://aistudio.google.com/apikey'
+        const keyPrefix = isOpenAi ? 'sk-...' : 'AIzaSy...'
+        const modelExample = isOpenAi ? 'gpt-4o-mini' : 'gemini-2.0-flash'
+        return (
+          <div className="rounded-xl p-4 mb-4 text-sm"
+               style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444' }}>
+            <div className="font-semibold mb-2">⚠ Clé API {providerInfo?.name || status.provider} non configurée</div>
+            <div>
+              Ajoutez votre clé dans <code>config.yml</code> :
+            </div>
+            <pre className="mt-2 text-xs opacity-80" style={{ color: 'var(--text)' }}>dashboard:
   ai:
-    api-key: AIzaSy...
-    model: gemini-2.0-flash</pre>
-          <div className="mt-2 text-xs" style={{ color: 'var(--text)' }}>
-            🔑 Clé <b>gratuite</b> sur{' '}
-            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer"
-               className="underline" style={{ color: 'var(--primary)' }}>
-              aistudio.google.com/apikey
-            </a>
-            &nbsp;— 1M tokens/jour offerts
+    provider: {status.provider}
+    api-key: {keyPrefix}
+    model: {modelExample}</pre>
+            <div className="mt-2 text-xs" style={{ color: 'var(--text)' }}>
+              🔑 Obtenez votre clé sur{' '}
+              <a href={keyUrl} target="_blank" rel="noreferrer"
+                 className="underline" style={{ color: 'var(--primary)' }}>
+                {keyUrl.replace('https://', '')}
+              </a>
+              {!isOpenAi && <> &nbsp;— <b>1M tokens/jour offerts</b></>}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Zone chat */}
       <div className="flex-1 rounded-xl overflow-y-auto p-4 space-y-3 mb-4"
@@ -291,7 +330,7 @@ export default function Assistant() {
         {(loading || diagnosing) && (
           <div className="text-sm flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
             <span className="animate-pulse">⏳</span>
-            <span>{diagnosing ? 'Collecte des métriques + analyse IA...' : 'Gemini réfléchit...'}</span>
+            <span>{diagnosing ? 'Collecte des métriques + analyse IA...' : 'L\'IA réfléchit...'}</span>
           </div>
         )}
         <div ref={endRef}/>

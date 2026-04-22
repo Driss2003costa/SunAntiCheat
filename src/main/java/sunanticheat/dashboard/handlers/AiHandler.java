@@ -13,6 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.ai.AiProviderClient;
 import sunanticheat.dashboard.ai.AiUsageStore;
 import sunanticheat.dashboard.ws.DashboardWsServer;
 
@@ -43,7 +44,12 @@ import java.util.concurrent.CompletableFuture;
 public final class AiHandler {
 
     private static final Gson GSON = new Gson();
-    private static final String DEFAULT_MODEL = "gemini-2.0-flash";
+    private static final String DEFAULT_PROVIDER = "gemini";
+    private static final Map<String, String> DEFAULT_MODEL_PER_PROVIDER = Map.of(
+            "gemini", "gemini-2.0-flash",
+            "openai", "gpt-4o-mini"
+    );
+    private static String DEFAULT_MODEL = "gemini-2.0-flash"; // compat
 
     private final JavaPlugin plugin;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
@@ -84,8 +90,8 @@ public final class AiHandler {
         HttpHelper.json(ex, 200, usageStore.snapshot());
     }
 
-    /** Liste des modèles Gemini supportés (affichés dans le dropdown frontend). */
-    private static final List<Map<String, Object>> AVAILABLE_MODELS = List.of(
+    /** Liste des modèles Gemini supportés. */
+    private static final List<Map<String, Object>> GEMINI_MODELS = List.of(
             Map.of("id", "gemini-2.0-flash",       "name", "Gemini 2.0 Flash",       "desc", "Rapide et équilibré (recommandé)", "tier", "free"),
             Map.of("id", "gemini-2.0-flash-lite",  "name", "Gemini 2.0 Flash Lite",  "desc", "Ultra rapide, moins cher",         "tier", "free"),
             Map.of("id", "gemini-2.5-flash",       "name", "Gemini 2.5 Flash",       "desc", "Version plus récente, qualité++",   "tier", "free"),
@@ -94,15 +100,46 @@ public final class AiHandler {
             Map.of("id", "gemini-1.5-pro",         "name", "Gemini 1.5 Pro (legacy)","desc", "Ancien modèle pro, fallback",    "tier", "paid")
     );
 
+    /** Liste des modèles OpenAI supportés. */
+    private static final List<Map<String, Object>> OPENAI_MODELS = List.of(
+            Map.of("id", "gpt-4o-mini",            "name", "GPT-4o Mini",            "desc", "Rapide et pas cher (recommandé)",   "tier", "paid"),
+            Map.of("id", "gpt-4o",                 "name", "GPT-4o",                 "desc", "Version complète, qualité supérieure","tier", "paid"),
+            Map.of("id", "gpt-4-turbo",            "name", "GPT-4 Turbo",            "desc", "Plus lent, très précis",            "tier", "paid"),
+            Map.of("id", "gpt-4.1-mini",           "name", "GPT-4.1 Mini",           "desc", "Plus récent, léger",                "tier", "paid"),
+            Map.of("id", "gpt-4.1",                "name", "GPT-4.1",                "desc", "Flagship récent",                   "tier", "paid"),
+            Map.of("id", "gpt-3.5-turbo",          "name", "GPT-3.5 Turbo",          "desc", "Legacy, économique",                "tier", "paid"),
+            Map.of("id", "o1-mini",                "name", "o1-mini (reasoning)",    "desc", "Raisonnement (plus cher)",          "tier", "paid"),
+            Map.of("id", "o3-mini",                "name", "o3-mini (reasoning)",    "desc", "Raisonnement avancé",               "tier", "paid")
+    );
+
+    private static List<Map<String, Object>> modelsForProvider(String provider) {
+        return "openai".equalsIgnoreCase(provider) ? OPENAI_MODELS : GEMINI_MODELS;
+    }
+
+    private String currentProvider() {
+        return plugin.getConfig().getString("dashboard.ai.provider", DEFAULT_PROVIDER).toLowerCase();
+    }
+
+    private String currentModel() {
+        String configured = plugin.getConfig().getString("dashboard.ai.model", "");
+        if (configured != null && !configured.isBlank()) return configured;
+        return DEFAULT_MODEL_PER_PROVIDER.getOrDefault(currentProvider(), DEFAULT_MODEL);
+    }
+
     public void status(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         if (HttpHelper.authenticate(ex, jwt, users) == null) return;
         String key = plugin.getConfig().getString("dashboard.ai.api-key", "");
-        String model = plugin.getConfig().getString("dashboard.ai.model", DEFAULT_MODEL);
+        String provider = currentProvider();
+        String model = currentModel();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("configured", key != null && !key.isBlank());
         out.put("model", model);
-        out.put("provider", "gemini");
-        out.put("availableModels", AVAILABLE_MODELS);
+        out.put("provider", provider);
+        out.put("availableModels", modelsForProvider(provider));
+        out.put("availableProviders", List.of(
+                Map.of("id", "gemini", "name", "Google Gemini", "keyUrl", "https://aistudio.google.com/apikey"),
+                Map.of("id", "openai", "name", "OpenAI (GPT)",  "keyUrl", "https://platform.openai.com/api-keys")
+        ));
         HttpHelper.json(ex, 200, out);
     }
 
@@ -123,16 +160,30 @@ public final class AiHandler {
 
         String newModel = (String) body.get("model");
         String newApiKey = (String) body.get("apiKey");
+        String newProvider = (String) body.get("provider");
         boolean changed = false;
 
+        if (newProvider != null && !newProvider.isBlank()) {
+            String p = newProvider.toLowerCase();
+            if (!p.equals("gemini") && !p.equals("openai")) {
+                HttpHelper.error(ex, 400, "Provider inconnu (gemini | openai) : " + newProvider); return;
+            }
+            plugin.getConfig().set("dashboard.ai.provider", p);
+            // Si on change de provider sans donner de modèle, on reset le modèle au défaut
+            if (newModel == null || newModel.isBlank()) {
+                plugin.getConfig().set("dashboard.ai.model", DEFAULT_MODEL_PER_PROVIDER.get(p));
+            }
+            changed = true;
+        }
         if (newModel != null && !newModel.isBlank()) {
-            // Valide contre la liste connue (évite n'importe quelle string)
-            boolean valid = AVAILABLE_MODELS.stream().anyMatch(m -> newModel.equals(m.get("id")));
-            if (!valid) { HttpHelper.error(ex, 400, "Modèle inconnu : " + newModel); return; }
+            // Valide contre la liste connue du provider courant (après éventuel switch)
+            String currentProv = plugin.getConfig().getString("dashboard.ai.provider", DEFAULT_PROVIDER).toLowerCase();
+            boolean valid = modelsForProvider(currentProv).stream().anyMatch(m -> newModel.equals(m.get("id")));
+            if (!valid) { HttpHelper.error(ex, 400, "Modèle inconnu pour " + currentProv + " : " + newModel); return; }
             plugin.getConfig().set("dashboard.ai.model", newModel);
             changed = true;
         }
-        if (newApiKey != null) { // peut être vide pour effacer
+        if (newApiKey != null) {
             plugin.getConfig().set("dashboard.ai.api-key", newApiKey);
             changed = true;
         }
@@ -140,7 +191,8 @@ public final class AiHandler {
 
         HttpHelper.json(ex, 200, Map.of(
                 "ok", true,
-                "model", plugin.getConfig().getString("dashboard.ai.model", DEFAULT_MODEL),
+                "provider", currentProvider(),
+                "model", currentModel(),
                 "configured", !plugin.getConfig().getString("dashboard.ai.api-key", "").isBlank()
         ));
     }
@@ -150,14 +202,17 @@ public final class AiHandler {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
 
+        String provider = currentProvider();
         String apiKey = plugin.getConfig().getString("dashboard.ai.api-key", "");
         if (apiKey == null || apiKey.isBlank()) {
+            String hint = "openai".equals(provider)
+                    ? "https://platform.openai.com/api-keys"
+                    : "https://aistudio.google.com/apikey";
             HttpHelper.error(ex, 503,
-                    "Gemini API non configurée. Ajoutez dashboard.ai.api-key dans config.yml " +
-                    "(clé gratuite sur https://aistudio.google.com/apikey).");
+                    "API " + provider + " non configurée. Ajoutez dashboard.ai.api-key dans config.yml (clé sur " + hint + ").");
             return;
         }
-        String model = plugin.getConfig().getString("dashboard.ai.model", DEFAULT_MODEL);
+        String model = currentModel();
 
         // ── Parse le body entrant (format frontend : { messages: [{role, content}] }) ──
         Map<String, Object> body;
@@ -172,79 +227,27 @@ public final class AiHandler {
 
         String systemPrompt = buildSystemPrompt();
 
-        // ── Construit le payload Gemini ──
-        // Format : { systemInstruction:{parts:[{text:...}]},
-        //            contents:[{role:"user|model", parts:[{text:...}]}],
-        //            generationConfig:{temperature, maxOutputTokens} }
-        JsonObject payload = new JsonObject();
+        // ── Appel provider-agnostique ──
+        AiProviderClient.CallResult r = AiProviderClient.call(
+                provider, apiKey, model, systemPrompt, messages, 2048, 0.7, 60);
 
-        JsonObject systemInstruction = new JsonObject();
-        JsonArray sysParts = new JsonArray();
-        JsonObject sysPart = new JsonObject();
-        sysPart.addProperty("text", systemPrompt);
-        sysParts.add(sysPart);
-        systemInstruction.add("parts", sysParts);
-        payload.add("systemInstruction", systemInstruction);
-
-        JsonArray contents = new JsonArray();
-        for (Map<String, Object> m : messages) {
-            String role = String.valueOf(m.get("role"));
-            String content = String.valueOf(m.getOrDefault("content", ""));
-            if (content.isBlank()) continue;
-            JsonObject turn = new JsonObject();
-            // Gemini utilise "model" au lieu de "assistant"
-            turn.addProperty("role", "assistant".equals(role) ? "model" : "user");
-            JsonArray parts = new JsonArray();
-            JsonObject part = new JsonObject();
-            part.addProperty("text", content);
-            parts.add(part);
-            turn.add("parts", parts);
-            contents.add(turn);
+        if (!r.success) {
+            HttpHelper.error(ex, 502, "Erreur API " + provider + " : " + r.text);
+            return;
         }
-        payload.add("contents", contents);
 
-        JsonObject genConfig = new JsonObject();
-        genConfig.addProperty("temperature", 0.7);
-        genConfig.addProperty("maxOutputTokens", 2048);
-        payload.add("generationConfig", genConfig);
-
-        // ── Appel Gemini ──
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-                + URLEncoder.encode(model, StandardCharsets.UTF_8)
-                + ":generateContent?key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
-
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(60))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload), StandardCharsets.UTF_8))
-                .build();
-
-        CompletableFuture<HttpResponse<String>> future = http.sendAsync(req, HttpResponse.BodyHandlers.ofString());
-
-        try {
-            HttpResponse<String> res = future.get();
-            int status = res.statusCode();
-
-            if (status < 200 || status >= 300) {
-                // Tente de parser l'erreur Gemini pour un message plus clair
-                String msg = extractGeminiError(res.body(), status);
-                HttpHelper.error(ex, 502, "Erreur Gemini : " + msg);
-                return;
-            }
-
-            // ── Parse la réponse Gemini et transforme au format Anthropic-compatible ──
-            String text = extractGeminiText(res.body());
-            recordUsage(model, res.body());
-            Map<String, Object> normalized = new LinkedHashMap<>();
-            normalized.put("role", "assistant");
-            normalized.put("model", model);
-            normalized.put("content", List.of(Map.of("type", "text", "text", text)));
-            HttpHelper.json(ex, 200, normalized);
-
-        } catch (Exception e) {
-            HttpHelper.error(ex, 502, "Erreur API Gemini : " + e.getMessage());
+        // Enregistre les tokens consommés
+        if (r.inputTokens > 0 || r.outputTokens > 0) {
+            usageStore.record(model, r.inputTokens, r.outputTokens);
         }
+
+        // Normalisation format Anthropic-compatible pour le frontend existant
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put("role", "assistant");
+        normalized.put("model", model);
+        normalized.put("provider", provider);
+        normalized.put("content", List.of(Map.of("type", "text", "text", r.text)));
+        HttpHelper.json(ex, 200, normalized);
     }
 
     /** Parse { candidates: [{ content: { parts: [{ text: "..." }] } }] } et retourne le texte concaténé. */
@@ -312,26 +315,25 @@ public final class AiHandler {
         try {
             String apiKey = plugin.getConfig().getString("dashboard.ai.api-key", "");
             if (apiKey == null || apiKey.isBlank()) return null;
-            String model = plugin.getConfig().getString("dashboard.ai.model", DEFAULT_MODEL);
+            String provider = currentProvider();
+            String model = currentModel();
 
             String context = buildDiagnosticContext();
             String systemPrompt = buildDiagnosticSystemPrompt("full");
             String userPrompt = "Analyse le diagnostic serveur ci-dessous :\n\n```\n" + context + "\n```";
 
-            JsonObject payload = buildGeminiPayload(systemPrompt, userPrompt, 4096, 0.3);
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-                    + URLEncoder.encode(model, StandardCharsets.UTF_8)
-                    + ":generateContent?key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(90))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload), StandardCharsets.UTF_8))
-                    .build();
-            HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (res.statusCode() < 200 || res.statusCode() >= 300) return null;
-            recordUsage(model, res.body());
-            return new DiagnosticResult(extractGeminiText(res.body()), context);
+            List<Map<String, Object>> msgs = List.of(Map.of("role", "user", "content", userPrompt));
+            AiProviderClient.CallResult r = AiProviderClient.call(provider, apiKey, model,
+                    systemPrompt, msgs, 4096, 0.3, 90);
+
+            if (!r.success) {
+                plugin.getLogger().warning("[AI] runInternalDiagnostic failed: " + r.text);
+                return null;
+            }
+            if (r.inputTokens > 0 || r.outputTokens > 0) {
+                usageStore.record(model, r.inputTokens, r.outputTokens);
+            }
+            return new DiagnosticResult(r.text, context);
         } catch (Throwable t) {
             plugin.getLogger().warning("[AI] runInternalDiagnostic erreur: " + t.getMessage());
             return null;
@@ -382,12 +384,13 @@ public final class AiHandler {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
 
+        String provider = currentProvider();
         String apiKey = plugin.getConfig().getString("dashboard.ai.api-key", "");
         if (apiKey == null || apiKey.isBlank()) {
-            HttpHelper.error(ex, 503, "Gemini API non configurée. Ajoutez dashboard.ai.api-key dans config.yml.");
+            HttpHelper.error(ex, 503, "API " + provider + " non configurée. Ajoutez dashboard.ai.api-key dans config.yml.");
             return;
         }
-        String model = plugin.getConfig().getString("dashboard.ai.model", DEFAULT_MODEL);
+        String model = currentModel();
 
         String focus = "full";
         try {
@@ -395,70 +398,31 @@ public final class AiHandler {
             if (body != null && body.get("focus") instanceof String s) focus = s;
         } catch (Exception ignored) {}
 
-        // ── Collecte du contexte de diagnostic ──
         String diagnosticContext = buildDiagnosticContext();
-
-        // ── Prompt spécifique diagnostic (factorisé) ──
         String systemPrompt = buildDiagnosticSystemPrompt(focus);
-
         String userPrompt = "Analyse le diagnostic serveur ci-dessous et dis-moi ce qui cloche :\n\n"
                 + "```\n" + diagnosticContext + "\n```";
 
-        // ── Construit payload Gemini ──
-        JsonObject payload = new JsonObject();
-        JsonObject systemInstruction = new JsonObject();
-        JsonArray sysParts = new JsonArray();
-        JsonObject sysPart = new JsonObject();
-        sysPart.addProperty("text", systemPrompt);
-        sysParts.add(sysPart);
-        systemInstruction.add("parts", sysParts);
-        payload.add("systemInstruction", systemInstruction);
+        List<Map<String, Object>> msgs = List.of(Map.of("role", "user", "content", userPrompt));
+        AiProviderClient.CallResult r = AiProviderClient.call(provider, apiKey, model,
+                systemPrompt, msgs, 4096, 0.3, 90);
 
-        JsonArray contents = new JsonArray();
-        JsonObject turn = new JsonObject();
-        turn.addProperty("role", "user");
-        JsonArray parts = new JsonArray();
-        JsonObject part = new JsonObject();
-        part.addProperty("text", userPrompt);
-        parts.add(part);
-        turn.add("parts", parts);
-        contents.add(turn);
-        payload.add("contents", contents);
-
-        JsonObject genConfig = new JsonObject();
-        genConfig.addProperty("temperature", 0.3);  // plus déterministe pour diagnostic
-        genConfig.addProperty("maxOutputTokens", 4096);
-        payload.add("generationConfig", genConfig);
-
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-                + URLEncoder.encode(model, StandardCharsets.UTF_8)
-                + ":generateContent?key=" + URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
-
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(90))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(payload), StandardCharsets.UTF_8))
-                .build();
-
-        CompletableFuture<HttpResponse<String>> future = http.sendAsync(req, HttpResponse.BodyHandlers.ofString());
-        try {
-            HttpResponse<String> res = future.get();
-            if (res.statusCode() < 200 || res.statusCode() >= 300) {
-                HttpHelper.error(ex, 502, "Gemini : " + extractGeminiError(res.body(), res.statusCode()));
-                return;
-            }
-            String analysis = extractGeminiText(res.body());
-            recordUsage(model, res.body());
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("analysis", analysis);
-            out.put("context", diagnosticContext);
-            out.put("model", model);
-            out.put("timestamp", System.currentTimeMillis());
-            HttpHelper.json(ex, 200, out);
-        } catch (Exception e) {
-            HttpHelper.error(ex, 502, "Erreur diagnostic IA : " + e.getMessage());
+        if (!r.success) {
+            HttpHelper.error(ex, 502, "Erreur diagnostic (" + provider + ") : " + r.text);
+            return;
         }
+
+        if (r.inputTokens > 0 || r.outputTokens > 0) {
+            usageStore.record(model, r.inputTokens, r.outputTokens);
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("analysis", r.text);
+        out.put("context", diagnosticContext);
+        out.put("model", model);
+        out.put("provider", provider);
+        out.put("timestamp", System.currentTimeMillis());
+        HttpHelper.json(ex, 200, out);
     }
 
     /**

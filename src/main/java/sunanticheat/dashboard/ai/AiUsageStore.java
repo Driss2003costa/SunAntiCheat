@@ -25,16 +25,26 @@ import java.util.logging.Logger;
  */
 public final class AiUsageStore {
 
-    /** Tarifs estimés par modèle Gemini (USD / million de tokens). */
+    /** Tarifs estimés par modèle (USD / million de tokens). Mis à jour avril 2026. */
     private static final Map<String, double[]> PRICING = new LinkedHashMap<>();
     static {
         // { input, output } en USD / 1M tokens
+        // Gemini
         PRICING.put("gemini-2.0-flash",       new double[]{ 0.10, 0.40 });
         PRICING.put("gemini-2.0-flash-lite",  new double[]{ 0.075, 0.30 });
         PRICING.put("gemini-2.5-flash",       new double[]{ 0.30, 2.50 });
         PRICING.put("gemini-2.5-pro",         new double[]{ 1.25, 5.00 });
         PRICING.put("gemini-1.5-flash",       new double[]{ 0.075, 0.30 });
         PRICING.put("gemini-1.5-pro",         new double[]{ 1.25, 5.00 });
+        // OpenAI
+        PRICING.put("gpt-4o-mini",            new double[]{ 0.15, 0.60 });
+        PRICING.put("gpt-4o",                 new double[]{ 2.50, 10.00 });
+        PRICING.put("gpt-4-turbo",            new double[]{ 10.00, 30.00 });
+        PRICING.put("gpt-4.1-mini",           new double[]{ 0.40, 1.60 });
+        PRICING.put("gpt-4.1",                new double[]{ 2.00, 8.00 });
+        PRICING.put("gpt-3.5-turbo",          new double[]{ 0.50, 1.50 });
+        PRICING.put("o1-mini",                new double[]{ 3.00, 12.00 });
+        PRICING.put("o3-mini",                new double[]{ 1.10, 4.40 });
     }
 
     /** 1 USD ≈ 0.92 EUR (approximation, utilisé uniquement pour l'affichage côté UI). */

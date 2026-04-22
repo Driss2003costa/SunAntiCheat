@@ -212,12 +212,15 @@ dashboard:
   # Origine CORS autorisée (mettre l'URL exacte du frontend en prod)
   cors-origin: "*"
 
-  # ── Assistant IA (Google Gemini) ─────────────────────────────────────────
-  # Clé API gratuite : https://aistudio.google.com/apikey
-  # Quota gratuit : 1 million de tokens/jour, 15 requêtes/minute
+  # ── Assistant IA (Google Gemini OU OpenAI GPT) ───────────────────────────
+  # Choisissez votre provider :
+  #   gemini → clé gratuite https://aistudio.google.com/apikey (1M tokens/jour offerts)
+  #   openai → clé payante  https://platform.openai.com/api-keys (pas de free tier)
   ai:
-    api-key: ""                  # AIzaSy... (laisser vide pour désactiver l'assistant IA)
-    model: "gemini-2.0-flash"    # autres options : gemini-2.0-flash-lite, gemini-2.5-pro, gemini-1.5-flash
+    provider: "gemini"           # "gemini" ou "openai"
+    api-key: ""                  # AIzaSy... pour Gemini, sk-... pour OpenAI
+    model: "gemini-2.0-flash"    # Gemini: gemini-2.0-flash, gemini-2.5-pro...
+                                 # OpenAI: gpt-4o-mini, gpt-4o, gpt-4.1-mini...
 
     # Monitor passif : lance un diagnostic IA automatique toutes les N minutes
     # et envoie une alerte Discord si des problèmes critiques sont détectés.

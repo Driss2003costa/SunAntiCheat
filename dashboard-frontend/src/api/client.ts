@@ -174,10 +174,16 @@ export const api = {
     request<any>('/api/users/me/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
 
   // AI Assistant
-  aiStatus:        () => request<{ configured: boolean; model: string; provider: string; availableModels: Array<{id: string; name: string; desc: string; tier: string}> }>('/api/ai/status'),
+  aiStatus:        () => request<{
+    configured: boolean
+    model: string
+    provider: string
+    availableModels: Array<{id: string; name: string; desc: string; tier: string}>
+    availableProviders: Array<{id: string; name: string; keyUrl: string}>
+  }>('/api/ai/status'),
   aiChat:          (messages: Array<{ role: string; content: string }>) =>
     request<any>('/api/ai/chat', { method: 'POST', body: JSON.stringify({ messages }) }),
-  aiSetConfig:     (data: { model?: string; apiKey?: string }) =>
+  aiSetConfig:     (data: { model?: string; apiKey?: string; provider?: string }) =>
     request<any>('/api/ai/config', { method: 'POST', body: JSON.stringify(data) }),
   aiDiagnose:      (focus: 'full' | 'tps' | 'ram' | 'plugins' = 'full') =>
     request<{ analysis: string; context: string; model: string; timestamp: number }>(
