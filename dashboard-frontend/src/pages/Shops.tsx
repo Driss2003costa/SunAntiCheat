@@ -469,6 +469,9 @@ export default function Shops() {
                              buyLimit: it.limit || 0,
                              priceType: it.priceType || 'MONEY',
                              permission: it.permission || '',
+                             customModelData: it.customModelData || 0,
+                             enchantments: it.enchantments || [],
+                             commandsOnBuy: it.commandsOnBuy || [],
                            })),
                          }
                          await api.shopCreate(mapped)
@@ -1158,9 +1161,25 @@ function ImportModal({ shops, onImport, onClose }: any) {
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-              {shops.length} shop{shops.length > 1 ? 's' : ''} détecté{shops.length > 1 ? 's' : ''}. Clique pour importer.
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                {shops.length} shop{shops.length > 1 ? 's' : ''} détecté{shops.length > 1 ? 's' : ''} dans EconomyShopGUI
+              </p>
+              <button onClick={async () => {
+                        if (!confirm(`Importer les ${shops.length} shops d'un coup ?`)) return
+                        for (const s of shops) {
+                          try { await onImport(s) } catch {}
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded text-sm text-white font-medium"
+                      style={{ background: '#10b981' }}>
+                ⚡ Tout importer
+              </button>
+            </div>
+            <div className="p-3 rounded-lg text-xs mb-2"
+                 style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--text)', border: '1px solid rgba(59,130,246,0.3)' }}>
+              💡 L'import crée une copie éditable dans le dashboard. Les fichiers ESG d'origine ne sont PAS modifiés. Tu peux éditer puis re-synchroniser.
+            </div>
             {shops.map((s: any, i: number) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-lg"
                    style={{ background: 'var(--surface-2)' }}>

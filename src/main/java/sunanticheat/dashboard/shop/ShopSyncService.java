@@ -255,60 +255,191 @@ public final class ShopSyncService {
         }
     }
 
-    /** Lit shops.yml d'ESG et renvoie une liste de maps (preview). Lecture seule. */
+    /**
+     * Scanne les shops ESG existants (Premium et Free) et retourne leur représentation
+     * normalisée pour l'import dans le dashboard.
+     *
+     * Premium : shops/{name}.yml (pages.page1.items) + sections/{name}.yml (menu)
+     * Free    : shops/{name}.yml (slots en clé racine) + menu.yml
+     */
     public List<Map<String, Object>> importFromESG() {
         try {
             File folder = getESGFolder();
             if (folder == null) return List.of();
-            File shopsFile = new File(folder, "shops.yml");
-            if (!shopsFile.exists()) return List.of();
+            boolean premium = isPremium();
 
-            YamlConfiguration yaml = YamlConfiguration.loadConfiguration(shopsFile);
+            File shopsDir = new File(folder, "shops");
+            if (!shopsDir.exists() || !shopsDir.isDirectory()) {
+                // Fallback sur l'ancien format shops.yml (très vieux ESG Free)
+                return importFromLegacyYaml(new File(folder, "shops.yml"));
+            }
+
+            File sectionsDir = new File(folder, "sections");
+            File[] shopFiles = shopsDir.listFiles((d, n) -> n.endsWith(".yml") && !n.contains(".backup-"));
+            if (shopFiles == null) return List.of();
+
             List<Map<String, Object>> out = new ArrayList<>();
+            for (File shopFile : shopFiles) {
+                try {
+                    String shopName = shopFile.getName().replaceFirst("\\.yml$", "");
+                    YamlConfiguration shopYaml = YamlConfiguration.loadConfiguration(shopFile);
 
-            for (String shopKey : yaml.getKeys(false)) {
-                ConfigurationSection sec = yaml.getConfigurationSection(shopKey);
-                if (sec == null) continue;
-
-                Map<String, Object> shopMap = new LinkedHashMap<>();
-                shopMap.put("name", shopKey);
-                shopMap.put("displayName", sec.getString("displayName", shopKey));
-                shopMap.put("displayItem", sec.getString("displayItem", "CHEST"));
-                shopMap.put("rows", sec.getInt("rows", 3));
-                shopMap.put("permission", sec.getString("permission", ""));
-
-                List<Map<String, Object>> items = new ArrayList<>();
-                ConfigurationSection itemsSec = sec.getConfigurationSection("items");
-                if (itemsSec != null) {
-                    for (String slotKey : itemsSec.getKeys(false)) {
-                        ConfigurationSection iSec = itemsSec.getConfigurationSection(slotKey);
-                        if (iSec == null) continue;
-                        Map<String, Object> item = new LinkedHashMap<>();
-                        int slot1Indexed;
-                        try { slot1Indexed = Integer.parseInt(slotKey); }
-                        catch (NumberFormatException nfe) { slot1Indexed = 1; }
-                        item.put("slot", Math.max(0, slot1Indexed - 1)); // 0-indexé
-                        item.put("material", iSec.getString("material", "STONE"));
-                        item.put("amount", iSec.getInt("amount", 1));
-                        if (iSec.isSet("name")) item.put("name", iSec.getString("name"));
-                        if (iSec.isList("lore")) item.put("lore", iSec.getStringList("lore"));
-                        if (iSec.isSet("buyPrice")) item.put("buyPrice", iSec.getDouble("buyPrice"));
-                        if (iSec.isSet("sellPrice")) item.put("sellPrice", iSec.getDouble("sellPrice"));
-                        item.put("stock", iSec.getInt("stock", 0));
-                        item.put("limit", iSec.getInt("limit", 0));
-                        item.put("priceType", iSec.getString("priceType", "MONEY"));
-                        item.put("permission", iSec.getString("permission", ""));
-                        items.add(item);
+                    // Charge la section correspondante pour récupérer displayName/icon/rows (Premium)
+                    YamlConfiguration sectionYaml = null;
+                    if (premium && sectionsDir.exists()) {
+                        File sectionFile = new File(sectionsDir, shopName + ".yml");
+                        if (sectionFile.exists()) {
+                            sectionYaml = YamlConfiguration.loadConfiguration(sectionFile);
+                        }
                     }
+
+                    Map<String, Object> shopMap = new LinkedHashMap<>();
+                    shopMap.put("name", shopName);
+
+                    // ── Premium ───────────────────────────────────────────────
+                    if (premium) {
+                        ConfigurationSection page1 = shopYaml.getConfigurationSection("pages.page1");
+                        int rows = page1 != null ? page1.getInt("gui-rows", 6) : 6;
+                        shopMap.put("rows", rows);
+
+                        String displayName = shopName;
+                        String displayItem = "CHEST";
+                        String permission = "";
+                        if (sectionYaml != null) {
+                            displayName = sectionYaml.getString("title", shopName);
+                            if (sectionYaml.isConfigurationSection("item")) {
+                                ConfigurationSection item = sectionYaml.getConfigurationSection("item");
+                                displayItem = item.getString("material", "CHEST");
+                                String dn = item.getString("displayname");
+                                if (dn != null && !dn.isBlank()) displayName = dn;
+                            }
+                            permission = sectionYaml.getString("permission", "");
+                        }
+                        shopMap.put("displayName", displayName);
+                        shopMap.put("displayItem", displayItem);
+                        shopMap.put("permission", permission);
+
+                        List<Map<String, Object>> items = new ArrayList<>();
+                        ConfigurationSection itemsSec = page1 != null ? page1.getConfigurationSection("items") : null;
+                        if (itemsSec != null) {
+                            for (String slotKey : itemsSec.getKeys(false)) {
+                                ConfigurationSection iSec = itemsSec.getConfigurationSection(slotKey);
+                                if (iSec == null) continue;
+                                items.add(parseItemPremium(slotKey, iSec));
+                            }
+                        }
+                        shopMap.put("items", items);
+                    }
+
+                    // ── Free ──────────────────────────────────────────────────
+                    else {
+                        shopMap.put("displayName", shopYaml.getString("displayName", shopName));
+                        shopMap.put("displayItem", shopYaml.getString("displayItem", "CHEST"));
+                        shopMap.put("rows", shopYaml.getInt("rows", 3));
+                        shopMap.put("permission", shopYaml.getString("permission", ""));
+
+                        List<Map<String, Object>> items = new ArrayList<>();
+                        for (String slotKey : shopYaml.getKeys(false)) {
+                            ConfigurationSection iSec = shopYaml.getConfigurationSection(slotKey);
+                            if (iSec == null) continue;
+                            // skip settings root keys
+                            if (!isNumeric(slotKey)) continue;
+                            items.add(parseItemFree(slotKey, iSec));
+                        }
+                        shopMap.put("items", items);
+                    }
+
+                    out.add(shopMap);
+                } catch (Throwable t) {
+                    logger.warning("[Dashboard/Shop] Erreur parsing " + shopFile.getName() + ": " + t.getMessage());
                 }
-                shopMap.put("items", items);
-                out.add(shopMap);
             }
             return out;
         } catch (Throwable t) {
             logger.warning("[Dashboard/Shop] importFromESG erreur: " + t.getMessage());
             return List.of();
         }
+    }
+
+    /** Parse un item au format Premium (pages.page1.items.{slot}). */
+    private Map<String, Object> parseItemPremium(String slotKey, ConfigurationSection iSec) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        int slot1 = parseIntSafe(slotKey, 1);
+        item.put("slot", Math.max(0, slot1 - 1));
+        item.put("material", iSec.getString("material", "STONE"));
+        item.put("amount", iSec.getInt("amount", 1));
+        if (iSec.isSet("name")) item.put("name", iSec.getString("name"));
+        if (iSec.isList("lore")) item.put("lore", iSec.getStringList("lore"));
+        // Premium: buy/sell (pas buyPrice/sellPrice)
+        if (iSec.isSet("buy")) item.put("buyPrice", iSec.getDouble("buy"));
+        if (iSec.isSet("sell")) item.put("sellPrice", iSec.getDouble("sell"));
+        if (iSec.isSet("stock")) item.put("stock", iSec.getInt("stock", 0));
+        if (iSec.isSet("buy-limit")) item.put("limit", iSec.getInt("buy-limit", 0));
+        if (iSec.isSet("model-data")) item.put("customModelData", iSec.getInt("model-data", 0));
+        if (iSec.isList("enchantments")) item.put("enchantments", iSec.getStringList("enchantments"));
+        if (iSec.isList("commands")) item.put("commandsOnBuy", iSec.getStringList("commands"));
+        item.put("permission", iSec.getString("permission", ""));
+        item.put("priceType", "MONEY");
+        return item;
+    }
+
+    /** Parse un item au format Free (clé racine du fichier). */
+    private Map<String, Object> parseItemFree(String slotKey, ConfigurationSection iSec) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        int slot1 = parseIntSafe(slotKey, 1);
+        item.put("slot", Math.max(0, slot1 - 1));
+        item.put("material", iSec.getString("material", "STONE"));
+        item.put("amount", iSec.getInt("amount", 1));
+        if (iSec.isSet("name")) item.put("name", iSec.getString("name"));
+        if (iSec.isList("lore")) item.put("lore", iSec.getStringList("lore"));
+        if (iSec.isSet("buyPrice")) item.put("buyPrice", iSec.getDouble("buyPrice"));
+        if (iSec.isSet("sellPrice")) item.put("sellPrice", iSec.getDouble("sellPrice"));
+        item.put("stock", iSec.getInt("stock", 0));
+        item.put("limit", iSec.getInt("limit", 0));
+        item.put("priceType", iSec.getString("priceType", "MONEY"));
+        item.put("permission", iSec.getString("permission", ""));
+        if (iSec.isSet("modelData")) item.put("customModelData", iSec.getInt("modelData", 0));
+        if (iSec.isList("commands")) item.put("commandsOnBuy", iSec.getStringList("commands"));
+        return item;
+    }
+
+    private static boolean isNumeric(String s) {
+        if (s == null || s.isEmpty()) return false;
+        for (int i = 0; i < s.length(); i++) if (!Character.isDigit(s.charAt(i))) return false;
+        return true;
+    }
+
+    private static int parseIntSafe(String s, int def) {
+        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return def; }
+    }
+
+    /** Fallback pour le très vieux format ESG Free (un seul shops.yml global). */
+    private List<Map<String, Object>> importFromLegacyYaml(File shopsFile) {
+        if (!shopsFile.exists()) return List.of();
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(shopsFile);
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (String shopKey : yaml.getKeys(false)) {
+            ConfigurationSection sec = yaml.getConfigurationSection(shopKey);
+            if (sec == null) continue;
+            Map<String, Object> shopMap = new LinkedHashMap<>();
+            shopMap.put("name", shopKey);
+            shopMap.put("displayName", sec.getString("displayName", shopKey));
+            shopMap.put("displayItem", sec.getString("displayItem", "CHEST"));
+            shopMap.put("rows", sec.getInt("rows", 3));
+            shopMap.put("permission", sec.getString("permission", ""));
+            List<Map<String, Object>> items = new ArrayList<>();
+            ConfigurationSection itemsSec = sec.getConfigurationSection("items");
+            if (itemsSec != null) {
+                for (String slotKey : itemsSec.getKeys(false)) {
+                    ConfigurationSection iSec = itemsSec.getConfigurationSection(slotKey);
+                    if (iSec == null) continue;
+                    items.add(parseItemFree(slotKey, iSec));
+                }
+            }
+            shopMap.put("items", items);
+            out.add(shopMap);
+        }
+        return out;
     }
 
     /** Infos sur la présence d'ESG pour l'endpoint esg-status. */
