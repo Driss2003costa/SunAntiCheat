@@ -183,6 +183,8 @@ export const api = {
     request<{ analysis: string; context: string; model: string; timestamp: number }>(
       '/api/ai/diagnose', { method: 'POST', body: JSON.stringify({ focus }) }
     ),
+  aiApplyPatch:    (file: string, changes: Array<{ path: string; value: any }>) =>
+    request<any>('/api/ai/apply-patch', { method: 'POST', body: JSON.stringify({ file, changes }) }),
 
   // Crates / Lootboxes
   cratesList:      () => request<any[]>('/api/crates'),

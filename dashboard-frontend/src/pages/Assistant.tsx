@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { usePermission } from '../hooks/usePermission'
+import PatchCards, { parseAiPatches } from '../components/PatchCards'
 
-type Msg = { role: 'user' | 'assistant'; content: string }
+type Msg = { role: 'user' | 'assistant'; content: string; patches?: any[] }
 type ModelInfo = { id: string; name: string; desc: string; tier: string }
 
 export default function Assistant() {
@@ -52,9 +53,11 @@ export default function Assistant() {
     setDiagnosing(true)
     try {
       const res = await api.aiDiagnose(focus)
+      const { cleanedText, patches } = parseAiPatches(res.analysis)
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: res.analysis + '\n\n---\n_Analysé avec ' + res.model + ' · [Voir les métriques brutes]_',
+        content: cleanedText + '\n\n---\n_Analysé avec ' + res.model + '_',
+        patches: patches.length > 0 ? patches : undefined,
       }])
       setShowContext(res.context)
     } catch (e: any) {
@@ -261,12 +264,17 @@ export default function Assistant() {
         )}
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className="max-w-[80%] px-4 py-2 rounded-xl whitespace-pre-wrap"
+            <div className="max-w-[85%]"
                  style={{
                    background: m.role === 'user' ? 'var(--primary)' : 'var(--surface-2)',
                    color: m.role === 'user' ? 'white' : 'var(--text)',
+                   borderRadius: '12px',
+                   padding: '8px 16px',
                  }}>
-              {m.content}
+              <div className="whitespace-pre-wrap">{m.content}</div>
+              {m.patches && m.patches.length > 0 && (
+                <PatchCards patches={m.patches}/>
+              )}
             </div>
           </div>
         ))}

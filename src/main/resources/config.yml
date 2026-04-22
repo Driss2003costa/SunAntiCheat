@@ -218,6 +218,14 @@ dashboard:
   ai:
     api-key: ""                  # AIzaSy... (laisser vide pour désactiver l'assistant IA)
     model: "gemini-2.0-flash"    # autres options : gemini-2.0-flash-lite, gemini-2.5-pro, gemini-1.5-flash
+
+    # Monitor passif : lance un diagnostic IA automatique toutes les N minutes
+    # et envoie une alerte Discord si des problèmes critiques sont détectés.
+    passive-monitor:
+      enabled: false                          # mettre true pour activer
+      interval-minutes: 30                    # fréquence des diagnostics (min 5)
+      only-on-critical: true                  # true = alerte seulement si 🔴, false = 🔴 et 🟠
+      discord-webhook: ""                     # URL du webhook Discord (vide = désactivé)
   # Commandes autorisées via le dashboard (whitelist)
   allowed-commands:
     - "tps"

@@ -22,6 +22,7 @@ import sunanticheat.dashboard.dailyreward.DailyRewardListener;
 import sunanticheat.dashboard.dailyreward.DailyRewardStore;
 import sunanticheat.dashboard.events.EventCalendarStore;
 import sunanticheat.dashboard.experiments.ExperimentStore;
+import sunanticheat.dashboard.ai.AiMonitor;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
 import sunanticheat.dashboard.honeypot.HoneypotStore;
@@ -83,6 +84,7 @@ public final class DashboardModule {
     private DailyRewardStore dailyRewardStore;
     private AnnouncementStore announcementStore;
     private AnnouncementService announcementService;
+    private AiMonitor aiMonitor;
     private ShopStore shopStore;
     private ShopSyncService shopSyncService;
     private VipStore vipStore;
@@ -273,6 +275,10 @@ public final class DashboardModule {
         // Injection du wsServer dans AiHandler pour accès buffer console (diagnostic IA)
         aiHandler.setWsServer(wsServer);
 
+        // AI Monitor passif (alertes Discord si problème critique)
+        aiMonitor = new AiMonitor(plugin, aiHandler, plugin.getLogger());
+        aiMonitor.start();
+
         // ── Console capture ───────────────────────────────────────────────────
         consoleCapture = ConsoleLogCapture.install(wsServer::broadcastConsole);
 
@@ -325,6 +331,7 @@ public final class DashboardModule {
         // DailyRewardStore persiste automatiquement à chaque modification
         if (announcementService != null) announcementService.stop();
         if (announcementStore != null) announcementStore.save();
+        if (aiMonitor != null) aiMonitor.stop();
         if (shopStore != null) shopStore.save();
         if (vipScheduler != null) vipScheduler.stop();
         if (vipStore != null) vipStore.save();
