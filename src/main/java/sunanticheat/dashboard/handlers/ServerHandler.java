@@ -106,11 +106,11 @@ public final class ServerHandler {
         HttpHelper.json(ex, 200, future.join());
     }
 
-    /** POST /api/server/command  — ADMIN seulement */
+    /** POST /api/server/command — MOD+ (whitelist restrictive via config) */
     public void command(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireAdmin(ex, user)) return;
+        if (!HttpHelper.requireMod(ex, user)) return;
 
         JsonObject req;
         try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }
@@ -140,11 +140,11 @@ public final class ServerHandler {
         HttpHelper.json(ex, 200, Map.of("command", finalCmd, "output", List.of()));
     }
 
-    /** POST /api/server/worlds/{name}/pvp — toggle PvP d'un monde */
+    /** POST /api/server/worlds/{name}/pvp — toggle PvP d'un monde (MOD+) */
     public void togglePvp(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String worldName) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requireMod(ex, u)) return;
 
         var future = new CompletableFuture<Map<String, Object>>();
         Bukkit.getScheduler().runTask(plugin, () -> {

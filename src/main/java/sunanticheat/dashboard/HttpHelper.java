@@ -81,6 +81,18 @@ public final class HttpHelper {
     }
 
     /**
+     * Vérifie que l'utilisateur est au minimum MOD (MOD ou ADMIN).
+     * Envoie 403 si seulement VIEWER. Retourne false sur échec.
+     */
+    public static boolean requireMod(HttpExchange ex, DashboardUser user) throws IOException {
+        if (!user.role().atLeast(DashboardRole.MOD)) {
+            error(ex, 403, "Accès réservé aux modérateurs ou administrateurs");
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Authentifie ET vérifie le rôle minimum requis.
      * Envoie 401 si non authentifié, 403 si rôle insuffisant.
      * Retourne null dans les deux cas d'échec (la réponse a déjà été envoyée).

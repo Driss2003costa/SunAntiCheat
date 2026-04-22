@@ -52,11 +52,11 @@ public final class SecurityHandler {
         HttpHelper.json(ex, 200, list);
     }
 
-    /** POST /api/security/sanctions */
+    /** POST /api/security/sanctions — MOD+ (modération normale) */
     public void createSanction(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireAdmin(ex, user)) return;
+        if (!HttpHelper.requireMod(ex, user)) return;
 
         JsonObject req;
         try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }
@@ -85,11 +85,11 @@ public final class SecurityHandler {
         HttpHelper.json(ex, 200, Map.of("success", true, "command", finalCmd));
     }
 
-    /** DELETE /api/security/sanctions/:id */
+    /** DELETE /api/security/sanctions/:id — MOD+ (révocation de sanction = modération) */
     public void revokeSanction(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireAdmin(ex, user)) return;
+        if (!HttpHelper.requireMod(ex, user)) return;
         // La révocation dépend de la structure interne de SanctionHistoryStorage
         // On expose l'info et laisse l'admin utiliser la commande /pardon
         HttpHelper.json(ex, 200, Map.of("message", "Utilisez /pardon <joueur> en console pour révoquer un ban."));
@@ -112,11 +112,11 @@ public final class SecurityHandler {
         HttpHelper.json(ex, 200, list);
     }
 
-    /** POST /api/security/reports/:id/resolve */
+    /** POST /api/security/reports/:id/resolve — MOD+ (traitement des reports) */
     public void resolveReport(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String id) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireAdmin(ex, user)) return;
+        if (!HttpHelper.requireMod(ex, user)) return;
         reportStorage.markResolved(id);
         HttpHelper.json(ex, 200, Map.of("success", true));
     }
@@ -133,11 +133,11 @@ public final class SecurityHandler {
         HttpHelper.json(ex, 200, out);
     }
 
-    /** POST /api/security/chestscan/start */
+    /** POST /api/security/chestscan/start — MOD+ (outil de détection d'anticheat) */
     public void chestscanStart(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
-        if (!HttpHelper.requireAdmin(ex, user)) return;
+        if (!HttpHelper.requireMod(ex, user)) return;
 
         JsonObject req;
         try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }

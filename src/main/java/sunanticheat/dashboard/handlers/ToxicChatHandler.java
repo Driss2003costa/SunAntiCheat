@@ -40,10 +40,11 @@ public final class ToxicChatHandler {
     }
 
     @SuppressWarnings("unchecked")
+    /** POST /api/chat/reset — MOD+ (reset du score toxicité d'un joueur = modération) */
     public void reset(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requireAdmin(ex, u)) return;
+        if (!HttpHelper.requireMod(ex, u)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         String player = body != null ? (String) body.get("player") : null;
         if (player == null) { HttpHelper.error(ex, 400, "player manquant"); return; }
