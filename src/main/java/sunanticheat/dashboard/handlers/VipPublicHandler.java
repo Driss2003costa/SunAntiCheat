@@ -66,12 +66,18 @@ public final class VipPublicHandler {
     }
 
     private static String clientIp(HttpExchange ex) {
-        String xff = ex.getRequestHeaders().getFirst("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            int comma = xff.indexOf(',');
-            return (comma > 0 ? xff.substring(0, comma) : xff).trim();
+        try {
+            String xff = ex.getRequestHeaders().getFirst("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                int comma = xff.indexOf(',');
+                return (comma > 0 ? xff.substring(0, comma) : xff).trim();
+            }
+            if (ex.getRemoteAddress() == null) return "unknown";
+            if (ex.getRemoteAddress().getAddress() == null) return "unknown";
+            return ex.getRemoteAddress().getAddress().getHostAddress();
+        } catch (Throwable t) {
+            return "unknown";
         }
-        return ex.getRemoteAddress() == null ? "unknown" : ex.getRemoteAddress().getAddress().getHostAddress();
     }
 
     /** GET /api/public/vip/plans — liste sanitisée pour affichage public. */
