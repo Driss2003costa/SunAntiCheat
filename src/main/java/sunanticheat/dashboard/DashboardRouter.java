@@ -275,6 +275,7 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/ai/config") && POST(method)) { aiHandler.setConfig(ex, jwt, users); return; }
         if (eq(path, "/api/ai/diagnose") && POST(method)) { aiHandler.diagnose(ex, jwt, users); return; }
         if (eq(path, "/api/ai/apply-patch") && POST(method)) { aiHandler.applyPatch(ex, jwt, users); return; }
+        if (eq(path, "/api/ai/usage")    && GET(method))  { aiHandler.usage(ex, jwt, users); return; }
 
         // ── Crates / Lootboxes ────────────────────────────────────────────────
         // ORDRE CRITIQUE : routes spécifiques AVANT /api/crates/{id}

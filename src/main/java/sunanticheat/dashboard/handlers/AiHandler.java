@@ -13,6 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.ai.AiUsageStore;
 import sunanticheat.dashboard.ws.DashboardWsServer;
 
 import java.lang.management.ManagementFactory;
@@ -47,12 +48,41 @@ public final class AiHandler {
     private final JavaPlugin plugin;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private DashboardWsServer wsServer;  // injecté après construction pour casser le cycle
+    private final AiUsageStore usageStore;
 
     public AiHandler(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.usageStore = new AiUsageStore(plugin.getDataFolder(), plugin.getLogger());
     }
 
     public void setWsServer(DashboardWsServer ws) { this.wsServer = ws; }
+    public AiUsageStore getUsageStore() { return usageStore; }
+
+    /** Tente d'extraire les tokens consommés depuis la réponse Gemini (usageMetadata). */
+    private static long[] extractTokens(String body) {
+        try {
+            JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+            if (!root.has("usageMetadata")) return new long[]{0, 0};
+            JsonObject u = root.getAsJsonObject("usageMetadata");
+            long in = u.has("promptTokenCount") ? u.get("promptTokenCount").getAsLong() : 0;
+            long out = u.has("candidatesTokenCount") ? u.get("candidatesTokenCount").getAsLong() : 0;
+            return new long[]{in, out};
+        } catch (Throwable t) { return new long[]{0, 0}; }
+    }
+
+    /** Enregistre la consommation dans le store (appelé après chaque réponse Gemini success). */
+    private void recordUsage(String model, String body) {
+        long[] tokens = extractTokens(body);
+        if (tokens[0] > 0 || tokens[1] > 0) {
+            usageStore.record(model, tokens[0], tokens[1]);
+        }
+    }
+
+    /** GET /api/ai/usage — stats de consommation (today, last7, allTime, pricing). */
+    public void usage(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        if (HttpHelper.authenticate(ex, jwt, users) == null) return;
+        HttpHelper.json(ex, 200, usageStore.snapshot());
+    }
 
     /** Liste des modèles Gemini supportés (affichés dans le dropdown frontend). */
     private static final List<Map<String, Object>> AVAILABLE_MODELS = List.of(
@@ -205,6 +235,7 @@ public final class AiHandler {
 
             // ── Parse la réponse Gemini et transforme au format Anthropic-compatible ──
             String text = extractGeminiText(res.body());
+            recordUsage(model, res.body());
             Map<String, Object> normalized = new LinkedHashMap<>();
             normalized.put("role", "assistant");
             normalized.put("model", model);
@@ -299,6 +330,7 @@ public final class AiHandler {
                     .build();
             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() < 200 || res.statusCode() >= 300) return null;
+            recordUsage(model, res.body());
             return new DiagnosticResult(extractGeminiText(res.body()), context);
         } catch (Throwable t) {
             plugin.getLogger().warning("[AI] runInternalDiagnostic erreur: " + t.getMessage());
@@ -417,6 +449,7 @@ public final class AiHandler {
                 return;
             }
             String analysis = extractGeminiText(res.body());
+            recordUsage(model, res.body());
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("analysis", analysis);
             out.put("context", diagnosticContext);

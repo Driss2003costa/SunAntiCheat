@@ -21,11 +21,18 @@ export default function Assistant() {
   const [switching, setSwitching] = useState<string | null>(null)
   const [diagnosing, setDiagnosing] = useState(false)
   const [showContext, setShowContext] = useState<string | null>(null)
+  const [usage, setUsage] = useState<any>(null)
+  const [showUsage, setShowUsage] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
   const refreshStatus = () => api.aiStatus().then(setStatus).catch(() => {})
+  const refreshUsage  = () => api.aiUsage().then(setUsage).catch(() => {})
 
-  useEffect(() => { refreshStatus() }, [])
+  useEffect(() => { refreshStatus(); refreshUsage() }, [])
+  useEffect(() => {
+    // Refresh usage après chaque nouveau message ou diagnostic
+    if (messages.length > 0) refreshUsage()
+  }, [messages.length])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const send = async () => {
@@ -86,9 +93,12 @@ export default function Assistant() {
     <div className="p-6 h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>🤖 Assistant IA</h1>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Propulsé par Google Gemini</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>🤖 Assistant IA</h1>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Propulsé par Google Gemini</p>
+          </div>
+          {usage && status?.configured && <UsageBadge usage={usage} onOpen={() => setShowUsage(true)}/>}
         </div>
 
         {/* Sélecteur de modèle */}
@@ -320,6 +330,188 @@ export default function Assistant() {
           Envoyer
         </button>
       </div>
+
+      {/* Modal détail consommation */}
+      {showUsage && usage && (
+        <UsageModal usage={usage} onClose={() => setShowUsage(false)}/>
+      )}
     </div>
   )
+}
+
+// ── Badge de consommation (affiché dans le header) ────────────────────────
+function UsageBadge({ usage, onOpen }: any) {
+  const todayCost = usage.today?.costUsd || 0
+  const todayCostEur = todayCost * (usage.usdToEur || 0.92)
+  const todayRequests = usage.today?.requests || 0
+  const freeQuotaPct = Math.min(100, (usage.today?.inputTokens || 0) / 10_000) // 1M tokens gratuits/j ≈ ~10k = 1%
+
+  return (
+    <button onClick={onOpen}
+            title="Voir le détail de la consommation"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition hover:scale-105"
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+            }}>
+      <div className="flex items-center gap-1.5">
+        <span>📊</span>
+        <span className="font-medium">{todayRequests}</span>
+        <span style={{ color: 'var(--text-muted)' }}>req auj.</span>
+      </div>
+      <div className="w-px h-4" style={{ background: 'var(--border)' }}/>
+      <div>
+        {todayCost < 0.0001 ? (
+          <span style={{ color: '#10b981' }}>🆓 Gratuit</span>
+        ) : (
+          <span>
+            <b style={{ color: todayCostEur > 0.1 ? '#f59e0b' : 'var(--text)' }}>
+              {todayCostEur.toFixed(4)} €
+            </b>
+          </span>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// ── Modal détaillé de consommation ────────────────────────────────────────
+function UsageModal({ usage, onClose }: any) {
+  const today = usage.today || {}
+  const all = usage.allTime || {}
+  const usd2eur = usage.usdToEur || 0.92
+  const last7 = usage.last7Days || []
+
+  const maxReqsWeek = Math.max(1, ...last7.map((d: any) => d.requests || 0))
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-[600px] max-h-[85vh] overflow-y-auto rounded-xl p-6"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+           onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text)' }}>📊 Consommation IA</h2>
+          <button onClick={onClose} className="text-2xl leading-none" style={{ color: 'var(--text-muted)' }}>×</button>
+        </div>
+
+        {/* Aujourd'hui */}
+        <div className="rounded-lg p-4 mb-4" style={{ background: 'var(--surface-2)' }}>
+          <div className="text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
+            Aujourd'hui ({today.date})
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Requêtes" value={today.requests || 0}/>
+            <Stat label="Tokens input" value={fmt(today.inputTokens || 0)}/>
+            <Stat label="Tokens output" value={fmt(today.outputTokens || 0)}/>
+            <Stat label="Coût estimé" value={formatCost(today.costUsd || 0, usd2eur)} color="#10b981"/>
+          </div>
+          <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+            💡 Quota gratuit Gemini 2.0 Flash : 1M tokens/jour · 1500 requêtes/jour
+          </div>
+          {/* Barre de progression free tier */}
+          <div className="mt-2 h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+            <div className="h-full transition-all"
+                 style={{
+                   width: `${Math.min(100, ((today.inputTokens || 0) / 1_000_000) * 100)}%`,
+                   background: '#10b981',
+                 }}/>
+          </div>
+          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+            {((today.inputTokens || 0) / 1_000_000 * 100).toFixed(2)}% du quota gratuit utilisé
+          </div>
+        </div>
+
+        {/* 7 derniers jours */}
+        <div className="rounded-lg p-4 mb-4" style={{ background: 'var(--surface-2)' }}>
+          <div className="text-xs uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
+            7 derniers jours
+          </div>
+          <div className="space-y-1">
+            {last7.map((d: any) => (
+              <div key={d.date} className="flex items-center gap-2 text-xs">
+                <div className="w-20 font-mono" style={{ color: 'var(--text-muted)' }}>
+                  {d.date.slice(5)}
+                </div>
+                <div className="flex-1 h-4 rounded overflow-hidden" style={{ background: 'var(--border)' }}>
+                  <div className="h-full transition-all px-1.5 flex items-center"
+                       style={{
+                         width: `${((d.requests || 0) / maxReqsWeek) * 100}%`,
+                         background: d.requests > 0 ? 'var(--primary)' : 'transparent',
+                         minWidth: d.requests > 0 ? 24 : 0,
+                       }}>
+                    {d.requests > 0 && <span className="text-xs text-white font-semibold">{d.requests}</span>}
+                  </div>
+                </div>
+                <div className="w-20 text-right" style={{ color: 'var(--text)' }}>
+                  {formatCost(d.costUsd || 0, usd2eur)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="rounded-lg p-4 mb-4" style={{ background: 'var(--surface-2)' }}>
+          <div className="text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
+            Total cumulé
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Requêtes totales" value={fmt(all.requests || 0)}/>
+            <Stat label="Coût total" value={formatCost(all.costUsd || 0, usd2eur)}/>
+            <Stat label="Tokens input" value={fmt(all.inputTokens || 0)}/>
+            <Stat label="Tokens output" value={fmt(all.outputTokens || 0)}/>
+          </div>
+        </div>
+
+        {/* Tarifs */}
+        <details>
+          <summary className="text-xs cursor-pointer mb-2" style={{ color: 'var(--text-muted)' }}>
+            💳 Voir les tarifs (USD/M tokens)
+          </summary>
+          <div className="text-xs p-3 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>
+            <table className="w-full">
+              <thead style={{ color: 'var(--text-muted)' }}>
+                <tr><th className="text-left">Modèle</th><th className="text-right">Input</th><th className="text-right">Output</th></tr>
+              </thead>
+              <tbody>
+                {Object.entries(usage.pricing || {}).map(([m, rates]: any) => (
+                  <tr key={m} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td className="py-1 font-mono">{m}</td>
+                    <td className="text-right">${rates[0].toFixed(3)}</td>
+                    <td className="text-right">${rates[1].toFixed(3)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-2 text-xs opacity-70">
+              Conversion USD → EUR : × {usd2eur}. Tarifs approximatifs (vérifiez sur ai.google.dev).
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  )
+}
+
+function Stat({ label, value, color }: { label: string; value: any; color?: string }) {
+  return (
+    <div>
+      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
+      <div className="text-lg font-bold" style={{ color: color || 'var(--text)' }}>{value}</div>
+    </div>
+  )
+}
+
+function fmt(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
+  return String(n)
+}
+
+function formatCost(usd: number, usdToEur: number): string {
+  if (usd < 0.0001) return '🆓 Gratuit'
+  const eur = usd * usdToEur
+  if (eur < 0.01) return eur.toFixed(4) + ' €'
+  return eur.toFixed(3) + ' €'
 }

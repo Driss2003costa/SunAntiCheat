@@ -185,6 +185,13 @@ export const api = {
     ),
   aiApplyPatch:    (file: string, changes: Array<{ path: string; value: any }>) =>
     request<any>('/api/ai/apply-patch', { method: 'POST', body: JSON.stringify({ file, changes }) }),
+  aiUsage:         () => request<{
+    today: { date: string; inputTokens: number; outputTokens: number; requests: number; costUsd: number }
+    allTime: { inputTokens: number; outputTokens: number; requests: number; costUsd: number }
+    last7Days: Array<{ date: string; inputTokens: number; outputTokens: number; requests: number; costUsd: number }>
+    pricing: Record<string, number[]>
+    usdToEur: number
+  }>('/api/ai/usage'),
 
   // Crates / Lootboxes
   cratesList:      () => request<any[]>('/api/crates'),
