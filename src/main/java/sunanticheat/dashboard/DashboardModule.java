@@ -25,6 +25,7 @@ import sunanticheat.dashboard.experiments.ExperimentStore;
 import sunanticheat.dashboard.ai.AiMonitor;
 import sunanticheat.dashboard.auth.PermissionStore;
 import sunanticheat.dashboard.handlers.*;
+import sunanticheat.dashboard.mobile.PushService;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
 import sunanticheat.dashboard.honeypot.HoneypotStore;
 import sunanticheat.dashboard.shop.ShopEconomyListener;
@@ -131,6 +132,9 @@ public final class DashboardModule {
         PermissionStore permissionStore = new PermissionStore(plugin.getDataFolder(), plugin.getLogger());
         HttpHelper.setPermissionStore(permissionStore);
 
+        // ── Push Service (notifications mobile Expo) ─────────────────────────
+        PushService.init(plugin);
+
         // ── Utilisateurs ──────────────────────────────────────────────────────
         userStore = new UserStore(plugin.getDataFolder(), plugin.getLogger(), cfg);
         Map<String, DashboardUser> users = new java.util.concurrent.ConcurrentHashMap<>(userStore.asMap());
@@ -181,6 +185,7 @@ public final class DashboardModule {
         AuthHandler     authHandler     = new AuthHandler(users, jwtUtil, userStore);
         UserHandler     userHandler     = new UserHandler(userStore);
         PermissionsHandler permsHandler  = new PermissionsHandler(permissionStore);
+        MobileHandler   mobileHandler    = new MobileHandler();
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
         SecurityHandler securityHandler = new SecurityHandler(plugin, sanctionHistory, reportStorage, alertStore);
         EconomyHandler  economyHandler  = new EconomyHandler(plugin, economy, transactionStore);
@@ -296,7 +301,7 @@ public final class DashboardModule {
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
-                shopHandler, vipHandler, vipPublicHandler, permsHandler);
+                shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -365,6 +370,31 @@ public final class DashboardModule {
                     "timestamp", System.currentTimeMillis(),
                     "type", type, "player", player, "world", world, "detail", detail));
         }
+        // ── Push mobile pour les alertes critiques ──
+        try {
+            PushService push = PushService.get();
+            if (push != null && isCritical(type)) {
+                String title = "🚨 " + prettyType(type);
+                String body = (player != null ? player : "?") +
+                        (world != null && !world.isBlank() ? " [" + world + "]" : "") +
+                        (detail != null && !detail.isBlank() ? " — " + detail : "");
+                push.broadcast(title, body, "alerts");
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    /** Alertes qui méritent un push notification (critiques). */
+    private static boolean isCritical(String type) {
+        if (type == null) return false;
+        String t = type.toUpperCase();
+        return t.contains("XRAY") || t.contains("KILLAURA") || t.contains("FREECAM")
+                || t.contains("HACK") || t.contains("HONEYPOT");
+    }
+
+    private static String prettyType(String type) {
+        if (type == null) return "Alerte";
+        return type.replace('_', ' ').toLowerCase().substring(0, 1).toUpperCase() +
+                type.replace('_', ' ').toLowerCase().substring(1);
     }
 
     /**

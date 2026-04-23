@@ -42,6 +42,7 @@ public final class DashboardRouter implements HttpHandler {
     private final VipHandler vipHandler;
     private final VipPublicHandler vipPublicHandler;
     private final PermissionsHandler permsHandler;
+    private final MobileHandler mobileHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -70,7 +71,8 @@ public final class DashboardRouter implements HttpHandler {
                            ShopHandler shopHandler,
                            VipHandler vipHandler,
                            VipPublicHandler vipPublicHandler,
-                           PermissionsHandler permsHandler) {
+                           PermissionsHandler permsHandler,
+                           MobileHandler mobileHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -99,6 +101,7 @@ public final class DashboardRouter implements HttpHandler {
         this.vipHandler = vipHandler;
         this.vipPublicHandler = vipPublicHandler;
         this.permsHandler = permsHandler;
+        this.mobileHandler = mobileHandler;
     }
 
     @Override
@@ -380,6 +383,11 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/vip/checkout")        && POST(method))  { vipPublicHandler.createCheckout(ex); return; }
         if (eq(path, "/api/public/vip/webhook/stripe")  && POST(method))  { vipPublicHandler.stripeWebhook(ex); return; }
         if (eq(path, "/api/public/vip/webhook/paypal")  && POST(method))  { vipPublicHandler.paypalWebhook(ex); return; }
+
+        // ── Mobile (push notifications) ──────────────────────────────────────
+        if (eq(path, "/api/mobile/push/register") && POST(method)) { mobileHandler.registerPush(ex, jwt, users); return; }
+        if (eq(path, "/api/mobile/push/test")     && POST(method)) { mobileHandler.testPush(ex, jwt, users); return; }
+        if (eq(path, "/api/mobile/devices")       && GET(method))  { mobileHandler.listDevices(ex, jwt, users); return; }
 
         // ── Permissions matrix ────────────────────────────────────────────────
         if (eq(path, "/api/permissions")            && GET(method))    { permsHandler.get(ex, jwt, users); return; }
