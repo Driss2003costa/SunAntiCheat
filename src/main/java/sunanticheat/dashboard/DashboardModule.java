@@ -256,6 +256,7 @@ public final class DashboardModule {
         Bukkit.getPluginManager().registerEvents(new ToxicChatListener(plugin, toxicChatStore, this::pushAlertRaw), plugin);
         Bukkit.getPluginManager().registerEvents(new QuestListener(questStore), plugin);
         Bukkit.getPluginManager().registerEvents(crateListener, plugin);
+        Bukkit.getPluginManager().registerEvents(new sunanticheat.dashboard.crates.CrateAnimationListener(), plugin);
         Bukkit.getPluginManager().registerEvents(dailyRewardListener, plugin);
 
         // Commandes /crate et /daily
