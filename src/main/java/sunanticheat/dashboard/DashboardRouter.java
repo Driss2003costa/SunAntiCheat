@@ -155,6 +155,8 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/server/players") && GET(method))  { serverHandler.players(ex, jwt, users); return; }
         if (eq(path, "/api/server/worlds")  && GET(method))  { serverHandler.worlds(ex, jwt, users); return; }
         if (eq(path, "/api/server/command") && POST(method)) { serverHandler.command(ex, jwt, users); return; }
+        if (eq(path, "/api/server/kick")    && POST(method)) { serverHandler.kick(ex, jwt, users); return; }
+        if (eq(path, "/api/server/ban")     && POST(method)) { serverHandler.ban(ex, jwt, users); return; }
         if (path.startsWith("/api/server/worlds/") && path.endsWith("/pvp") && POST(method)) {
             String wName = path.substring("/api/server/worlds/".length(), path.length() - "/pvp".length());
             serverHandler.togglePvp(ex, jwt, users, wName); return;

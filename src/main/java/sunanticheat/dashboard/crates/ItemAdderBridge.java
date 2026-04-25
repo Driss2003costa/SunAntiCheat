@@ -47,4 +47,23 @@ public final class ItemAdderBridge {
             return null;
         }
     }
+
+    /**
+     * Place un bloc ItemsAdder au monde. Retourne true si succès.
+     * Si l'ID n'existe pas ou ItemsAdder absent : retourne false (le caller
+     * peut tomber sur un fallback Material vanilla).
+     */
+    public static boolean placeCustomBlock(String itemAdderId, org.bukkit.Location location) {
+        if (itemAdderId == null || itemAdderId.isEmpty() || location == null) return false;
+        try {
+            Class<?> c = Class.forName("dev.lone.itemsadder.api.CustomBlock");
+            // CustomBlock.getInstance(String namespacedID) puis place(Location) sur l'instance
+            Object cb = c.getMethod("getInstance", String.class).invoke(null, itemAdderId);
+            if (cb == null) return false;
+            Object placed = c.getMethod("place", org.bukkit.Location.class).invoke(cb, location);
+            return placed != null;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 }

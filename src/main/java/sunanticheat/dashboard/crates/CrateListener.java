@@ -229,6 +229,17 @@ public final class CrateListener implements Listener, CommandExecutor {
         }
     }
 
+    /**
+     * /crate place <name> — pose VISUELLEMENT le bloc de la crate à l'emplacement visé.
+     *
+     * Comportement :
+     *  - Si le joueur vise un bloc plein → le bloc DEVANT (sur la face visible)
+     *    est remplacé par le bloc de la crate (Material ou ItemsAdder).
+     *    Si la face visible est occupée, on remplace directement le bloc visé.
+     *  - Si ItemsAdder block ID renseigné dans la crate → utilisé en priorité.
+     *  - Sinon : Material du iconMaterial (défaut CHEST).
+     *  - Effet visuel : particules + son pour confirmation.
+     */
     private boolean cmdPlace(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) { sender.sendMessage("\u00a7cJoueur uniquement."); return true; }
         if (!sender.hasPermission("sunguard.dashboard")) { sender.sendMessage("\u00a7cPermission requise."); return true; }
@@ -236,15 +247,75 @@ public final class CrateListener implements Listener, CommandExecutor {
         Player p = (Player) sender;
         Crate crate = store.getCrateByName(args[1]);
         if (crate == null) { p.sendMessage("\u00a7cCrate introuvable: " + args[1]); return true; }
-        Block target = p.getTargetBlockExact(5);
-        if (target == null || target.getType().isAir()) {
-            p.sendMessage("\u00a7cVisez un bloc \u00e0 5 blocs maximum.");
+
+        // Récupère le bloc visé ET le bloc adjacent (pour placer DEVANT le bloc visé)
+        java.util.List<Block> chain = p.getLineOfSight(null, 5);
+        Block target = null;
+        Block placeAt = null;
+        for (Block b : chain) {
+            if (b == null) continue;
+            if (b.getType().isAir()) {
+                placeAt = b;          // dernier air avant un solide → on pose ici
+                continue;
+            }
+            target = b;               // premier solide rencontré
+            break;
+        }
+        // Si pas de solide en face mais on vise loin → utilise placeAt (le dernier air)
+        if (target == null && placeAt == null) {
+            p.sendMessage("\u00a7cVisez un emplacement (max 5 blocs).");
             return true;
         }
+        // Si on a un solide en face, on préfère poser SUR (placeAt = dernier air avant solide)
+        // Si pas d'air avant le solide (collé au visage), on remplace le solide directement
+        Block finalBlock = (placeAt != null) ? placeAt : target;
+
+        // ── Pose visuelle du bloc ──────────────────────────────────────────
+        boolean placed = false;
+        // Priorité 1 : ItemsAdder
+        if (crate.itemAdderBlockId != null && !crate.itemAdderBlockId.isBlank()
+                && ItemAdderBridge.isAvailable()) {
+            placed = ItemAdderBridge.placeCustomBlock(crate.itemAdderBlockId, finalBlock.getLocation());
+        }
+        // Priorité 2 : Material vanilla
+        if (!placed) {
+            String matName = (crate.placeholderMaterial != null && !crate.placeholderMaterial.isBlank())
+                    ? crate.placeholderMaterial : "CHEST";
+            org.bukkit.Material mat;
+            try { mat = org.bukkit.Material.valueOf(matName.toUpperCase()); }
+            catch (Exception e) { mat = org.bukkit.Material.CHEST; }
+            if (!mat.isBlock()) mat = org.bukkit.Material.CHEST;
+            finalBlock.setType(mat, false);
+            placed = true;
+        }
+
+        // ── Enregistre dans le store ──────────────────────────────────────
         store.addPlacedCrate(new PlacedCrate(crate.id,
-                target.getWorld().getName(), target.getX(), target.getY(), target.getZ()));
-        p.sendMessage("\u00a7a\u2713 Crate \u00ab" + crate.name + "\u00bb plac\u00e9e \u00e0 "
-                + target.getX() + "," + target.getY() + "," + target.getZ());
+                finalBlock.getWorld().getName(),
+                finalBlock.getX(), finalBlock.getY(), finalBlock.getZ()));
+
+        // ── Confirmation visuelle ─────────────────────────────────────────
+        try {
+            finalBlock.getWorld().spawnParticle(
+                    org.bukkit.Particle.HAPPY_VILLAGER,
+                    finalBlock.getLocation().add(0.5, 0.5, 0.5),
+                    20, 0.4, 0.4, 0.4, 0.05);
+        } catch (Throwable ignored) {
+            try {
+                finalBlock.getWorld().spawnParticle(
+                        org.bukkit.Particle.valueOf("VILLAGER_HAPPY"),
+                        finalBlock.getLocation().add(0.5, 0.5, 0.5),
+                        20, 0.4, 0.4, 0.4, 0.05);
+            } catch (Throwable ignored2) {}
+        }
+        try {
+            p.playSound(finalBlock.getLocation(), org.bukkit.Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1f, 1.4f);
+        } catch (Throwable ignored) {}
+
+        p.sendMessage("\u00a7a\u2713 Crate \u00ab\u00a76" + crate.name + "\u00a7a\u00bb plac\u00e9e \u00e0 \u00a7e"
+                + finalBlock.getX() + "\u00a77, \u00a7e" + finalBlock.getY() + "\u00a77, \u00a7e" + finalBlock.getZ()
+                + "\u00a78 (" + finalBlock.getWorld().getName() + ")");
+        p.sendMessage("\u00a77Clique-droit dessus pour ouvrir la crate.");
         return true;
     }
 

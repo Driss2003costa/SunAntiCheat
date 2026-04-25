@@ -141,6 +141,111 @@ public final class ServerHandler {
         HttpHelper.json(ex, 200, Map.of("command", finalCmd, "output", List.of()));
     }
 
+    /**
+     * POST /api/server/kick — kick un joueur en ligne.
+     * Body : { uuid?: string, player?: string, reason: string }
+     * Permission : MODERATE_PLAYERS (MOD+ par défaut).
+     */
+    public void kick(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.MODERATE_PLAYERS)) return;
+
+        JsonObject req;
+        try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }
+        catch (Exception e) { HttpHelper.error(ex, 400, "JSON invalide"); return; }
+        if (req == null) { HttpHelper.error(ex, 400, "body manquant"); return; }
+
+        String uuid   = req.has("uuid")   ? req.get("uuid").getAsString()   : null;
+        String pname  = req.has("player") ? req.get("player").getAsString() : null;
+        String reason = req.has("reason") ? req.get("reason").getAsString() : "Aucune raison";
+
+        if ((uuid == null || uuid.isBlank()) && (pname == null || pname.isBlank())) {
+            HttpHelper.error(ex, 400, "uuid ou player requis"); return;
+        }
+
+        var future = new CompletableFuture<Boolean>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player target = null;
+            if (uuid != null && !uuid.isBlank()) {
+                try { target = Bukkit.getPlayer(java.util.UUID.fromString(uuid)); } catch (Exception ignored) {}
+            }
+            if (target == null && pname != null) target = Bukkit.getPlayerExact(pname);
+            if (target == null) { future.complete(false); return; }
+            target.kickPlayer(reason);
+            plugin.getLogger().info("[Dashboard] Kick par " + user.username() + " : " + target.getName() + " — " + reason);
+            future.complete(true);
+        });
+
+        if (!future.join()) { HttpHelper.error(ex, 404, "Joueur introuvable / hors-ligne"); return; }
+        HttpHelper.json(ex, 200, Map.of("success", true, "reason", reason));
+    }
+
+    /**
+     * POST /api/server/ban — ban un joueur (utilise BanList Bukkit).
+     * Body : { uuid?: string, player?: string, reason: string, durationMs?: number }
+     * durationMs absent ou 0 = ban permanent. Sinon ban temporaire.
+     * Permission : MODERATE_PLAYERS (MOD+ par défaut).
+     */
+    @SuppressWarnings("deprecation")
+    public void ban(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requirePermission(ex, user, Permission.MODERATE_PLAYERS)) return;
+
+        JsonObject req;
+        try { req = HttpHelper.GSON.fromJson(HttpHelper.body(ex), JsonObject.class); }
+        catch (Exception e) { HttpHelper.error(ex, 400, "JSON invalide"); return; }
+        if (req == null) { HttpHelper.error(ex, 400, "body manquant"); return; }
+
+        String uuid   = req.has("uuid")   ? req.get("uuid").getAsString()   : null;
+        String pname  = req.has("player") ? req.get("player").getAsString() : null;
+        String reason = req.has("reason") ? req.get("reason").getAsString() : "Aucune raison";
+        long durationMs = req.has("durationMs") && !req.get("durationMs").isJsonNull()
+                ? req.get("durationMs").getAsLong() : 0L;
+
+        if ((uuid == null || uuid.isBlank()) && (pname == null || pname.isBlank())) {
+            HttpHelper.error(ex, 400, "uuid ou player requis"); return;
+        }
+
+        var future = new CompletableFuture<String>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            String targetName = pname;
+            if (uuid != null && !uuid.isBlank()) {
+                try {
+                    var off = Bukkit.getOfflinePlayer(java.util.UUID.fromString(uuid));
+                    if (off != null && off.getName() != null) targetName = off.getName();
+                } catch (Exception ignored) {}
+            }
+            if (targetName == null || targetName.isBlank()) { future.complete(null); return; }
+
+            java.util.Date expires = (durationMs > 0)
+                    ? new java.util.Date(System.currentTimeMillis() + durationMs)
+                    : null;
+
+            // BanList.Type.NAME (legacy mais marche partout)
+            Bukkit.getBanList(org.bukkit.BanList.Type.NAME)
+                    .addBan(targetName, reason, expires, user.username());
+
+            // Kick si online
+            Player p = Bukkit.getPlayerExact(targetName);
+            if (p != null) p.kickPlayer("§cVous avez été banni : §f" + reason);
+
+            plugin.getLogger().info("[Dashboard] Ban par " + user.username() + " : " + targetName +
+                    " (durée " + (durationMs > 0 ? durationMs + "ms" : "permanent") + ") — " + reason);
+            future.complete(targetName);
+        });
+
+        String banned = future.join();
+        if (banned == null) { HttpHelper.error(ex, 404, "Joueur introuvable"); return; }
+        HttpHelper.json(ex, 200, Map.of(
+                "success", true,
+                "player", banned,
+                "reason", reason,
+                "permanent", durationMs == 0
+        ));
+    }
+
     /** POST /api/server/worlds/{name}/pvp — toggle PvP d'un monde (MOD+) */
     public void togglePvp(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String worldName) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
