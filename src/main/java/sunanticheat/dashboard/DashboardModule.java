@@ -26,6 +26,7 @@ import sunanticheat.dashboard.ai.AiMonitor;
 import sunanticheat.dashboard.audit.Audit;
 import sunanticheat.dashboard.audit.AuditStore;
 import sunanticheat.dashboard.auth.PermissionStore;
+import sunanticheat.dashboard.db.Database;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.mobile.PushService;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
@@ -93,6 +94,7 @@ public final class DashboardModule {
     private ShopSyncService shopSyncService;
     private VipStore vipStore;
     private VipExpirationScheduler vipScheduler;
+    private Database database;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -130,12 +132,15 @@ public final class DashboardModule {
         int wsPort   = cfg.getInt("dashboard.ws-port",   60036);
         String jwtSecret = cfg.getString("dashboard.jwt-secret", "changez-moi-secret-aleatoire-32chars!");
 
+        // ── Database SQLite (audit, transactions, alerts, sessions) ──────────
+        database = Database.open(plugin.getDataFolder(), plugin.getLogger());
+
         // ── Permission Store (matrice rôle × permissions) ─────────────────────
         PermissionStore permissionStore = new PermissionStore(plugin.getDataFolder(), plugin.getLogger());
         HttpHelper.setPermissionStore(permissionStore);
 
-        // ── Audit log Store ──────────────────────────────────────────────────
-        AuditStore auditStore = new AuditStore(plugin.getDataFolder(), plugin.getLogger());
+        // ── Audit log Store (SQLite) ─────────────────────────────────────────
+        AuditStore auditStore = new AuditStore(database, plugin.getLogger(), plugin.getDataFolder());
         Audit.setStore(auditStore);
         Audit.system("DASHBOARD_STARTED", "system", "Dashboard démarré sur le port " + httpPort);
 
@@ -149,7 +154,7 @@ public final class DashboardModule {
 
         // ── Stores ────────────────────────────────────────────────────────────
         alertStore        = new AlertStore();
-        transactionStore  = new TransactionStore(plugin.getDataFolder(), plugin.getLogger());
+        transactionStore  = new TransactionStore(database, plugin.getLogger(), plugin.getDataFolder());
         snapshotStore     = new SnapshotStore(plugin.getDataFolder(), plugin.getLogger());
         taskStore         = new ScheduledTaskStore(plugin.getDataFolder(), plugin.getLogger());
         taskStore.start(plugin);
@@ -361,6 +366,7 @@ public final class DashboardModule {
         if (vipScheduler != null) vipScheduler.stop();
         if (vipStore != null) vipStore.save();
         if (Audit.store() != null) Audit.store().save();
+        if (database != null) { database.close(); database = null; }
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }
 

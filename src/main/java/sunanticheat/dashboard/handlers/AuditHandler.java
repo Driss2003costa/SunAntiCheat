@@ -40,12 +40,13 @@ public final class AuditHandler {
 
         List<AuditEntry> entries = store.list(userFilter, actionFilter, targetFilter, sinceTs, limit, offset);
 
+        int total = store.filteredCount(userFilter, actionFilter, targetFilter, sinceTs);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("entries", entries);
-        out.put("total", store.totalCount());
+        out.put("total", total);
         out.put("offset", offset);
         out.put("limit", limit);
-        out.put("hasMore", entries.size() == limit);
+        out.put("hasMore", offset + entries.size() < total);
         HttpHelper.json(ex, 200, out);
     }
 
