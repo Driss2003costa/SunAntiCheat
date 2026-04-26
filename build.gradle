@@ -34,6 +34,8 @@ dependencies {
     runtimeOnly    'io.jsonwebtoken:jjwt-gson:0.12.6'   // utilise Gson fourni par Paper
     implementation 'at.favre.lib:bcrypt:0.10.2'
     implementation 'org.xerial:sqlite-jdbc:3.46.1.0'
+    // MariaDB connector — compatible aussi avec MySQL 5.7/8.x
+    implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
 }
 
 tasks.withType(JavaCompile).configureEach {

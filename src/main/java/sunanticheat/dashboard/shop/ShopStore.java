@@ -3,11 +3,11 @@ package sunanticheat.dashboard.shop;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -33,19 +33,18 @@ public final class ShopStore {
     private static final int MAX_TRANSACTIONS = 2000;
     private static final DateTimeFormatter ISO_DAY = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.ROOT);
 
-    private final File shopsFile;
-    private final File transactionsFile;
+    private final Persistence shopsStorage;
+    private final Persistence transactionsStorage;
     private final Logger logger;
 
     private final List<Shop> shops = new ArrayList<>();
     private final List<ShopTransaction> transactions = new ArrayList<>();
 
-    public ShopStore(File dataFolder, Logger logger) {
+    public ShopStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
         File dir = new File(dataFolder, "dashboard");
-        if (!dir.exists()) dir.mkdirs();
-        this.shopsFile = new File(dir, "shops.json");
-        this.transactionsFile = new File(dir, "shop_transactions.json");
+        this.shopsStorage = new Persistence(blobs, "shops", new File(dir, "shops.json"));
+        this.transactionsStorage = new Persistence(blobs, "shop_transactions", new File(dir, "shop_transactions.json"));
         load();
     }
 
@@ -294,12 +293,12 @@ public final class ShopStore {
 
     public synchronized void save() {
         try {
-            Files.writeString(shopsFile.toPath(), GSON.toJson(shops), StandardCharsets.UTF_8);
+            shopsStorage.write(GSON.toJson(shops));
         } catch (Exception e) {
             logger.warning("[Dashboard/Shop] save shops fail: " + e.getMessage());
         }
         try {
-            Files.writeString(transactionsFile.toPath(), GSON.toJson(transactions), StandardCharsets.UTF_8);
+            transactionsStorage.write(GSON.toJson(transactions));
         } catch (Exception e) {
             logger.warning("[Dashboard/Shop] save transactions fail: " + e.getMessage());
         }
@@ -307,8 +306,8 @@ public final class ShopStore {
 
     private void load() {
         try {
-            if (shopsFile.exists()) {
-                String raw = Files.readString(shopsFile.toPath(), StandardCharsets.UTF_8);
+            String raw = shopsStorage.read();
+            if (raw != null && !raw.isBlank()) {
                 Type t = new TypeToken<List<Shop>>() {}.getType();
                 List<Shop> loaded = GSON.fromJson(raw, t);
                 if (loaded != null) {
@@ -320,8 +319,8 @@ public final class ShopStore {
             logger.warning("[Dashboard/Shop] load shops fail: " + e.getMessage());
         }
         try {
-            if (transactionsFile.exists()) {
-                String raw = Files.readString(transactionsFile.toPath(), StandardCharsets.UTF_8);
+            String raw = transactionsStorage.read();
+            if (raw != null && !raw.isBlank()) {
                 Type t = new TypeToken<List<ShopTransaction>>() {}.getType();
                 List<ShopTransaction> loaded = GSON.fromJson(raw, t);
                 if (loaded != null) {

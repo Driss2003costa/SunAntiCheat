@@ -3,12 +3,11 @@ package sunanticheat.dashboard.crates;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -29,12 +28,12 @@ public final class CrateStore {
     private static final int MAX_OPENS = 500;
 
     private final Logger logger;
-    private final File cratesFile;
-    private final File opensFile;
-    private final File keysFile;
-    private final File placedFile;
-    private final File statsFile;
-    private final File dailyFile;
+    private final Persistence cratesStorage;
+    private final Persistence opensStorage;
+    private final Persistence keysStorage;
+    private final Persistence placedStorage;
+    private final Persistence statsStorage;
+    private final Persistence dailyStorage;
 
     private final Map<String, Crate> crates = new LinkedHashMap<>();
     private final List<CrateOpen> opens = new ArrayList<>();
@@ -46,16 +45,15 @@ public final class CrateStore {
     /** crateId -> (playerUuid -> lastOpenTimestamp). Reset quotidien via date du jour. */
     private final Map<String, Map<String, Long>> dailyOpens = new HashMap<>();
 
-    public CrateStore(File dataFolder, Logger logger) {
+    public CrateStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
         File dir = new File(dataFolder, "dashboard");
-        if (!dir.exists()) dir.mkdirs();
-        this.cratesFile = new File(dir, "crates.json");
-        this.opensFile = new File(dir, "crates_opens.json");
-        this.keysFile = new File(dir, "crates_keys.json");
-        this.placedFile = new File(dir, "crates_placed.json");
-        this.statsFile = new File(dir, "crates_stats.json");
-        this.dailyFile = new File(dir, "crates_daily.json");
+        this.cratesStorage = new Persistence(blobs, "crates",         new File(dir, "crates.json"));
+        this.opensStorage  = new Persistence(blobs, "crates_opens",   new File(dir, "crates_opens.json"));
+        this.keysStorage   = new Persistence(blobs, "crates_keys",    new File(dir, "crates_keys.json"));
+        this.placedStorage = new Persistence(blobs, "crates_placed",  new File(dir, "crates_placed.json"));
+        this.statsStorage  = new Persistence(blobs, "crates_stats",   new File(dir, "crates_stats.json"));
+        this.dailyStorage  = new Persistence(blobs, "crates_daily",   new File(dir, "crates_daily.json"));
         load();
     }
 
@@ -267,57 +265,48 @@ public final class CrateStore {
 
     public synchronized void save() {
         try {
-            Files.writeString(cratesFile.toPath(),
-                    GSON.toJson(new ArrayList<>(crates.values())), StandardCharsets.UTF_8);
-            Files.writeString(opensFile.toPath(), GSON.toJson(opens), StandardCharsets.UTF_8);
-            Files.writeString(keysFile.toPath(), GSON.toJson(keys), StandardCharsets.UTF_8);
-            Files.writeString(placedFile.toPath(), GSON.toJson(placed), StandardCharsets.UTF_8);
-            Files.writeString(statsFile.toPath(), GSON.toJson(openCounts), StandardCharsets.UTF_8);
-            Files.writeString(dailyFile.toPath(), GSON.toJson(dailyOpens), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            cratesStorage.write(GSON.toJson(new ArrayList<>(crates.values())));
+            opensStorage.write(GSON.toJson(opens));
+            keysStorage.write(GSON.toJson(keys));
+            placedStorage.write(GSON.toJson(placed));
+            statsStorage.write(GSON.toJson(openCounts));
+            dailyStorage.write(GSON.toJson(dailyOpens));
+        } catch (Exception e) {
             logger.warning("[Dashboard/Crates] save fail: " + e.getMessage());
         }
     }
 
     private void load() {
         try {
-            if (cratesFile.exists()) {
-                Type t = new TypeToken<List<Crate>>(){}.getType();
-                List<Crate> list = GSON.fromJson(
-                        Files.readString(cratesFile.toPath(), StandardCharsets.UTF_8), t);
+            String s;
+            if ((s = cratesStorage.read()) != null && !s.isBlank()) {
+                List<Crate> list = GSON.fromJson(s, new TypeToken<List<Crate>>(){}.getType());
                 if (list != null) for (Crate c : list) if (c != null && c.id != null) {
                     if (c.items == null) c.items = new ArrayList<>();
                     crates.put(c.id, c);
                 }
             }
-            if (opensFile.exists()) {
-                Type t = new TypeToken<List<CrateOpen>>(){}.getType();
-                List<CrateOpen> list = GSON.fromJson(
-                        Files.readString(opensFile.toPath(), StandardCharsets.UTF_8), t);
+            if ((s = opensStorage.read()) != null && !s.isBlank()) {
+                List<CrateOpen> list = GSON.fromJson(s, new TypeToken<List<CrateOpen>>(){}.getType());
                 if (list != null) opens.addAll(list);
             }
-            if (keysFile.exists()) {
-                Type t = new TypeToken<Map<String, Map<String, Integer>>>(){}.getType();
-                Map<String, Map<String, Integer>> m = GSON.fromJson(
-                        Files.readString(keysFile.toPath(), StandardCharsets.UTF_8), t);
+            if ((s = keysStorage.read()) != null && !s.isBlank()) {
+                Map<String, Map<String, Integer>> m = GSON.fromJson(s,
+                        new TypeToken<Map<String, Map<String, Integer>>>(){}.getType());
                 if (m != null) keys.putAll(m);
             }
-            if (placedFile.exists()) {
-                Type t = new TypeToken<List<PlacedCrate>>(){}.getType();
-                List<PlacedCrate> list = GSON.fromJson(
-                        Files.readString(placedFile.toPath(), StandardCharsets.UTF_8), t);
+            if ((s = placedStorage.read()) != null && !s.isBlank()) {
+                List<PlacedCrate> list = GSON.fromJson(s, new TypeToken<List<PlacedCrate>>(){}.getType());
                 if (list != null) placed.addAll(list);
             }
-            if (statsFile.exists()) {
-                Type t = new TypeToken<Map<String, Map<String, Integer>>>(){}.getType();
-                Map<String, Map<String, Integer>> m = GSON.fromJson(
-                        Files.readString(statsFile.toPath(), StandardCharsets.UTF_8), t);
+            if ((s = statsStorage.read()) != null && !s.isBlank()) {
+                Map<String, Map<String, Integer>> m = GSON.fromJson(s,
+                        new TypeToken<Map<String, Map<String, Integer>>>(){}.getType());
                 if (m != null) openCounts.putAll(m);
             }
-            if (dailyFile.exists()) {
-                Type t = new TypeToken<Map<String, Map<String, Long>>>(){}.getType();
-                Map<String, Map<String, Long>> m = GSON.fromJson(
-                        Files.readString(dailyFile.toPath(), StandardCharsets.UTF_8), t);
+            if ((s = dailyStorage.read()) != null && !s.isBlank()) {
+                Map<String, Map<String, Long>> m = GSON.fromJson(s,
+                        new TypeToken<Map<String, Map<String, Long>>>(){}.getType());
                 if (m != null) dailyOpens.putAll(m);
             }
         } catch (Exception e) {

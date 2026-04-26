@@ -4,11 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import sunanticheat.dashboard.DashboardRole;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -24,22 +23,19 @@ import java.util.logging.Logger;
  */
 public final class PermissionStore {
 
-    private final File file;
+    private final Persistence storage;
     private final Logger logger;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 
     /** Map role → set de permissions autorisées. Thread-safe via synchronized. */
     private final EnumMap<DashboardRole, EnumSet<Permission>> matrix = new EnumMap<>(DashboardRole.class);
 
-    public PermissionStore(File dataFolder, Logger logger) {
+    public PermissionStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
-        File dir = new File(dataFolder, "dashboard");
-        if (!dir.exists()) dir.mkdirs();
-        this.file = new File(dir, "permissions.json");
+        File legacyFile = new File(new File(dataFolder, "dashboard"), "permissions.json");
+        this.storage = new Persistence(blobs, "permissions", legacyFile);
 
-        // Initialise par défauts
         applyDefaults();
-        // Charge les overrides (fusionne)
         load();
     }
 
@@ -63,9 +59,9 @@ public final class PermissionStore {
     }
 
     private synchronized void load() {
-        if (!file.exists()) { save(); return; }
+        String json = storage.read();
+        if (json == null || json.isBlank()) { save(); return; }
         try {
-            String json = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             Map<String, java.util.List<String>> raw = gson.fromJson(json,
                     new TypeToken<Map<String, java.util.List<String>>>() {}.getType());
             if (raw == null) return;
@@ -81,7 +77,7 @@ public final class PermissionStore {
                 }
                 matrix.put(role, perms);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.warning("[Permissions] load erreur: " + e.getMessage());
         }
     }
@@ -95,8 +91,8 @@ public final class PermissionStore {
                 for (Permission p : perms) names.add(p.name());
                 out.put(r.name(), names);
             }
-            Files.writeString(file.toPath(), gson.toJson(out), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            storage.write(gson.toJson(out));
+        } catch (Exception e) {
             logger.warning("[Permissions] save erreur: " + e.getMessage());
         }
     }

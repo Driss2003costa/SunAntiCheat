@@ -3,6 +3,8 @@ package sunanticheat.dashboard.events;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -10,9 +12,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -22,19 +21,18 @@ public final class EventCalendarStore {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
     private static final List<Integer> DEFAULT_OFFSETS = List.of(60, 15, 5, 1);
 
-    private final File file;
+    private final Persistence storage;
     private final Logger logger;
     private final JavaPlugin plugin;
     private final Map<String, CalendarEvent> events = new ConcurrentHashMap<>();
     private final Set<String> broadcastedKeys = ConcurrentHashMap.newKeySet(); // "id:offset"
     private BukkitTask tickTask;
 
-    public EventCalendarStore(JavaPlugin plugin, File dataFolder, Logger logger) {
+    public EventCalendarStore(JavaPlugin plugin, File dataFolder, Logger logger, BlobStorage blobs) {
         this.plugin = plugin;
         this.logger = logger;
-        File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.file = new File(dir, "events.json");
+        File legacy = new File(new File(dataFolder, "dashboard"), "events.json");
+        this.storage = new Persistence(blobs, "events", legacy);
         load();
     }
 
@@ -141,15 +139,15 @@ public final class EventCalendarStore {
     // ── Persist ───────────────────────────────────────────────────────────────
     public synchronized void save() {
         try {
-            Files.writeString(file.toPath(), GSON.toJson(new ArrayList<>(events.values())), StandardCharsets.UTF_8);
-        } catch (IOException ex) { logger.warning("[Dashboard/Events] save: " + ex.getMessage()); }
+            storage.write(GSON.toJson(new ArrayList<>(events.values())));
+        } catch (Exception ex) { logger.warning("[Dashboard/Events] save: " + ex.getMessage()); }
     }
 
     private void load() {
-        if (!file.exists()) return;
+        String json = storage.read();
+        if (json == null || json.isBlank()) return;
         try {
-            List<CalendarEvent> list = GSON.fromJson(Files.readString(file.toPath(), StandardCharsets.UTF_8),
-                    new TypeToken<List<CalendarEvent>>(){}.getType());
+            List<CalendarEvent> list = GSON.fromJson(json, new TypeToken<List<CalendarEvent>>(){}.getType());
             if (list != null) for (CalendarEvent e : list) events.put(e.getId(), e);
         } catch (Exception ex) { logger.warning("[Dashboard/Events] load: " + ex.getMessage()); }
     }

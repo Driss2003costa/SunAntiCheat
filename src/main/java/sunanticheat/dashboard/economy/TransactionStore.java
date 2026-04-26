@@ -44,22 +44,21 @@ public final class TransactionStore {
     private void initSchema() {
         db.migrate("transactions", 1, """
             CREATE TABLE IF NOT EXISTS transactions (
-                id              TEXT PRIMARY KEY,
-                ts              INTEGER NOT NULL,
-                player_uuid     TEXT,
-                player_name     TEXT,
-                type            TEXT NOT NULL,
-                item_material   TEXT,
-                item_name       TEXT,
-                quantity        INTEGER NOT NULL,
-                price_per_unit  REAL NOT NULL,
-                total_price     REAL NOT NULL,
-                shop_name       TEXT,
-                result          TEXT
+                id              VARCHAR(64)  NOT NULL PRIMARY KEY,
+                ts              BIGINT       NOT NULL,
+                player_uuid     VARCHAR(64),
+                player_name     VARCHAR(64),
+                type            VARCHAR(16)  NOT NULL,
+                item_material   VARCHAR(64),
+                item_name       VARCHAR(255),
+                quantity        INTEGER      NOT NULL,
+                price_per_unit  DOUBLE       NOT NULL,
+                total_price     DOUBLE       NOT NULL,
+                shop_name       VARCHAR(64),
+                result          VARCHAR(32)
             );
-            CREATE INDEX IF NOT EXISTS idx_tx_ts          ON transactions(ts DESC);
-            CREATE INDEX IF NOT EXISTS idx_tx_player_lc   ON transactions(LOWER(player_name));
-            CREATE INDEX IF NOT EXISTS idx_tx_type        ON transactions(type);
+            CREATE INDEX idx_tx_ts          ON transactions(ts);
+            CREATE INDEX idx_tx_type        ON transactions(type);
             """);
     }
 
@@ -100,7 +99,7 @@ public final class TransactionStore {
             db.conn().setAutoCommit(false);
             int n = 0;
             try (PreparedStatement ps = db.conn().prepareStatement(
-                    "INSERT OR IGNORE INTO transactions(id, ts, player_uuid, player_name, type, item_material, "
+                    "REPLACE INTO transactions(id, ts, player_uuid, player_name, type, item_material, "
                   + "item_name, quantity, price_per_unit, total_price, shop_name, result) "
                   + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")) {
                 for (TransactionEntry e : list) {
@@ -143,7 +142,7 @@ public final class TransactionStore {
     public void add(TransactionEntry e) {
         if (e == null) return;
         try (PreparedStatement ps = db.conn().prepareStatement(
-                "INSERT OR REPLACE INTO transactions(id, ts, player_uuid, player_name, type, item_material, "
+                "REPLACE INTO transactions(id, ts, player_uuid, player_name, type, item_material, "
               + "item_name, quantity, price_per_unit, total_price, shop_name, result) "
               + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")) {
             bindEntry(ps, e);
@@ -162,7 +161,7 @@ public final class TransactionStore {
         List<Object> args = new ArrayList<>();
         args.add(since);
         if (type != null && !type.isEmpty()) {
-            sql.append("AND type = ? COLLATE NOCASE ");
+            sql.append("AND LOWER(type) = LOWER(?) ");
             args.add(type);
         }
         if (player != null && !player.isEmpty()) {

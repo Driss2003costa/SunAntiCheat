@@ -212,6 +212,27 @@ dashboard:
   # Origine CORS autorisée (mettre l'URL exacte du frontend en prod)
   cors-origin: "*"
 
+  # ── Base de données ─────────────────────────────────────────────────────
+  # Toutes les données du dashboard (audit log, transactions, users, shops,
+  # crates, VIP, daily rewards, etc.) sont persistées en DB. Au premier boot
+  # après mise à jour, les anciens fichiers .json sont importés automatiquement
+  # puis renommés en .json.bak (rollback possible).
+  #
+  # Type :
+  #   sqlite           → fichier local plugins/SunAntiCheat/sunanticheat.db (par défaut, zero-config)
+  #   mysql / mariadb  → serveur externe MySQL 5.7+/8.x ou MariaDB 10.x
+  database:
+    type: sqlite
+
+    # Champs ci-dessous lus uniquement si type ≠ sqlite :
+    host: localhost
+    port: 3306
+    name: sunanticheat
+    user: root
+    password: ""
+    # Le driver MariaDB est compatible avec les serveurs MySQL.
+    # Charset utilisé : utf8mb4 (emoji-safe). autoReconnect activé.
+
   # ── Assistant IA (Google Gemini OU OpenAI GPT) ───────────────────────────
   # Choisissez votre provider :
   #   gemini → clé gratuite https://aistudio.google.com/apikey (1M tokens/jour offerts)

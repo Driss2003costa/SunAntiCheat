@@ -57,7 +57,7 @@ public final class PlayerProfileHandler {
     private final CrateStore crateStore;
     private final VipStore vipStore;
     private final DailyRewardStore dailyStore;
-    private final File notesFile;
+    private final sunanticheat.dashboard.db.Persistence notesStorage;
     private final com.google.gson.Gson gson = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
     private Map<String, List<Map<String, Object>>> notesCache;
 
@@ -69,7 +69,8 @@ public final class PlayerProfileHandler {
                                  ShopStore shopStore,
                                  CrateStore crateStore,
                                  VipStore vipStore,
-                                 DailyRewardStore dailyStore) {
+                                 DailyRewardStore dailyStore,
+                                 sunanticheat.dashboard.db.BlobStorage blobs) {
         this.plugin = plugin;
         this.sanctionHistory = sanctionHistory;
         this.reportStorage = reportStorage;
@@ -79,18 +80,17 @@ public final class PlayerProfileHandler {
         this.crateStore = crateStore;
         this.vipStore = vipStore;
         this.dailyStore = dailyStore;
-        File dir = new File(plugin.getDataFolder(), "dashboard");
-        if (!dir.exists()) dir.mkdirs();
-        this.notesFile = new File(dir, "player_notes.json");
+        File legacy = new File(new File(plugin.getDataFolder(), "dashboard"), "player_notes.json");
+        this.notesStorage = new sunanticheat.dashboard.db.Persistence(blobs, "player_notes", legacy);
         loadNotes();
     }
 
     @SuppressWarnings("unchecked")
     private synchronized void loadNotes() {
         notesCache = new HashMap<>();
-        if (!notesFile.exists()) return;
+        String json = notesStorage.read();
+        if (json == null || json.isBlank()) return;
         try {
-            String json = Files.readString(notesFile.toPath(), StandardCharsets.UTF_8);
             Map<String, List<Map<String, Object>>> raw = gson.fromJson(json,
                     new com.google.gson.reflect.TypeToken<Map<String, List<Map<String, Object>>>>() {}.getType());
             if (raw != null) notesCache.putAll(raw);
@@ -99,7 +99,7 @@ public final class PlayerProfileHandler {
 
     private synchronized void saveNotes() {
         try {
-            Files.writeString(notesFile.toPath(), gson.toJson(notesCache), StandardCharsets.UTF_8);
+            notesStorage.write(gson.toJson(notesCache));
         } catch (Throwable t) { plugin.getLogger().warning("[PlayerProfile] notes save: " + t.getMessage()); }
     }
 

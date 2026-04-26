@@ -3,11 +3,10 @@ package sunanticheat.dashboard.vip;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -29,10 +28,10 @@ public final class VipStore {
     private static final int MAX_TRANSACTIONS = 5000;
     private static final long DAY_MS = 86_400_000L;
 
-    private final File plansFile;
-    private final File subsFile;
-    private final File txFile;
-    private final File pendingFile;
+    private final Persistence plansStorage;
+    private final Persistence subsStorage;
+    private final Persistence txStorage;
+    private final Persistence pendingStorage;
     private final Logger logger;
 
     private final List<VipPlan> plans = new ArrayList<>();
@@ -40,14 +39,13 @@ public final class VipStore {
     private final List<VipTransaction> transactions = new ArrayList<>();
     private final Map<String, PendingCheckoutInfo> pending = new LinkedHashMap<>();
 
-    public VipStore(File dataFolder, Logger logger) {
+    public VipStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
         File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.plansFile = new File(dir, "vip_plans.json");
-        this.subsFile = new File(dir, "vip_subscriptions.json");
-        this.txFile = new File(dir, "vip_transactions.json");
-        this.pendingFile = new File(dir, "vip_pending_checkouts.json");
+        this.plansStorage = new Persistence(blobs, "vip_plans", new File(dir, "vip_plans.json"));
+        this.subsStorage = new Persistence(blobs, "vip_subscriptions", new File(dir, "vip_subscriptions.json"));
+        this.txStorage = new Persistence(blobs, "vip_transactions", new File(dir, "vip_transactions.json"));
+        this.pendingStorage = new Persistence(blobs, "vip_pending_checkouts", new File(dir, "vip_pending_checkouts.json"));
         load();
     }
 
@@ -345,35 +343,32 @@ public final class VipStore {
     // ── Persistence ──────────────────────────────────────────────────────────
     public synchronized void save() {
         try {
-            Files.writeString(plansFile.toPath(), GSON.toJson(plans), StandardCharsets.UTF_8);
-            Files.writeString(subsFile.toPath(), GSON.toJson(subscriptions), StandardCharsets.UTF_8);
-            Files.writeString(txFile.toPath(), GSON.toJson(transactions), StandardCharsets.UTF_8);
-            Files.writeString(pendingFile.toPath(), GSON.toJson(pending), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            plansStorage.write(GSON.toJson(plans));
+            subsStorage.write(GSON.toJson(subscriptions));
+            txStorage.write(GSON.toJson(transactions));
+            pendingStorage.write(GSON.toJson(pending));
+        } catch (Exception e) {
             logger.warning("[Dashboard/VIP] save fail: " + e.getMessage());
         }
     }
 
     private void load() {
         try {
-            if (plansFile.exists()) {
-                List<VipPlan> loaded = GSON.fromJson(Files.readString(plansFile.toPath(), StandardCharsets.UTF_8),
-                        new TypeToken<List<VipPlan>>(){}.getType());
+            String s;
+            if ((s = plansStorage.read()) != null && !s.isBlank()) {
+                List<VipPlan> loaded = GSON.fromJson(s, new TypeToken<List<VipPlan>>(){}.getType());
                 if (loaded != null) plans.addAll(loaded);
             }
-            if (subsFile.exists()) {
-                List<VipSubscription> loaded = GSON.fromJson(Files.readString(subsFile.toPath(), StandardCharsets.UTF_8),
-                        new TypeToken<List<VipSubscription>>(){}.getType());
+            if ((s = subsStorage.read()) != null && !s.isBlank()) {
+                List<VipSubscription> loaded = GSON.fromJson(s, new TypeToken<List<VipSubscription>>(){}.getType());
                 if (loaded != null) subscriptions.addAll(loaded);
             }
-            if (txFile.exists()) {
-                List<VipTransaction> loaded = GSON.fromJson(Files.readString(txFile.toPath(), StandardCharsets.UTF_8),
-                        new TypeToken<List<VipTransaction>>(){}.getType());
+            if ((s = txStorage.read()) != null && !s.isBlank()) {
+                List<VipTransaction> loaded = GSON.fromJson(s, new TypeToken<List<VipTransaction>>(){}.getType());
                 if (loaded != null) transactions.addAll(loaded);
             }
-            if (pendingFile.exists()) {
-                Map<String, PendingCheckoutInfo> loaded = GSON.fromJson(
-                        Files.readString(pendingFile.toPath(), StandardCharsets.UTF_8),
+            if ((s = pendingStorage.read()) != null && !s.isBlank()) {
+                Map<String, PendingCheckoutInfo> loaded = GSON.fromJson(s,
                         new TypeToken<Map<String, PendingCheckoutInfo>>(){}.getType());
                 if (loaded != null) pending.putAll(loaded);
             }

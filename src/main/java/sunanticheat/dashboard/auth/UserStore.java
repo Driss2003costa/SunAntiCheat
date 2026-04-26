@@ -7,11 +7,10 @@ import com.google.gson.reflect.TypeToken;
 import org.bukkit.configuration.file.FileConfiguration;
 import sunanticheat.dashboard.DashboardRole;
 import sunanticheat.dashboard.DashboardUser;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,18 +24,18 @@ public final class UserStore {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final File file;
+    private final Persistence storage;
     private final Logger logger;
     private final Map<String, StoredUser> users = new ConcurrentHashMap<>();
 
-    public UserStore(File dataFolder, Logger logger, FileConfiguration config) {
+    public UserStore(File dataFolder, Logger logger, FileConfiguration config, BlobStorage blobs) {
         this.logger = logger;
-        File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.file = new File(dir, "users.json");
+        File legacyFile = new File(new File(dataFolder, "dashboard"), "users.json");
+        this.storage = new Persistence(blobs, "users", legacyFile);
 
-        if (file.exists()) {
-            load();
+        String json = storage.read();
+        if (json != null && !json.isBlank()) {
+            load(json);
         } else {
             migrateFromConfig(config);
         }
@@ -205,15 +204,13 @@ public final class UserStore {
 
     public synchronized void save() {
         try {
-            Files.writeString(file.toPath(), GSON.toJson(new ArrayList<>(users.values())), StandardCharsets.UTF_8);
-        } catch (IOException e) { logger.warning("[Dashboard/Users] save: " + e.getMessage()); }
+            storage.write(GSON.toJson(new ArrayList<>(users.values())));
+        } catch (Exception e) { logger.warning("[Dashboard/Users] save: " + e.getMessage()); }
     }
 
-    private void load() {
+    private void load(String json) {
         try {
-            List<StoredUser> list = GSON.fromJson(
-                    Files.readString(file.toPath(), StandardCharsets.UTF_8),
-                    new TypeToken<List<StoredUser>>(){}.getType());
+            List<StoredUser> list = GSON.fromJson(json, new TypeToken<List<StoredUser>>(){}.getType());
             if (list != null) list.forEach(u -> { if (u.username != null) users.put(u.username.toLowerCase(), u); });
         } catch (Exception e) { logger.warning("[Dashboard/Users] load: " + e.getMessage()); }
     }

@@ -3,12 +3,11 @@ package sunanticheat.dashboard.dailyreward;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -34,21 +33,20 @@ public final class DailyRewardStore {
     }
 
     private final Logger logger;
-    private final File configFile;
-    private final File claimsFile;
-    private final File stateFile;
+    private final Persistence configStorage;
+    private final Persistence claimsStorage;
+    private final Persistence stateStorage;
 
     private DailyRewardConfig config;
     private final List<DailyRewardClaim> claims = new ArrayList<>();
     private final Map<String, PlayerState> state = new HashMap<>();
 
-    public DailyRewardStore(File dataFolder, Logger logger) {
+    public DailyRewardStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
         File dir = new File(dataFolder, "dashboard");
-        if (!dir.exists()) dir.mkdirs();
-        this.configFile = new File(dir, "daily_config.json");
-        this.claimsFile = new File(dir, "daily_claims.json");
-        this.stateFile = new File(dir, "daily_state.json");
+        this.configStorage = new Persistence(blobs, "daily_config", new File(dir, "daily_config.json"));
+        this.claimsStorage = new Persistence(blobs, "daily_claims", new File(dir, "daily_claims.json"));
+        this.stateStorage  = new Persistence(blobs, "daily_state",  new File(dir, "daily_state.json"));
         load();
     }
 
@@ -210,36 +208,33 @@ public final class DailyRewardStore {
 
     private void persistAll() {
         try {
-            Files.writeString(configFile.toPath(), GSON.toJson(config), StandardCharsets.UTF_8);
-            Files.writeString(claimsFile.toPath(), GSON.toJson(claims), StandardCharsets.UTF_8);
-            Files.writeString(stateFile.toPath(), GSON.toJson(state), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            configStorage.write(GSON.toJson(config));
+            claimsStorage.write(GSON.toJson(claims));
+            stateStorage.write(GSON.toJson(state));
+        } catch (Exception e) {
             logger.warning("[Dashboard/DailyReward] save fail: " + e.getMessage());
         }
     }
 
     private void load() {
         try {
-            if (configFile.exists()) {
-                config = GSON.fromJson(
-                        Files.readString(configFile.toPath(), StandardCharsets.UTF_8),
-                        DailyRewardConfig.class);
+            String s = configStorage.read();
+            if (s != null && !s.isBlank()) {
+                config = GSON.fromJson(s, DailyRewardConfig.class);
             }
             if (config == null) {
                 config = DailyRewardConfig.createDefault();
             }
             if (config.days == null) config.days = new ArrayList<>();
 
-            if (claimsFile.exists()) {
+            if ((s = claimsStorage.read()) != null && !s.isBlank()) {
                 Type t = new TypeToken<List<DailyRewardClaim>>(){}.getType();
-                List<DailyRewardClaim> list = GSON.fromJson(
-                        Files.readString(claimsFile.toPath(), StandardCharsets.UTF_8), t);
+                List<DailyRewardClaim> list = GSON.fromJson(s, t);
                 if (list != null) claims.addAll(list);
             }
-            if (stateFile.exists()) {
+            if ((s = stateStorage.read()) != null && !s.isBlank()) {
                 Type t = new TypeToken<Map<String, PlayerState>>(){}.getType();
-                Map<String, PlayerState> m = GSON.fromJson(
-                        Files.readString(stateFile.toPath(), StandardCharsets.UTF_8), t);
+                Map<String, PlayerState> m = GSON.fromJson(s, t);
                 if (m != null) state.putAll(m);
             }
         } catch (Exception e) {

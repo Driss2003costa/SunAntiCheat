@@ -2,11 +2,10 @@ package sunanticheat.dashboard.chat;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -20,8 +19,8 @@ public final class ToxicChatStore {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final File stateFile;
-    private final File wordlistFile;
+    private final Persistence stateStorage;
+    private final Persistence wordlistStorage;
     private final Logger logger;
 
     private final Map<String, Integer> scoreByPlayer = new ConcurrentHashMap<>();
@@ -32,12 +31,11 @@ public final class ToxicChatStore {
     // Cooldown : n'incrémente pas plusieurs fois si le même joueur spam les mêmes mots en 10s
     private final Map<String, Long> scoreCooldown = new ConcurrentHashMap<>();
 
-    public ToxicChatStore(File dataFolder, Logger logger) {
+    public ToxicChatStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
         File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.stateFile = new File(dir, "chat-toxicity.json");
-        this.wordlistFile = new File(dir, "chat-wordlist.txt");
+        this.stateStorage = new Persistence(blobs, "chat_toxicity", new File(dir, "chat-toxicity.json"));
+        this.wordlistStorage = new Persistence(blobs, "chat_wordlist", new File(dir, "chat-wordlist.txt"));
         ensureDefaultWordlist();
         loadWordlist();
         load();
@@ -48,9 +46,8 @@ public final class ToxicChatStore {
     public void saveWordlist(List<String> words) {
         wordlist.clear();
         for (String w : words) if (w != null && !w.isBlank()) wordlist.add(w.trim().toLowerCase());
-        try {
-            Files.writeString(wordlistFile.toPath(), String.join("\n", new TreeSet<>(wordlist)), StandardCharsets.UTF_8);
-        } catch (IOException e) { logger.warning("[Dashboard/Chat] save wordlist: " + e.getMessage()); }
+        try { wordlistStorage.write(String.join("\n", new TreeSet<>(wordlist))); }
+        catch (Exception e) { logger.warning("[Dashboard/Chat] save wordlist: " + e.getMessage()); }
     }
 
     /** @return niveau 0=ok, 1=warn, 2=mute, 3=kick (selon score). Retourne mots matchés pour audit. */
@@ -126,23 +123,23 @@ public final class ToxicChatStore {
 
     // ── Persist ───────────────────────────────────────────────────────────────
     private void ensureDefaultWordlist() {
-        if (wordlistFile.exists()) return;
-        // Liste minimaliste — à customiser par l'admin via l'UI
+        if (wordlistStorage.exists()) return;
         String defaults = String.join("\n",
                 "nique", "pute", "pd", "tapette", "connard", "enculé", "encule",
                 "fdp", "ntm", "fuck", "bitch", "asshole", "nigger", "faggot", "retard",
                 "bougnoule", "sale arabe", "sale juif", "sale noir"
         );
-        try { Files.writeString(wordlistFile.toPath(), defaults, StandardCharsets.UTF_8); } catch (IOException ignored) {}
+        try { wordlistStorage.write(defaults); } catch (Exception ignored) {}
     }
 
     private void loadWordlist() {
         try {
-            if (!wordlistFile.exists()) return;
-            for (String line : Files.readAllLines(wordlistFile.toPath(), StandardCharsets.UTF_8)) {
+            String content = wordlistStorage.read();
+            if (content == null) return;
+            for (String line : content.split("\\r?\\n")) {
                 if (!line.isBlank()) wordlist.add(line.trim().toLowerCase());
             }
-        } catch (IOException e) { logger.warning("[Dashboard/Chat] load wordlist: " + e.getMessage()); }
+        } catch (Exception e) { logger.warning("[Dashboard/Chat] load wordlist: " + e.getMessage()); }
     }
 
     public synchronized void save() {
@@ -151,15 +148,16 @@ public final class ToxicChatStore {
             root.put("scores", scoreByPlayer);
             root.put("lastMsg", lastMsgAt);
             synchronized (flaggedMessages) { root.put("flagged", new ArrayList<>(flaggedMessages)); }
-            Files.writeString(stateFile.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException e) { logger.warning("[Dashboard/Chat] save: " + e.getMessage()); }
+            stateStorage.write(GSON.toJson(root));
+        } catch (Exception e) { logger.warning("[Dashboard/Chat] save: " + e.getMessage()); }
     }
 
     @SuppressWarnings("unchecked")
     private void load() {
-        if (!stateFile.exists()) return;
+        String content = stateStorage.read();
+        if (content == null || content.isBlank()) return;
         try {
-            Map<String, Object> root = GSON.fromJson(Files.readString(stateFile.toPath(), StandardCharsets.UTF_8), Map.class);
+            Map<String, Object> root = GSON.fromJson(content, Map.class);
             if (root == null) return;
             Map<String, Number> s = (Map<String, Number>) root.get("scores");
             if (s != null) s.forEach((k, v) -> scoreByPlayer.put(k, v.intValue()));

@@ -3,10 +3,10 @@ package sunanticheat.dashboard.analytics;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.lang.reflect.Type;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -22,10 +22,9 @@ public final class SnapshotStore {
     private static final long RETENTION_MS = 30L * 86400 * 1000;
     private static final DateTimeFormatter DAY_FMT = DateTimeFormatter.ofPattern("EEE dd/MM", Locale.FRENCH);
 
-    private final File snapshotsFile;
-    private final File sessionsFile;
-    private final File firstJoinsFile;
-    private final File alertsFile;
+    private final Persistence snapshotsStorage;
+    private final Persistence sessionsStorage;
+    private final Persistence firstJoinsStorage;
     private final Logger logger;
 
     private final List<AnalyticsSnapshot> snapshots = new CopyOnWriteArrayList<>();
@@ -35,13 +34,11 @@ public final class SnapshotStore {
     private final List<long[]>            alertTs   = new CopyOnWriteArrayList<>(); // [timestamp, type_ordinal]
     private final List<String>            alertTypes= new CopyOnWriteArrayList<>();
 
-    public SnapshotStore(File dataFolder, Logger logger) {
+    public SnapshotStore(File dataFolder, Logger logger, BlobStorage blobs) {
         File dir = new File(dataFolder, "analytics");
-        dir.mkdirs();
-        this.snapshotsFile = new File(dir, "snapshots.json");
-        this.sessionsFile  = new File(dir, "sessions.json");
-        this.firstJoinsFile= new File(dir, "firstjoins.json");
-        this.alertsFile    = new File(dir, "alerts.json");
+        this.snapshotsStorage  = new Persistence(blobs, "analytics_snapshots",  new File(dir, "snapshots.json"));
+        this.sessionsStorage   = new Persistence(blobs, "analytics_sessions",   new File(dir, "sessions.json"));
+        this.firstJoinsStorage = new Persistence(blobs, "analytics_firstjoins", new File(dir, "firstjoins.json"));
         this.logger = logger;
         load();
     }
@@ -168,31 +165,32 @@ public final class SnapshotStore {
     // ── Persistance ───────────────────────────────────────────────────────────
 
     public synchronized void save() {
-        saveList(snapshotsFile, new ArrayList<>(snapshots));
-        saveList(sessionsFile,  new ArrayList<>(sessions));
-        saveList(firstJoinsFile,new ArrayList<>(firstJoins));
+        saveList(snapshotsStorage,  new ArrayList<>(snapshots));
+        saveList(sessionsStorage,   new ArrayList<>(sessions));
+        saveList(firstJoinsStorage, new ArrayList<>(firstJoins));
     }
 
     private void load() {
-        snapshots.addAll(loadList(snapshotsFile, new TypeToken<List<AnalyticsSnapshot>>(){}.getType()));
-        sessions.addAll(loadList(sessionsFile,   new TypeToken<List<SessionEntry>>(){}.getType()));
-        firstJoins.addAll(loadList(firstJoinsFile, new TypeToken<List<FirstJoinEntry>>(){}.getType()));
+        snapshots.addAll(loadList(snapshotsStorage,  new TypeToken<List<AnalyticsSnapshot>>(){}.getType()));
+        sessions.addAll  (loadList(sessionsStorage,   new TypeToken<List<SessionEntry>>(){}.getType()));
+        firstJoins.addAll(loadList(firstJoinsStorage, new TypeToken<List<FirstJoinEntry>>(){}.getType()));
     }
 
-    private <T> List<T> loadList(File f, Type type) {
-        if (!f.exists()) return new ArrayList<>();
-        try (FileReader r = new FileReader(f)) {
-            List<T> list = GSON.fromJson(r, type);
+    private <T> List<T> loadList(Persistence storage, Type type) {
+        try {
+            String json = storage.read();
+            if (json == null || json.isBlank()) return new ArrayList<>();
+            List<T> list = GSON.fromJson(json, type);
             return list != null ? list : new ArrayList<>();
         } catch (Exception e) {
-            logger.warning("[Dashboard/Analytics] Erreur chargement " + f.getName() + ": " + e.getMessage());
+            logger.warning("[Dashboard/Analytics] Erreur chargement " + storage.scope() + ": " + e.getMessage());
             return new ArrayList<>();
         }
     }
 
-    private void saveList(File f, List<?> list) {
-        try { f.getParentFile().mkdirs(); try (FileWriter w = new FileWriter(f)) { GSON.toJson(list, w); } }
-        catch (Exception e) { logger.warning("[Dashboard/Analytics] Erreur sauvegarde " + f.getName() + ": " + e.getMessage()); }
+    private void saveList(Persistence storage, List<?> list) {
+        try { storage.write(GSON.toJson(list)); }
+        catch (Exception e) { logger.warning("[Dashboard/Analytics] Erreur sauvegarde " + storage.scope() + ": " + e.getMessage()); }
     }
 
     private static <T> void purgeOld(List<T> list, long retentionMs) {

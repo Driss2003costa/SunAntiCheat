@@ -2,6 +2,8 @@ package sunanticheat.dashboard.quests;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -9,9 +11,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -20,8 +19,8 @@ public final class QuestStore {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final File questsFile;
-    private final File progressFile;
+    private final Persistence questsStorage;
+    private final Persistence progressStorage;
     private final Logger logger;
     private final JavaPlugin plugin;
 
@@ -31,13 +30,12 @@ public final class QuestStore {
     // questId -> set of playerUuids that completed
     private final Map<String, Set<String>> completed = new ConcurrentHashMap<>();
 
-    public QuestStore(JavaPlugin plugin, File dataFolder, Logger logger) {
+    public QuestStore(JavaPlugin plugin, File dataFolder, Logger logger, BlobStorage blobs) {
         this.plugin = plugin;
         this.logger = logger;
         File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.questsFile = new File(dir, "quests.json");
-        this.progressFile = new File(dir, "quests-progress.json");
+        this.questsStorage = new Persistence(blobs, "quests", new File(dir, "quests.json"));
+        this.progressStorage = new Persistence(blobs, "quests_progress", new File(dir, "quests-progress.json"));
         load();
     }
 
@@ -149,8 +147,8 @@ public final class QuestStore {
     // ── Persist ───────────────────────────────────────────────────────────────
     public synchronized void saveQuests() {
         try {
-            Files.writeString(questsFile.toPath(), GSON.toJson(new ArrayList<>(quests.values())), StandardCharsets.UTF_8);
-        } catch (IOException e) { logger.warning("[Dashboard/Quests] saveQuests: " + e.getMessage()); }
+            questsStorage.write(GSON.toJson(new ArrayList<>(quests.values())));
+        } catch (Exception e) { logger.warning("[Dashboard/Quests] saveQuests: " + e.getMessage()); }
     }
 
     public synchronized void saveProgress() {
@@ -160,15 +158,16 @@ public final class QuestStore {
             Map<String, List<String>> completedSer = new LinkedHashMap<>();
             completed.forEach((k, v) -> completedSer.put(k, new ArrayList<>(v)));
             root.put("completed", completedSer);
-            Files.writeString(progressFile.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException e) { logger.warning("[Dashboard/Quests] saveProgress: " + e.getMessage()); }
+            progressStorage.write(GSON.toJson(root));
+        } catch (Exception e) { logger.warning("[Dashboard/Quests] saveProgress: " + e.getMessage()); }
     }
 
     @SuppressWarnings("unchecked")
     private void load() {
-        if (questsFile.exists()) {
+        String questsJson = questsStorage.read();
+        if (questsJson != null && !questsJson.isBlank()) {
             try {
-                List<Map<String, Object>> list = GSON.fromJson(Files.readString(questsFile.toPath(), StandardCharsets.UTF_8), List.class);
+                List<Map<String, Object>> list = GSON.fromJson(questsJson, List.class);
                 if (list != null) for (Map<String, Object> m : list) {
                     Quest.Type t;
                     try { t = Quest.Type.valueOf(((String) m.get("type")).toUpperCase()); } catch (Exception ex) { t = Quest.Type.BREAK_BLOCK; }
@@ -192,9 +191,10 @@ public final class QuestStore {
             } catch (Exception e) { logger.warning("[Dashboard/Quests] load quests: " + e.getMessage()); }
         }
 
-        if (progressFile.exists()) {
+        String progressJson = progressStorage.read();
+        if (progressJson != null && !progressJson.isBlank()) {
             try {
-                Map<String, Object> root = GSON.fromJson(Files.readString(progressFile.toPath(), StandardCharsets.UTF_8), Map.class);
+                Map<String, Object> root = GSON.fromJson(progressJson, Map.class);
                 if (root != null) {
                     Map<String, Map<String, Number>> p = (Map<String, Map<String, Number>>) root.get("progress");
                     if (p != null) p.forEach((qid, playerMap) -> {

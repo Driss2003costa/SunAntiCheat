@@ -3,11 +3,10 @@ package sunanticheat.dashboard.experiments;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -16,16 +15,15 @@ public final class ExperimentStore {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final File file;
+    private final Persistence storage;
     private final Logger logger;
     private final Map<String, Experiment> experiments = new ConcurrentHashMap<>();
     private final Random random = new Random();
 
-    public ExperimentStore(File dataFolder, Logger logger) {
+    public ExperimentStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
-        File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.file = new File(dir, "experiments.json");
+        File legacy = new File(new File(dataFolder, "dashboard"), "experiments.json");
+        this.storage = new Persistence(blobs, "experiments", legacy);
         load();
     }
 
@@ -116,15 +114,15 @@ public final class ExperimentStore {
     // ── Persist ───────────────────────────────────────────────────────────────
     public synchronized void save() {
         try {
-            Files.writeString(file.toPath(), GSON.toJson(new ArrayList<>(experiments.values())), StandardCharsets.UTF_8);
-        } catch (IOException ex) { logger.warning("[Dashboard/Experiments] save: " + ex.getMessage()); }
+            storage.write(GSON.toJson(new ArrayList<>(experiments.values())));
+        } catch (Exception ex) { logger.warning("[Dashboard/Experiments] save: " + ex.getMessage()); }
     }
 
     private void load() {
-        if (!file.exists()) return;
+        String json = storage.read();
+        if (json == null || json.isBlank()) return;
         try {
-            List<Experiment> list = GSON.fromJson(Files.readString(file.toPath(), StandardCharsets.UTF_8),
-                    new TypeToken<List<Experiment>>(){}.getType());
+            List<Experiment> list = GSON.fromJson(json, new TypeToken<List<Experiment>>(){}.getType());
             if (list != null) for (Experiment e : list) experiments.put(e.getId(), e);
         } catch (Exception ex) { logger.warning("[Dashboard/Experiments] load: " + ex.getMessage()); }
     }

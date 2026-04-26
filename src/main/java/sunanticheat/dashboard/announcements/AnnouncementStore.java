@@ -3,12 +3,11 @@ package sunanticheat.dashboard.announcements;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,16 +24,15 @@ public final class AnnouncementStore {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 
-    private final File file;
+    private final Persistence storage;
     private final Logger logger;
     private final Map<String, Announcement> announcements = new ConcurrentHashMap<>();
     private final Map<String, Long> lastSentMap = new ConcurrentHashMap<>();
 
-    public AnnouncementStore(File dataFolder, Logger logger) {
+    public AnnouncementStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
-        File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.file = new File(dir, "announcements.json");
+        File legacy = new File(new File(dataFolder, "dashboard"), "announcements.json");
+        this.storage = new Persistence(blobs, "announcements", legacy);
         load();
     }
 
@@ -136,18 +134,18 @@ public final class AnnouncementStore {
             Map<String, Object> root = new LinkedHashMap<>();
             root.put("announcements", new ArrayList<>(announcements.values()));
             root.put("lastSentMap", new LinkedHashMap<>(lastSentMap));
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            storage.write(GSON.toJson(root));
+        } catch (Exception e) {
             logger.warning("[Dashboard/Announcements] save: " + e.getMessage());
         }
     }
 
     @SuppressWarnings("unchecked")
     private void load() {
-        if (!file.exists()) return;
+        String json = storage.read();
+        if (json == null || json.isBlank()) return;
         try {
-            Map<String, Object> root = GSON.fromJson(
-                    Files.readString(file.toPath(), StandardCharsets.UTF_8), Map.class);
+            Map<String, Object> root = GSON.fromJson(json, Map.class);
             if (root == null) return;
             Type listType = new TypeToken<List<Announcement>>(){}.getType();
             List<Announcement> list = GSON.fromJson(GSON.toJson(root.get("announcements")), listType);

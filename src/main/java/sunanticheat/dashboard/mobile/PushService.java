@@ -5,15 +5,15 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import org.bukkit.plugin.java.JavaPlugin;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,41 +36,39 @@ public final class PushService {
 
     private final JavaPlugin plugin;
     private final Logger logger;
-    private final File file;
+    private final Persistence storage;
     private final Gson gson = new Gson();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     private final Map<String, MobileDevice> devicesByToken = new ConcurrentHashMap<>();
 
-    private PushService(JavaPlugin plugin) {
+    private PushService(JavaPlugin plugin, BlobStorage blobs) {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
-        File dir = new File(plugin.getDataFolder(), "dashboard");
-        if (!dir.exists()) dir.mkdirs();
-        this.file = new File(dir, "mobile_devices.json");
+        File legacy = new File(new File(plugin.getDataFolder(), "dashboard"), "mobile_devices.json");
+        this.storage = new Persistence(blobs, "mobile_devices", legacy);
         load();
     }
 
-    public static void init(JavaPlugin plugin) {
-        if (INSTANCE == null) INSTANCE = new PushService(plugin);
+    public static void init(JavaPlugin plugin, BlobStorage blobs) {
+        if (INSTANCE == null) INSTANCE = new PushService(plugin, blobs);
     }
 
     public static PushService get() { return INSTANCE; }
 
     private synchronized void load() {
-        if (!file.exists()) return;
+        String json = storage.read();
+        if (json == null || json.isBlank()) return;
         try {
-            String json = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             List<MobileDevice> list = gson.fromJson(json, new TypeToken<List<MobileDevice>>() {}.getType());
             if (list != null) for (MobileDevice d : list) if (d.expoPushToken != null) devicesByToken.put(d.expoPushToken, d);
-        } catch (IOException e) { logger.warning("[Push] load: " + e.getMessage()); }
+        } catch (Exception e) { logger.warning("[Push] load: " + e.getMessage()); }
     }
 
     public synchronized void save() {
         try {
-            String json = gson.toJson(new ArrayList<>(devicesByToken.values()));
-            Files.writeString(file.toPath(), json, StandardCharsets.UTF_8);
-        } catch (IOException e) { logger.warning("[Push] save: " + e.getMessage()); }
+            storage.write(gson.toJson(new ArrayList<>(devicesByToken.values())));
+        } catch (Exception e) { logger.warning("[Push] save: " + e.getMessage()); }
     }
 
     public synchronized void registerDevice(String expoPushToken, String username, String deviceName) {

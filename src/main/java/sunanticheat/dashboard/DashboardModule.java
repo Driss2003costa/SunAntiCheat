@@ -27,6 +27,7 @@ import sunanticheat.dashboard.audit.Audit;
 import sunanticheat.dashboard.audit.AuditStore;
 import sunanticheat.dashboard.auth.PermissionStore;
 import sunanticheat.dashboard.db.Database;
+import sunanticheat.dashboard.db.BlobStorage;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.mobile.PushService;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
@@ -132,11 +133,12 @@ public final class DashboardModule {
         int wsPort   = cfg.getInt("dashboard.ws-port",   60036);
         String jwtSecret = cfg.getString("dashboard.jwt-secret", "changez-moi-secret-aleatoire-32chars!");
 
-        // ── Database SQLite (audit, transactions, alerts, sessions) ──────────
-        database = Database.open(plugin.getDataFolder(), plugin.getLogger());
+        // ── Database (SQLite par défaut, ou MariaDB/MySQL si configuré) ──────
+        database = Database.open(plugin.getDataFolder(), plugin.getLogger(), cfg);
+        BlobStorage blobs = new BlobStorage(database, plugin.getLogger());
 
         // ── Permission Store (matrice rôle × permissions) ─────────────────────
-        PermissionStore permissionStore = new PermissionStore(plugin.getDataFolder(), plugin.getLogger());
+        PermissionStore permissionStore = new PermissionStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
         HttpHelper.setPermissionStore(permissionStore);
 
         // ── Audit log Store (SQLite) ─────────────────────────────────────────
@@ -145,38 +147,38 @@ public final class DashboardModule {
         Audit.system("DASHBOARD_STARTED", "system", "Dashboard démarré sur le port " + httpPort);
 
         // ── Push Service (notifications mobile Expo) ─────────────────────────
-        PushService.init(plugin);
+        PushService.init(plugin, blobs);
 
         // ── Utilisateurs ──────────────────────────────────────────────────────
-        userStore = new UserStore(plugin.getDataFolder(), plugin.getLogger(), cfg);
+        userStore = new UserStore(plugin.getDataFolder(), plugin.getLogger(), cfg, blobs);
         Map<String, DashboardUser> users = new java.util.concurrent.ConcurrentHashMap<>(userStore.asMap());
         JwtUtil jwtUtil = new JwtUtil(jwtSecret);
 
         // ── Stores ────────────────────────────────────────────────────────────
         alertStore        = new AlertStore();
         transactionStore  = new TransactionStore(database, plugin.getLogger(), plugin.getDataFolder());
-        snapshotStore     = new SnapshotStore(plugin.getDataFolder(), plugin.getLogger());
+        snapshotStore     = new SnapshotStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
         taskStore         = new ScheduledTaskStore(plugin.getDataFolder(), plugin.getLogger());
         taskStore.start(plugin);
         rebootScheduler   = new RebootScheduler(plugin, plugin.getDataFolder(), plugin.getLogger());
         rebootScheduler.start();
         BackupManager backupManager = new BackupManager(plugin, plugin.getLogger());
 
-        eventCalendarStore = new EventCalendarStore(plugin, plugin.getDataFolder(), plugin.getLogger());
+        eventCalendarStore = new EventCalendarStore(plugin, plugin.getDataFolder(), plugin.getLogger(), blobs);
         eventCalendarStore.start();
-        questStore        = new QuestStore(plugin, plugin.getDataFolder(), plugin.getLogger());
-        experimentStore   = new ExperimentStore(plugin.getDataFolder(), plugin.getLogger());
-        toxicChatStore    = new ToxicChatStore(plugin.getDataFolder(), plugin.getLogger());
-        honeypotStore     = new HoneypotStore(plugin.getDataFolder(), plugin.getLogger());
+        questStore        = new QuestStore(plugin, plugin.getDataFolder(), plugin.getLogger(), blobs);
+        experimentStore   = new ExperimentStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
+        toxicChatStore    = new ToxicChatStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
+        honeypotStore     = new HoneypotStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
         panicMode         = new PanicMode(plugin, plugin.getLogger());
-        crateStore        = new CrateStore(plugin.getDataFolder(), plugin.getLogger());
-        dailyRewardStore  = new DailyRewardStore(plugin.getDataFolder(), plugin.getLogger());
-        announcementStore = new AnnouncementStore(plugin.getDataFolder(), plugin.getLogger());
+        crateStore        = new CrateStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
+        dailyRewardStore  = new DailyRewardStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
+        announcementStore = new AnnouncementStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
         announcementService = new AnnouncementService(plugin, announcementStore, plugin.getLogger());
         announcementService.start();
-        shopStore = new ShopStore(plugin.getDataFolder(), plugin.getLogger());
+        shopStore = new ShopStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
         shopSyncService = new ShopSyncService(plugin, shopStore, plugin.getLogger());
-        vipStore = new VipStore(plugin.getDataFolder(), plugin.getLogger());
+        vipStore = new VipStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
 
         // ── Recorders ─────────────────────────────────────────────────────────
         analyticsRecorder = new AnalyticsRecorder(plugin, snapshotStore, alertStore);
@@ -201,7 +203,7 @@ public final class DashboardModule {
         AuditHandler    auditHandler     = new AuditHandler(auditStore);
         PlayerProfileHandler profileHandler = new PlayerProfileHandler(
                 plugin, sanctionHistory, reportStorage, alertStore,
-                transactionStore, shopStore, crateStore, vipStore, dailyRewardStore);
+                transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
         SecurityHandler securityHandler = new SecurityHandler(plugin, sanctionHistory, reportStorage, alertStore);
         EconomyHandler  economyHandler  = new EconomyHandler(plugin, economy, transactionStore);
@@ -218,7 +220,7 @@ public final class DashboardModule {
         EventCalendarHandler eventCalendarHandler = new EventCalendarHandler(eventCalendarStore);
         QuestHandler questHandler = new QuestHandler(questStore);
         ExperimentHandler experimentHandler = new ExperimentHandler(experimentStore);
-        AiHandler aiHandler = new AiHandler(plugin);
+        AiHandler aiHandler = new AiHandler(plugin, blobs);
 
         // Crates & Daily Rewards
         CrateListener crateListener = new CrateListener(plugin, crateStore);

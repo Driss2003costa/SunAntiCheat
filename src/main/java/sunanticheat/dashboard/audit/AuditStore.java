@@ -46,22 +46,22 @@ public final class AuditStore {
     }
 
     private void initSchema() {
+        // VARCHAR / BIGINT / LONGTEXT pour MySQL ; SQLite ignore les tailles
         db.migrate("audit", 1, """
             CREATE TABLE IF NOT EXISTS audit (
-                id        TEXT PRIMARY KEY,
-                ts        INTEGER NOT NULL,
-                user      TEXT,
-                role      TEXT,
-                action    TEXT NOT NULL,
-                target    TEXT,
+                id        VARCHAR(64)  NOT NULL PRIMARY KEY,
+                ts        BIGINT       NOT NULL,
+                user      VARCHAR(64),
+                role      VARCHAR(32),
+                action    VARCHAR(64)  NOT NULL,
+                target    VARCHAR(255),
                 details   TEXT,
-                ip        TEXT,
-                meta_json TEXT
+                ip        VARCHAR(64),
+                meta_json LONGTEXT
             );
-            CREATE INDEX IF NOT EXISTS idx_audit_ts        ON audit(ts DESC);
-            CREATE INDEX IF NOT EXISTS idx_audit_user      ON audit(user);
-            CREATE INDEX IF NOT EXISTS idx_audit_action    ON audit(action);
-            CREATE INDEX IF NOT EXISTS idx_audit_target_lc ON audit(LOWER(target));
+            CREATE INDEX idx_audit_ts     ON audit(ts);
+            CREATE INDEX idx_audit_user   ON audit(user);
+            CREATE INDEX idx_audit_action ON audit(action);
             """);
     }
 
@@ -88,7 +88,7 @@ public final class AuditStore {
             }
             db.conn().setAutoCommit(false);
             try (PreparedStatement ps = db.conn().prepareStatement(
-                    "INSERT OR IGNORE INTO audit(id, ts, user, role, action, target, details, ip, meta_json) "
+                    "REPLACE INTO audit(id, ts, user, role, action, target, details, ip, meta_json) "
                   + "VALUES(?,?,?,?,?,?,?,?,?)")) {
                 int n = 0;
                 for (AuditEntry e : list) {
@@ -128,7 +128,7 @@ public final class AuditStore {
     public synchronized void append(AuditEntry e) {
         if (e == null) return;
         try (PreparedStatement ps = db.conn().prepareStatement(
-                "INSERT OR REPLACE INTO audit(id, ts, user, role, action, target, details, ip, meta_json) "
+                "REPLACE INTO audit(id, ts, user, role, action, target, details, ip, meta_json) "
               + "VALUES(?,?,?,?,?,?,?,?,?)")) {
             bindEntry(ps, e);
             ps.executeUpdate();
@@ -144,10 +144,23 @@ public final class AuditStore {
     }
 
     private void rotateIfNeeded() {
-        try (Statement st = db.conn().createStatement()) {
-            // Garde les MAX_ENTRIES plus récentes
-            st.execute("DELETE FROM audit WHERE id IN ("
-                + "  SELECT id FROM audit ORDER BY ts DESC LIMIT -1 OFFSET " + MAX_ENTRIES + ")");
+        // Approche portable : on récupère le timestamp du Nème (= MAX_ENTRIES) plus récent
+        // et on supprime tout ce qui est plus ancien.
+        try {
+            long cutoff = -1;
+            try (PreparedStatement ps = db.conn().prepareStatement(
+                    "SELECT ts FROM audit ORDER BY ts DESC LIMIT 1 OFFSET ?")) {
+                ps.setInt(1, MAX_ENTRIES);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) cutoff = rs.getLong(1);
+                }
+            }
+            if (cutoff < 0) return;
+            try (PreparedStatement ps = db.conn().prepareStatement(
+                    "DELETE FROM audit WHERE ts < ?")) {
+                ps.setLong(1, cutoff);
+                ps.executeUpdate();
+            }
         } catch (SQLException e) {
             logger.log(Level.WARNING, "[Audit] rotation erreur", e);
         }
@@ -161,7 +174,7 @@ public final class AuditStore {
             + "FROM audit WHERE 1=1 ");
         List<Object> args = new ArrayList<>();
         if (sinceTs > 0)                                     { sql.append("AND ts >= ? "); args.add(sinceTs); }
-        if (userFilter   != null && !userFilter.isBlank())   { sql.append("AND user = ? COLLATE NOCASE "); args.add(userFilter); }
+        if (userFilter   != null && !userFilter.isBlank())   { sql.append("AND LOWER(user) = LOWER(?) "); args.add(userFilter); }
         if (actionFilter != null && !actionFilter.isBlank()) { sql.append("AND action LIKE ? "); args.add("%" + actionFilter.toUpperCase() + "%"); }
         if (targetFilter != null && !targetFilter.isBlank()) { sql.append("AND LOWER(target) LIKE ? "); args.add("%" + targetFilter.toLowerCase() + "%"); }
         sql.append("ORDER BY ts DESC LIMIT ? OFFSET ?");
@@ -213,7 +226,7 @@ public final class AuditStore {
         StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM audit WHERE 1=1 ");
         List<Object> args = new ArrayList<>();
         if (sinceTs > 0)                                     { sql.append("AND ts >= ? "); args.add(sinceTs); }
-        if (userFilter   != null && !userFilter.isBlank())   { sql.append("AND user = ? COLLATE NOCASE "); args.add(userFilter); }
+        if (userFilter   != null && !userFilter.isBlank())   { sql.append("AND LOWER(user) = LOWER(?) "); args.add(userFilter); }
         if (actionFilter != null && !actionFilter.isBlank()) { sql.append("AND action LIKE ? "); args.add("%" + actionFilter.toUpperCase() + "%"); }
         if (targetFilter != null && !targetFilter.isBlank()) { sql.append("AND LOWER(target) LIKE ? "); args.add("%" + targetFilter.toLowerCase() + "%"); }
         try (PreparedStatement ps = db.conn().prepareStatement(sql.toString())) {

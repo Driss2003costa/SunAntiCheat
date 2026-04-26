@@ -1,79 +1,150 @@
 package sunanticheat.dashboard.db;
 
+import org.bukkit.configuration.file.FileConfiguration;
+
 import java.io.File;
 import java.sql.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Wrapper SQLite simple (single-file DB, fichier `sunanticheat.db` dans le data folder).
+ * Wrapper DB supportant SQLite (par défaut) et MariaDB / MySQL.
  *
- * Pourquoi pas un pool ? SQLite supporte 1 writer concurrent ; on utilise une connexion
- * unique avec WAL mode + busy_timeout pour gérer la concurrence sur les lectures, et tous
- * les writes passent via les méthodes synchronisées des stores. Pour 99 % des plugins
- * Minecraft (1 serveur, ≤ qqs centaines de joueurs concurrents), c'est largement suffisant.
+ * Configuration dans `config.yml` :
+ * <pre>
+ * dashboard:
+ *   database:
+ *     type: sqlite              # "sqlite" (par défaut) ou "mysql" / "mariadb"
+ *     # Champs ci-dessous lus uniquement si type ≠ sqlite :
+ *     host: localhost
+ *     port: 3306
+ *     name: sunanticheat
+ *     user: root
+ *     password: ""
+ * </pre>
  *
- * Schema migrations : chaque store appelle `Database.migrate(...)` avec un nom + script SQL.
- * On stocke la version dans la table `_schema_versions` ; le script ne tourne qu'une fois.
+ * Implémentation :
+ * - SQLite : connexion unique avec WAL mode, fichier `sunanticheat.db`.
+ * - MariaDB/MySQL : connexion unique aussi (pas de pool — adapté à 1 serveur Minecraft).
+ *   Auto-reconnect activé, charset utf8mb4.
+ *
+ * Pour rester portable, le SQL utilisé par les stores évite :
+ *   - INSERT OR REPLACE / INSERT OR IGNORE (SQLite-only) → on utilise REPLACE INTO
+ *   - COLLATE NOCASE (SQLite-only) → on utilise LOWER(col) = LOWER(?)
+ *   - Types : TEXT (compatible MySQL via TEXT/LONGTEXT), INTEGER (BIGINT), REAL (DOUBLE)
  */
 public final class Database {
 
+    public enum Dialect { SQLITE, MYSQL }
+
     private final Connection conn;
     private final Logger logger;
-    private final File dbFile;
+    private final Dialect dialect;
+    private final String description;
 
-    private Database(Connection conn, Logger logger, File dbFile) {
+    private Database(Connection conn, Logger logger, Dialect dialect, String description) {
         this.conn = conn;
         this.logger = logger;
-        this.dbFile = dbFile;
+        this.dialect = dialect;
+        this.description = description;
     }
 
-    public static Database open(File dataFolder, Logger logger) {
-        try {
-            // Force le chargement du driver (au cas où le ServiceLoader ne le voit pas)
-            Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("[SunAntiCheat] Driver sqlite-jdbc absent du classpath", e);
-        }
-        if (!dataFolder.exists() && !dataFolder.mkdirs()) {
+    public static Database open(File dataFolder, Logger logger, FileConfiguration cfg) {
+        String type = cfg != null
+                ? cfg.getString("dashboard.database.type", "sqlite")
+                : "sqlite";
+        if (type == null) type = "sqlite";
+        type = type.trim().toLowerCase();
+        return switch (type) {
+            case "mysql", "mariadb" -> openMysql(dataFolder, logger, cfg);
+            default                  -> openSqlite(dataFolder, logger);
+        };
+    }
+
+    /** Ouvre la base SQLite (mode WAL, fichier dans le dataFolder). */
+    public static Database openSqlite(File dataFolder, Logger logger) {
+        try { Class.forName("org.sqlite.JDBC"); }
+        catch (ClassNotFoundException e) { throw new RuntimeException("Driver sqlite-jdbc absent", e); }
+
+        if (!dataFolder.exists() && !dataFolder.mkdirs())
             logger.warning("[Database] Impossible de créer " + dataFolder);
-        }
+
         File dbFile = new File(dataFolder, "sunanticheat.db");
         try {
             String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
             Connection c = DriverManager.getConnection(url);
             try (Statement st = c.createStatement()) {
-                // WAL = writes ne bloquent pas les reads → meilleur throughput
                 st.execute("PRAGMA journal_mode=WAL");
-                // Évite les "database is locked" sur contention courte
                 st.execute("PRAGMA busy_timeout=5000");
-                // Synchronous NORMAL : OK avec WAL, ~3x plus rapide que FULL
                 st.execute("PRAGMA synchronous=NORMAL");
-                // Foreign keys
                 st.execute("PRAGMA foreign_keys=ON");
-                // Table de versionning des migrations
-                st.execute("""
-                    CREATE TABLE IF NOT EXISTS _schema_versions (
-                        name    TEXT PRIMARY KEY,
-                        version INTEGER NOT NULL,
-                        applied_at INTEGER NOT NULL
-                    )""");
             }
-            logger.info("[Database] SQLite ouverte : " + dbFile.getName()
+            Database db = new Database(c, logger, Dialect.SQLITE, "SQLite " + dbFile.getName());
+            db.ensureSchemaTable();
+            logger.info("[Database] Ouverte : " + db.description
                 + " (" + (dbFile.length() / 1024) + " KB)");
-            return new Database(c, logger, dbFile);
+            return db;
         } catch (SQLException e) {
-            throw new RuntimeException("[SunAntiCheat] Échec ouverture SQLite", e);
+            throw new RuntimeException("Échec ouverture SQLite", e);
         }
     }
 
-    public Connection conn() { return conn; }
+    /** Ouvre la base MySQL/MariaDB d'après la config. */
+    public static Database openMysql(File dataFolder, Logger logger, FileConfiguration cfg) {
+        try { Class.forName("org.mariadb.jdbc.Driver"); }
+        catch (ClassNotFoundException e) { throw new RuntimeException("Driver mariadb absent", e); }
 
-    public File file() { return dbFile; }
+        String host = cfg.getString("dashboard.database.host", "localhost");
+        int    port = cfg.getInt   ("dashboard.database.port", 3306);
+        String name = cfg.getString("dashboard.database.name", "sunanticheat");
+        String user = cfg.getString("dashboard.database.user", "root");
+        String pass = cfg.getString("dashboard.database.password", "");
+
+        String url = "jdbc:mariadb://" + host + ":" + port + "/" + name
+                   + "?useUnicode=true&characterEncoding=utf8mb4"
+                   + "&useServerPrepStmts=true&autoReconnect=true";
+        try {
+            Connection c = DriverManager.getConnection(url, user, pass);
+            try (Statement st = c.createStatement()) {
+                st.execute("SET NAMES utf8mb4");
+                st.execute("SET sql_mode='NO_ENGINE_SUBSTITUTION'"); // évite des erreurs CREATE TABLE strictes
+            }
+            String desc = "MariaDB/MySQL " + host + ":" + port + "/" + name;
+            Database db = new Database(c, logger, Dialect.MYSQL, desc);
+            db.ensureSchemaTable();
+            logger.info("[Database] Ouverte : " + desc + " (utf8mb4, autoReconnect)");
+            return db;
+        } catch (SQLException e) {
+            throw new RuntimeException("Échec connexion MariaDB/MySQL : "
+                + e.getMessage() + " (vérifie host/port/credentials dans config.yml)", e);
+        }
+    }
+
+    private void ensureSchemaTable() throws SQLException {
+        try (Statement st = conn.createStatement()) {
+            // Note : la même DDL marche dans SQLite et MySQL/MariaDB
+            st.execute("""
+                CREATE TABLE IF NOT EXISTS _schema_versions (
+                    name        VARCHAR(64)  NOT NULL PRIMARY KEY,
+                    version     INTEGER      NOT NULL,
+                    applied_at  BIGINT       NOT NULL
+                )""");
+        }
+    }
+
+    public Connection conn()        { return conn; }
+    public Dialect dialect()        { return dialect; }
+    public boolean isSqlite()       { return dialect == Dialect.SQLITE; }
+    public boolean isMysql()        { return dialect == Dialect.MYSQL; }
+    public String  description()    { return description; }
 
     /**
      * Applique un script SQL si la version stockée pour `name` est < `version`.
      * Idempotent : exécution garantie une seule fois par version.
+     *
+     * Le script peut contenir plusieurs statements séparés par `;`. Chaque
+     * statement est exécuté séparément (compatible MySQL qui ne supporte pas
+     * les multi-statements via JDBC par défaut).
      */
     public synchronized void migrate(String name, int version, String sqlScript) {
         try {
@@ -94,7 +165,7 @@ public final class Database {
                         if (!trimmed.isEmpty()) st.execute(trimmed);
                     }
                     try (PreparedStatement up = conn.prepareStatement(
-                            "INSERT OR REPLACE INTO _schema_versions(name, version, applied_at) VALUES(?,?,?)")) {
+                            "REPLACE INTO _schema_versions(name, version, applied_at) VALUES(?,?,?)")) {
                         up.setString(1, name);
                         up.setInt(2, version);
                         up.setLong(3, System.currentTimeMillis());
@@ -116,10 +187,7 @@ public final class Database {
     }
 
     public void close() {
-        try {
-            if (conn != null && !conn.isClosed()) conn.close();
-        } catch (SQLException e) {
-            logger.log(Level.WARNING, "[Database] Erreur close()", e);
-        }
+        try { if (conn != null && !conn.isClosed()) conn.close(); }
+        catch (SQLException e) { logger.log(Level.WARNING, "[Database] Erreur close()", e); }
     }
 }

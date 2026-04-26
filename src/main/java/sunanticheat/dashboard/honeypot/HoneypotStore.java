@@ -3,11 +3,10 @@ package sunanticheat.dashboard.honeypot;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -15,17 +14,16 @@ import java.util.logging.Logger;
 public final class HoneypotStore {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final File file;
+    private final Persistence storage;
     private final Logger logger;
     private final Map<String, HoneypotTrap> trapsById = new ConcurrentHashMap<>();
     private final Map<String, String> keyToId = new ConcurrentHashMap<>();
     private final List<Map<String, Object>> alerts = Collections.synchronizedList(new ArrayList<>());
 
-    public HoneypotStore(File dataFolder, Logger logger) {
+    public HoneypotStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
-        File dir = new File(dataFolder, "dashboard");
-        dir.mkdirs();
-        this.file = new File(dir, "honeypot.json");
+        File legacy = new File(new File(dataFolder, "dashboard"), "honeypot.json");
+        this.storage = new Persistence(blobs, "honeypot", legacy);
         load();
     }
 
@@ -78,15 +76,16 @@ public final class HoneypotStore {
             Map<String, Object> root = new LinkedHashMap<>();
             root.put("traps", new ArrayList<>(trapsById.values()));
             synchronized (alerts) { root.put("alerts", new ArrayList<>(alerts)); }
-            Files.writeString(file.toPath(), GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException e) { logger.warning("[Dashboard/Honeypot] save fail: " + e.getMessage()); }
+            storage.write(GSON.toJson(root));
+        } catch (Exception e) { logger.warning("[Dashboard/Honeypot] save fail: " + e.getMessage()); }
     }
 
     @SuppressWarnings("unchecked")
     private void load() {
-        if (!file.exists()) return;
+        String json = storage.read();
+        if (json == null || json.isBlank()) return;
         try {
-            Map<String, Object> root = GSON.fromJson(Files.readString(file.toPath(), StandardCharsets.UTF_8), Map.class);
+            Map<String, Object> root = GSON.fromJson(json, Map.class);
             if (root == null) return;
             List<HoneypotTrap> traps = GSON.fromJson(GSON.toJson(root.get("traps")), new TypeToken<List<HoneypotTrap>>(){}.getType());
             if (traps != null) for (HoneypotTrap t : traps) { trapsById.put(t.getId(), t); keyToId.put(t.key(), t.getId()); }

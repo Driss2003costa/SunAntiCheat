@@ -3,11 +3,10 @@ package sunanticheat.dashboard.ai;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import sunanticheat.dashboard.db.BlobStorage;
+import sunanticheat.dashboard.db.Persistence;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -76,25 +75,24 @@ public final class AiUsageStore {
         public double usdToEur;
     }
 
-    private final File file;
+    private final Persistence storage;
     private final Logger logger;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 
     private final Map<String, DailyUsage> dailyByDate = new LinkedHashMap<>();
     private final DailyUsage allTime = new DailyUsage("all-time");
 
-    public AiUsageStore(File dataFolder, Logger logger) {
+    public AiUsageStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
-        File dir = new File(dataFolder, "dashboard");
-        if (!dir.exists()) dir.mkdirs();
-        this.file = new File(dir, "ai_usage.json");
+        File legacy = new File(new File(dataFolder, "dashboard"), "ai_usage.json");
+        this.storage = new Persistence(blobs, "ai_usage", legacy);
         load();
     }
 
     private synchronized void load() {
-        if (!file.exists()) return;
+        String json = storage.read();
+        if (json == null || json.isBlank()) return;
         try {
-            String json = Files.readString(file.toPath(), StandardCharsets.UTF_8);
             Map<String, Object> root = gson.fromJson(json, new TypeToken<Map<String, Object>>() {}.getType());
             if (root == null) return;
             Object days = root.get("daily");
@@ -123,8 +121,8 @@ public final class AiUsageStore {
             Map<String, Object> root = new LinkedHashMap<>();
             root.put("daily", new ArrayList<>(dailyByDate.values()));
             root.put("allTime", allTime);
-            Files.writeString(file.toPath(), gson.toJson(root), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+            storage.write(gson.toJson(root));
+        } catch (Exception e) {
             logger.warning("[AI Usage] save erreur: " + e.getMessage());
         }
     }

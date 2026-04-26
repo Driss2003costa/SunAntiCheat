@@ -57,9 +57,9 @@ public final class AiHandler {
     private DashboardWsServer wsServer;  // injecté après construction pour casser le cycle
     private final AiUsageStore usageStore;
 
-    public AiHandler(JavaPlugin plugin) {
+    public AiHandler(JavaPlugin plugin, sunanticheat.dashboard.db.BlobStorage blobs) {
         this.plugin = plugin;
-        this.usageStore = new AiUsageStore(plugin.getDataFolder(), plugin.getLogger());
+        this.usageStore = new AiUsageStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
     }
 
     public void setWsServer(DashboardWsServer ws) { this.wsServer = ws; }
