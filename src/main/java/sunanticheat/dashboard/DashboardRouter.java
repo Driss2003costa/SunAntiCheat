@@ -45,6 +45,7 @@ public final class DashboardRouter implements HttpHandler {
     private final MobileHandler mobileHandler;
     private final AuditHandler auditHandler;
     private final PlayerProfileHandler profileHandler;
+    private final JobsHandler jobsHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -76,7 +77,8 @@ public final class DashboardRouter implements HttpHandler {
                            PermissionsHandler permsHandler,
                            MobileHandler mobileHandler,
                            AuditHandler auditHandler,
-                           PlayerProfileHandler profileHandler) {
+                           PlayerProfileHandler profileHandler,
+                           JobsHandler jobsHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -108,6 +110,7 @@ public final class DashboardRouter implements HttpHandler {
         this.mobileHandler = mobileHandler;
         this.auditHandler = auditHandler;
         this.profileHandler = profileHandler;
+        this.jobsHandler = jobsHandler;
     }
 
     @Override
@@ -162,6 +165,14 @@ public final class DashboardRouter implements HttpHandler {
         // ── Audit log ─────────────────────────────────────────────────────────
         if (eq(path, "/api/audit")          && GET(method))    { auditHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/audit/actions")  && GET(method))    { auditHandler.actions(ex, jwt, users); return; }
+
+        // ── Jobs (Jobs Reborn) ────────────────────────────────────────────────
+        if (eq(path, "/api/jobs/overview")  && GET(method))    { jobsHandler.overview(ex, jwt, users); return; }
+        if (eq(path, "/api/jobs/active")    && GET(method))    { jobsHandler.active(ex, jwt, users); return; }
+        if (eq(path, "/api/jobs/history")   && GET(method))    { jobsHandler.history(ex, jwt, users); return; }
+        if (path.startsWith("/api/jobs/player/") && GET(method)) {
+            jobsHandler.player(ex, jwt, users, path.substring("/api/jobs/player/".length())); return;
+        }
 
         // ── Player profile (agrégation) ──────────────────────────────────────
         if (path.startsWith("/api/players/") && path.endsWith("/profile") && GET(method)) {

@@ -26,6 +26,8 @@ dependencies {
     compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
     compileOnly 'com.github.Gypopo:EconomyShopGUI-API:1.9.0'
     compileOnly 'net.luckperms:api:5.4'
+    // Note : Jobs Reborn n'est PAS une dépendance compile-time. On l'utilise via
+    // réflexion dans JobsRecorder/JobsLiveService → plugin compile sans Jobs présent.
 
     // Dashboard — shaded dans le JAR final
     implementation 'org.java-websocket:Java-WebSocket:1.5.6'

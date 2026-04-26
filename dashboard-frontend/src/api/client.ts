@@ -51,6 +51,13 @@ export const api = {
   playerNoteDelete: (name: string, noteId: string) =>
     request<any>(`/api/players/${encodeURIComponent(name)}/notes/${noteId}`, { method: 'DELETE' }),
 
+  // Jobs (Jobs Reborn)
+  jobsOverview:  (days = 7) => request<any>(`/api/jobs/overview?days=${days}`),
+  jobsActive:    () => request<any>('/api/jobs/active'),
+  jobsHistory:   (limit = 100, offset = 0) => request<any>(`/api/jobs/history?limit=${limit}&offset=${offset}`),
+  jobsPlayer:    (name: string, days = 30) =>
+    request<any>(`/api/jobs/player/${encodeURIComponent(name)}?days=${days}`),
+
   // Server
   serverStatus: () => request<any>('/api/server/status'),
   players:      () => request<any[]>('/api/server/players'),

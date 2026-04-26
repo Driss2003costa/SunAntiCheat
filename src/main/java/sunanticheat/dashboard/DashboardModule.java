@@ -10,6 +10,9 @@ import sunanticheat.dashboard.analytics.AnalyticsRecorder;
 import sunanticheat.dashboard.analytics.SnapshotStore;
 import sunanticheat.dashboard.economy.EconomyRecorder;
 import sunanticheat.dashboard.economy.TransactionStore;
+import sunanticheat.dashboard.jobs.JobsLiveService;
+import sunanticheat.dashboard.jobs.JobsRecorder;
+import sunanticheat.dashboard.jobs.JobsStore;
 import sunanticheat.dashboard.backup.BackupManager;
 import sunanticheat.dashboard.announcements.AnnouncementService;
 import sunanticheat.dashboard.announcements.AnnouncementStore;
@@ -194,6 +197,26 @@ public final class DashboardModule {
             plugin.getLogger().warning("[Dashboard] EconomyShopGUI(+) non trouvé — tracking shop désactivé.");
         }
 
+        // ── Jobs Reborn (soft dependency, hooks par réflexion) ────────────────
+        JobsStore jobsStore = new JobsStore(database, plugin.getLogger());
+        JobsLiveService jobsLive = null;
+        if (Bukkit.getPluginManager().getPlugin("Jobs") != null) {
+            try {
+                jobsLive = new JobsLiveService();
+                JobsRecorder jobsRecorder = new JobsRecorder(jobsStore, plugin);
+                if (jobsRecorder.register()) {
+                    plugin.getLogger().info("[Dashboard] Jobs Reborn détecté — tracking activé.");
+                } else {
+                    plugin.getLogger().warning("[Dashboard] Jobs Reborn présent mais aucun event hooké (API incompatible ?).");
+                }
+            } catch (Throwable t) {
+                plugin.getLogger().warning("[Dashboard] Échec init Jobs Reborn : " + t.getMessage());
+                jobsLive = null;
+            }
+        } else {
+            plugin.getLogger().info("[Dashboard] Jobs Reborn non détecté — section Jobs désactivée.");
+        }
+
         // ── Handlers ─────────────────────────────────────────────────────────
         List<String> allowedCmds = cfg.getStringList("dashboard.allowed-commands");
         AuthHandler     authHandler     = new AuthHandler(users, jwtUtil, userStore);
@@ -201,6 +224,7 @@ public final class DashboardModule {
         PermissionsHandler permsHandler  = new PermissionsHandler(permissionStore);
         MobileHandler   mobileHandler    = new MobileHandler();
         AuditHandler    auditHandler     = new AuditHandler(auditStore);
+        JobsHandler     jobsHandler      = new JobsHandler(jobsStore, jobsLive);
         PlayerProfileHandler profileHandler = new PlayerProfileHandler(
                 plugin, sanctionHistory, reportStorage, alertStore,
                 transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
@@ -321,7 +345,7 @@ public final class DashboardModule {
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
-                auditHandler, profileHandler);
+                auditHandler, profileHandler, jobsHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
