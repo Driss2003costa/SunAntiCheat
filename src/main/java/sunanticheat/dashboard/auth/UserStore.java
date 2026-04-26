@@ -72,10 +72,44 @@ public final class UserStore {
             m.put("role", u.role);
             m.put("createdAt", u.createdAt);
             m.put("lastLoginAt", u.lastLoginAt);
+            m.put("totpEnabled", u.totpEnabled);
             out.add(m);
         }
         out.sort(Comparator.comparing(m -> (String) m.get("username")));
         return out;
+    }
+
+    /** Lit le StoredUser brut (pour les opérations 2FA). */
+    public synchronized StoredUser getStoredUser(String username) {
+        return username == null ? null : users.get(username.toLowerCase());
+    }
+
+    /** Active le 2FA pour un user après vérification du code TOTP. */
+    public synchronized String setupTotp(String username, String secret) {
+        StoredUser u = users.get(username.toLowerCase());
+        if (u == null) return "Utilisateur introuvable";
+        u.totpSecret = secret;
+        u.totpEnabled = false; // Pas encore activé tant que le user n'a pas validé un code
+        save();
+        return null;
+    }
+
+    public synchronized String enableTotp(String username) {
+        StoredUser u = users.get(username.toLowerCase());
+        if (u == null) return "Utilisateur introuvable";
+        if (u.totpSecret == null || u.totpSecret.isBlank()) return "Pas de secret configuré";
+        u.totpEnabled = true;
+        save();
+        return null;
+    }
+
+    public synchronized String disableTotp(String username) {
+        StoredUser u = users.get(username.toLowerCase());
+        if (u == null) return "Utilisateur introuvable";
+        u.totpSecret = null;
+        u.totpEnabled = false;
+        save();
+        return null;
     }
 
     public boolean exists(String username) {

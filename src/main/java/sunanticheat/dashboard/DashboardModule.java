@@ -23,6 +23,8 @@ import sunanticheat.dashboard.dailyreward.DailyRewardStore;
 import sunanticheat.dashboard.events.EventCalendarStore;
 import sunanticheat.dashboard.experiments.ExperimentStore;
 import sunanticheat.dashboard.ai.AiMonitor;
+import sunanticheat.dashboard.audit.Audit;
+import sunanticheat.dashboard.audit.AuditStore;
 import sunanticheat.dashboard.auth.PermissionStore;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.mobile.PushService;
@@ -132,6 +134,11 @@ public final class DashboardModule {
         PermissionStore permissionStore = new PermissionStore(plugin.getDataFolder(), plugin.getLogger());
         HttpHelper.setPermissionStore(permissionStore);
 
+        // ── Audit log Store ──────────────────────────────────────────────────
+        AuditStore auditStore = new AuditStore(plugin.getDataFolder(), plugin.getLogger());
+        Audit.setStore(auditStore);
+        Audit.system("DASHBOARD_STARTED", "system", "Dashboard démarré sur le port " + httpPort);
+
         // ── Push Service (notifications mobile Expo) ─────────────────────────
         PushService.init(plugin);
 
@@ -186,6 +193,10 @@ public final class DashboardModule {
         UserHandler     userHandler     = new UserHandler(userStore);
         PermissionsHandler permsHandler  = new PermissionsHandler(permissionStore);
         MobileHandler   mobileHandler    = new MobileHandler();
+        AuditHandler    auditHandler     = new AuditHandler(auditStore);
+        PlayerProfileHandler profileHandler = new PlayerProfileHandler(
+                plugin, sanctionHistory, reportStorage, alertStore,
+                transactionStore, shopStore, crateStore, vipStore, dailyRewardStore);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
         SecurityHandler securityHandler = new SecurityHandler(plugin, sanctionHistory, reportStorage, alertStore);
         EconomyHandler  economyHandler  = new EconomyHandler(plugin, economy, transactionStore);
@@ -302,7 +313,8 @@ public final class DashboardModule {
                 panicHandler, honeypotHandler, toxicChatHandler, eventCalendarHandler,
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
-                shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler);
+                shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
+                auditHandler, profileHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -348,6 +360,7 @@ public final class DashboardModule {
         if (shopStore != null) shopStore.save();
         if (vipScheduler != null) vipScheduler.stop();
         if (vipStore != null) vipStore.save();
+        if (Audit.store() != null) Audit.store().save();
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }
 

@@ -43,6 +43,8 @@ public final class DashboardRouter implements HttpHandler {
     private final VipPublicHandler vipPublicHandler;
     private final PermissionsHandler permsHandler;
     private final MobileHandler mobileHandler;
+    private final AuditHandler auditHandler;
+    private final PlayerProfileHandler profileHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -72,7 +74,9 @@ public final class DashboardRouter implements HttpHandler {
                            VipHandler vipHandler,
                            VipPublicHandler vipPublicHandler,
                            PermissionsHandler permsHandler,
-                           MobileHandler mobileHandler) {
+                           MobileHandler mobileHandler,
+                           AuditHandler auditHandler,
+                           PlayerProfileHandler profileHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -102,6 +106,8 @@ public final class DashboardRouter implements HttpHandler {
         this.vipPublicHandler = vipPublicHandler;
         this.permsHandler = permsHandler;
         this.mobileHandler = mobileHandler;
+        this.auditHandler = auditHandler;
+        this.profileHandler = profileHandler;
     }
 
     @Override
@@ -149,6 +155,27 @@ public final class DashboardRouter implements HttpHandler {
         // ── Auth ──────────────────────────────────────────────────────────────
         if (eq(path, "/api/auth/login") && POST(method))  { authHandler.login(ex); return; }
         if (eq(path, "/api/auth/me")    && GET(method))   { authHandler.me(ex, jwt, users); return; }
+        if (eq(path, "/api/auth/totp/setup")   && POST(method)) { authHandler.totpSetup(ex, jwt, users); return; }
+        if (eq(path, "/api/auth/totp/verify")  && POST(method)) { authHandler.totpVerify(ex, jwt, users); return; }
+        if (eq(path, "/api/auth/totp/disable") && POST(method)) { authHandler.totpDisable(ex, jwt, users); return; }
+
+        // ── Audit log ─────────────────────────────────────────────────────────
+        if (eq(path, "/api/audit")          && GET(method))    { auditHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/audit/actions")  && GET(method))    { auditHandler.actions(ex, jwt, users); return; }
+
+        // ── Player profile (agrégation) ──────────────────────────────────────
+        if (path.startsWith("/api/players/") && path.endsWith("/profile") && GET(method)) {
+            profileHandler.profile(ex, jwt, users, id(path, "/api/players/", "/profile")); return;
+        }
+        if (path.startsWith("/api/players/") && path.endsWith("/notes") && POST(method)) {
+            profileHandler.addNote(ex, jwt, users, id(path, "/api/players/", "/notes")); return;
+        }
+        if (path.matches("/api/players/[^/]+/notes/[^/]+") && DELETE(method)) {
+            String rest = path.substring("/api/players/".length());
+            int s = rest.indexOf("/notes/");
+            profileHandler.deleteNote(ex, jwt, users,
+                    rest.substring(0, s), rest.substring(s + "/notes/".length())); return;
+        }
 
         // ── Server ────────────────────────────────────────────────────────────
         if (eq(path, "/api/server/status")  && GET(method))  { serverHandler.status(ex, jwt, users); return; }

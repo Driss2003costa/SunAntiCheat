@@ -11,6 +11,10 @@ public final class StoredUser {
     public long   createdAt;
     public long   lastLoginAt; // 0 = jamais connecté
 
+    // ── 2FA TOTP ───────────────────────────────────────────────────────
+    public String totpSecret;   // base32 (null si pas configuré)
+    public boolean totpEnabled; // true seulement après vérification réussie
+
     public StoredUser() {}
 
     public StoredUser(String username, String passwordHash, String role, long createdAt) {
@@ -19,5 +23,7 @@ public final class StoredUser {
         this.role         = role != null ? role.toUpperCase() : "MOD";
         this.createdAt    = createdAt;
         this.lastLoginAt  = 0L;
+        this.totpSecret   = null;
+        this.totpEnabled  = false;
     }
 }

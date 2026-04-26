@@ -74,6 +74,8 @@ const NAV_CATEGORIES = [
       { to: '/backups',      label: 'Sauvegardes',     icon: '💾' },
       { to: '/users',        label: 'Comptes & Rôles', icon: '👤' },
       { to: '/permissions',  label: 'Permissions',     icon: '🔐' },
+      { to: '/2fa',          label: '2FA (TOTP)',      icon: '🔒' },
+      { to: '/audit',        label: 'Audit Log',       icon: '📋' },
       { to: '/ranks',        label: 'Rangs LuckPerms', icon: '🎖️' },
       { to: '/config',       label: 'Paramètres',      icon: '🔧' },
     ],

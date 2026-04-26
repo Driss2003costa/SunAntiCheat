@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuthStore } from '../stores/authStore'
 import ConfirmModal from '../components/ConfirmModal'
@@ -68,7 +69,10 @@ export default function Players() {
                   <td className="py-2 pr-4">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-green-500" />
-                      <span className="font-medium">{p.name}</span>
+                      <Link to={`/players/${encodeURIComponent(p.name)}`}
+                            className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>
+                        {p.name}
+                      </Link>
                     </div>
                     <div className="text-xs text-muted font-mono">{p.uuid}</div>
                   </td>

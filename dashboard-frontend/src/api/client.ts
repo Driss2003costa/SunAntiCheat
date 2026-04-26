@@ -26,11 +26,30 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
-  login: (username: string, password: string) =>
-    request<{ token: string; username: string; role: string }>('/api/auth/login', {
-      method: 'POST', body: JSON.stringify({ username, password }),
+  login: (username: string, password: string, totp?: string) =>
+    request<{ token?: string; username: string; role?: string; requiresTotp?: boolean; totpEnabled?: boolean }>('/api/auth/login', {
+      method: 'POST', body: JSON.stringify({ username, password, totp: totp || '' }),
     }),
-  me: () => request<{ username: string; role: string }>('/api/auth/me'),
+  me: () => request<{ username: string; role: string; totpEnabled: boolean }>('/api/auth/me'),
+
+  // 2FA TOTP
+  totpSetup:   () => request<{ secret: string; otpauthUri: string; issuer: string; account: string }>('/api/auth/totp/setup', { method: 'POST' }),
+  totpVerify:  (code: string) => request<any>('/api/auth/totp/verify', { method: 'POST', body: JSON.stringify({ code }) }),
+  totpDisable: (password: string) => request<any>('/api/auth/totp/disable', { method: 'POST', body: JSON.stringify({ password }) }),
+
+  // Audit log
+  auditList:    (params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))).toString()
+    return request<{ entries: any[]; total: number; offset: number; limit: number; hasMore: boolean }>(`/api/audit${qs ? '?' + qs : ''}`)
+  },
+  auditActions: () => request<string[]>('/api/audit/actions'),
+
+  // Player profile
+  playerProfile: (name: string) => request<any>(`/api/players/${encodeURIComponent(name)}/profile`),
+  playerNoteAdd: (name: string, text: string) =>
+    request<any>(`/api/players/${encodeURIComponent(name)}/notes`, { method: 'POST', body: JSON.stringify({ text }) }),
+  playerNoteDelete: (name: string, noteId: string) =>
+    request<any>(`/api/players/${encodeURIComponent(name)}/notes/${noteId}`, { method: 'DELETE' }),
 
   // Server
   serverStatus: () => request<any>('/api/server/status'),
