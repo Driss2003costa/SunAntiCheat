@@ -1,0 +1,140 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version à publier (ex: 2.1.0) — vide = auto-incrément patch'
+        required: false
+        default: ''
+      bump:
+        description: 'Type d'incrément auto (patch / minor / major)'
+        required: false
+        default: 'patch'
+        type: choice
+        options: [patch, minor, major]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Checkout complet (tags inclus) ──────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. JDK 21 ──────────────────────────────────────────────────────────
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # ── 3. Calcul de la version ────────────────────────────────────────────
+      - name: Compute version
+        id: ver
+        run: |
+          # Si version fournie manuellement, on l'utilise telle quelle
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            NEW_VER="${{ github.event.inputs.version }}"
+            echo "Version manuelle : $NEW_VER"
+          else
+            # Dernier tag vX.Y.Z
+            LATEST=$(git tag --sort=-version:refname \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+              | head -1)
+
+            if [ -z "$LATEST" ]; then
+              LATEST="v2.0.0"
+            fi
+
+            VER="${LATEST#v}"
+            MAJOR=$(echo "$VER" | cut -d. -f1)
+            MINOR=$(echo "$VER" | cut -d. -f2)
+            PATCH=$(echo "$VER" | cut -d. -f3)
+
+            BUMP="${{ github.event.inputs.bump }}"
+            BUMP="${BUMP:-patch}"   # défaut = patch sur push
+
+            case "$BUMP" in
+              major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+              *)     PATCH=$((PATCH+1)) ;;
+            esac
+
+            NEW_VER="$MAJOR.$MINOR.$PATCH"
+            echo "Auto-incrément ($BUMP) depuis $LATEST → $NEW_VER"
+          fi
+
+          # Vérifier que le tag n'existe pas déjà
+          if git rev-parse "v$NEW_VER" >/dev/null 2>&1; then
+            echo "::error::Le tag v$NEW_VER existe déjà !"
+            exit 1
+          fi
+
+          echo "version=$NEW_VER" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEW_VER"    >> "$GITHUB_OUTPUT"
+
+      # ── 4. Mise à jour de build.gradle ────────────────────────────────────
+      - name: Patch version in build.gradle
+        run: |
+          sed -i "s/^version = '[^']*'/version = '${{ steps.ver.outputs.version }}'/" build.gradle
+          grep "^version" build.gradle
+
+      # ── 5. Cache Gradle ────────────────────────────────────────────────────
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # ── 6. Build ───────────────────────────────────────────────────────────
+      - name: Build shadow JAR
+        run: ./gradlew shadowJar --no-daemon
+
+      - name: Verify JAR
+        run: |
+          JAR="build/libs/SunAntiCheat-${{ steps.ver.outputs.version }}.jar"
+          ls -lh "$JAR"
+          echo "jar_path=$JAR" >> "$GITHUB_ENV"
+
+      # ── 7. Tag Git annoté ─────────────────────────────────────────────────
+      - name: Create and push tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build.gradle
+          git commit -m "chore: bump version to ${{ steps.ver.outputs.version }}" || true
+          git tag -a "${{ steps.ver.outputs.tag }}" \
+            -m "Release ${{ steps.ver.outputs.tag }}"
+          git push origin HEAD
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      # ── 8. GitHub Release ─────────────────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: "SunAntiCheat ${{ steps.ver.outputs.tag }}"
+          generate_release_notes: true
+          body: |
+            ## 📦 SunAntiCheat ${{ steps.ver.outputs.tag }}
+
+            ### Installation
+            1. Télécharge `SunAntiCheat-${{ steps.ver.outputs.version }}.jar`
+            2. Place-le dans le dossier `plugins/` de ton serveur Paper/Spigot
+            3. Redémarre le serveur
+
+            ### Infos build
+            | | |
+            |---|---|
+            | Commit | `${{ github.sha }}` |
+            | Branch | `${{ github.ref_name }}` |
+            | Java | 21 (Temurin) |
+            | Paper API | 1.21.1 |
+
+          files: |
+            build/libs/SunAntiCheat-${{ steps.ver.outputs.version }}.jar
