@@ -10,7 +10,7 @@ on:
         required: false
         default: ''
       bump:
-        description: 'Type d'incrément auto (patch / minor / major)'
+        description: "Type d'increment auto (patch / minor / major)"
         required: false
         default: 'patch'
         type: choice
