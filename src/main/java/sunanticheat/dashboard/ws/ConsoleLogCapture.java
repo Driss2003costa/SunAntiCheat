@@ -29,6 +29,20 @@ import java.util.logging.LogRecord;
 public final class ConsoleLogCapture extends AbstractAppender {
 
     private static final String APPENDER_NAME = "SunDashboardCapture";
+
+    /**
+     * Garde de réentrance par thread.
+     *
+     * Si `listener.accept(line)` (qui broadcast vers le WebSocket) loggue indirectement
+     * quoi que ce soit (ex. java.net, le serveur WS lui-même), ce log repasse par Log4j
+     * et rappelle append() → boucle infinie. Log4j détecte et spam "Recursive call",
+     * et le main thread peut freeze assez longtemps pour déclencher le watchdog Paper.
+     *
+     * On marque le thread courant comme "déjà dans append" et on skip silencieusement
+     * si c'est le cas. Pareil pour le handler JUL.
+     */
+    private static final ThreadLocal<Boolean> IN_APPEND = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
     private final Consumer<String> listener;
     private final AtomicLong captured = new AtomicLong();
 
@@ -44,12 +58,18 @@ public final class ConsoleLogCapture extends AbstractAppender {
 
     @Override
     public void append(LogEvent event) {
+        if (IN_APPEND.get()) return;     // Réentrance → on ignore, sinon boucle infinie
+        IN_APPEND.set(Boolean.TRUE);
         try {
             String line = new String(getLayout().toByteArray(event)).stripTrailing();
             if (line.isEmpty()) return;
             captured.incrementAndGet();
             listener.accept(line);
-        } catch (Exception ignored) {}
+        } catch (Throwable ignored) {
+            // On ne re-loggue jamais depuis ici (sinon récursion garantie)
+        } finally {
+            IN_APPEND.set(Boolean.FALSE);
+        }
     }
 
     // ── Cycle de vie ────────────────────────────────────────────────────────
@@ -79,6 +99,8 @@ public final class ConsoleLogCapture extends AbstractAppender {
             Handler handler = new Handler() {
                 @Override public void publish(LogRecord record) {
                     if (record == null || record.getMessage() == null) return;
+                    if (IN_APPEND.get()) return;   // Même garde — éviter récursion JUL
+                    IN_APPEND.set(Boolean.TRUE);
                     try {
                         String ts = new SimpleDateFormat("HH:mm:ss").format(new Date(record.getMillis()));
                         String msg = record.getMessage();
@@ -90,7 +112,10 @@ public final class ConsoleLogCapture extends AbstractAppender {
                         String line = "[" + ts + "] [" + record.getLevel() + "]: " + msg;
                         appender.captured.incrementAndGet();
                         listener.accept(line);
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) {
+                    } finally {
+                        IN_APPEND.set(Boolean.FALSE);
+                    }
                 }
                 @Override public void flush() {}
                 @Override public void close() throws SecurityException {}
