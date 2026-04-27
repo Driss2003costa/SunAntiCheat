@@ -17,6 +17,7 @@ import sunanticheat.dashboard.sanctions.KickScreenFormatter;
 import sunanticheat.dashboard.sanctions.SanctionListeners;
 import sunanticheat.dashboard.sanctions.SanctionService;
 import sunanticheat.dashboard.sanctions.SanctionStore;
+import sunanticheat.dashboard.sanctions.VanillaBansImporter;
 import sunanticheat.dashboard.backup.BackupManager;
 import sunanticheat.dashboard.announcements.AnnouncementService;
 import sunanticheat.dashboard.announcements.AnnouncementStore;
@@ -240,11 +241,16 @@ public final class DashboardModule {
         sanctionListeners = new SanctionListeners(plugin, sanctionService);
         sanctionListeners.start();
         SanctionsHandler sanctionsHandler = new SanctionsHandler(sanctionService);
+        // Import idempotent des bans Bukkit existants (banned-players.json + banned-ips.json)
+        new VanillaBansImporter(sanctionStore, blobs, plugin.getLogger()).importIfNeeded();
         plugin.getLogger().info("[Dashboard] Système de sanctions modernes activé.");
         PlayerProfileHandler profileHandler = new PlayerProfileHandler(
                 plugin, sanctionHistory, reportStorage, alertStore,
                 transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
+        // L'ancien bouton Ban/Kick du dashboard /players délègue désormais au SanctionService
+        // → écran stylisé + entrée DB + audit auto + listener login pour bloquer reconnexion.
+        serverHandler.setSanctionService(sanctionService);
         SecurityHandler securityHandler = new SecurityHandler(plugin, sanctionHistory, reportStorage, alertStore);
         EconomyHandler  economyHandler  = new EconomyHandler(plugin, economy, transactionStore);
         AnalyticsHandler analyticsHandler = new AnalyticsHandler(snapshotStore);
