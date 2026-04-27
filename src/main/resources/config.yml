@@ -212,6 +212,17 @@ dashboard:
   # Origine CORS autorisée (mettre l'URL exacte du frontend en prod)
   cors-origin: "*"
 
+  # ── Auto-update via GitHub Releases ─────────────────────────────────────
+  # Au démarrage (puis toutes les N heures), le plugin vérifie GitHub
+  # Releases. Si une version plus récente est dispo, il télécharge le JAR
+  # dans plugins/update/ — Paper applique le remplacement automatiquement
+  # au prochain redémarrage du serveur (mécanisme natif Bukkit).
+  auto-update:
+    enabled: true
+    repo: "Driss2003costa/SunAntiCheat"
+    check-interval-hours: 6     # 0 = check seulement au boot
+    prerelease: false           # true pour inclure les pre-releases (alpha/beta)
+
   # ── Base de données ─────────────────────────────────────────────────────
   # Toutes les données du dashboard (audit log, transactions, users, shops,
   # crates, VIP, daily rewards, etc.) sont persistées en DB. Au premier boot

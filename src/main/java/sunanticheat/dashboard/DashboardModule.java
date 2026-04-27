@@ -10,6 +10,7 @@ import sunanticheat.dashboard.analytics.AnalyticsRecorder;
 import sunanticheat.dashboard.analytics.SnapshotStore;
 import sunanticheat.dashboard.economy.EconomyRecorder;
 import sunanticheat.dashboard.economy.TransactionStore;
+import sunanticheat.dashboard.games.GameArenaScanner;
 import sunanticheat.dashboard.jobs.JobsLiveService;
 import sunanticheat.dashboard.jobs.JobsRecorder;
 import sunanticheat.dashboard.jobs.JobsStore;
@@ -18,6 +19,7 @@ import sunanticheat.dashboard.sanctions.SanctionListeners;
 import sunanticheat.dashboard.sanctions.SanctionService;
 import sunanticheat.dashboard.sanctions.SanctionStore;
 import sunanticheat.dashboard.sanctions.VanillaBansImporter;
+import sunanticheat.dashboard.update.AutoUpdater;
 import sunanticheat.dashboard.backup.BackupManager;
 import sunanticheat.dashboard.announcements.AnnouncementService;
 import sunanticheat.dashboard.announcements.AnnouncementStore;
@@ -105,6 +107,7 @@ public final class DashboardModule {
     private VipExpirationScheduler vipScheduler;
     private Database database;
     private SanctionListeners sanctionListeners;
+    private AutoUpdater autoUpdater;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -231,6 +234,7 @@ public final class DashboardModule {
         MobileHandler   mobileHandler    = new MobileHandler();
         AuditHandler    auditHandler     = new AuditHandler(auditStore);
         JobsHandler     jobsHandler      = new JobsHandler(jobsStore, jobsLive);
+        GamesHandler    gamesHandler     = new GamesHandler(new GameArenaScanner(plugin.getLogger()));
 
         // ── Sanctions modernes (kick/ban/mute/warn DB-backed + stylized) ─────
         SanctionStore sanctionStore = new SanctionStore(database, blobs, plugin.getLogger());
@@ -244,6 +248,19 @@ public final class DashboardModule {
         // Import idempotent des bans Bukkit existants (banned-players.json + banned-ips.json)
         new VanillaBansImporter(sanctionStore, blobs, plugin.getLogger()).importIfNeeded();
         plugin.getLogger().info("[Dashboard] Système de sanctions modernes activé.");
+
+        // ── Auto-update depuis GitHub Releases ───────────────────────────────
+        if (cfg.getBoolean("dashboard.auto-update.enabled", true)) {
+            String repo = cfg.getString("dashboard.auto-update.repo", "Driss2003costa/SunAntiCheat");
+            boolean prerelease = cfg.getBoolean("dashboard.auto-update.prerelease", false);
+            int hours = cfg.getInt("dashboard.auto-update.check-interval-hours", 6);
+            long intervalMs = hours <= 0 ? 0 : hours * 3600_000L;
+            autoUpdater = new AutoUpdater(plugin, repo, prerelease, intervalMs);
+            autoUpdater.start();
+            plugin.getLogger().info("[Dashboard] Auto-update activé (repo " + repo + ")");
+        } else {
+            plugin.getLogger().info("[Dashboard] Auto-update désactivé.");
+        }
         PlayerProfileHandler profileHandler = new PlayerProfileHandler(
                 plugin, sanctionHistory, reportStorage, alertStore,
                 transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
@@ -367,7 +384,7 @@ public final class DashboardModule {
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
-                auditHandler, profileHandler, jobsHandler, sanctionsHandler);
+                auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -415,6 +432,7 @@ public final class DashboardModule {
         if (vipStore != null) vipStore.save();
         if (Audit.store() != null) Audit.store().save();
         if (sanctionListeners != null) { sanctionListeners.stop(); sanctionListeners = null; }
+        if (autoUpdater != null) { autoUpdater.stop(); autoUpdater = null; }
         if (database != null) { database.close(); database = null; }
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }

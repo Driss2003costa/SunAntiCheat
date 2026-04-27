@@ -47,6 +47,7 @@ public final class DashboardRouter implements HttpHandler {
     private final PlayerProfileHandler profileHandler;
     private final JobsHandler jobsHandler;
     private final SanctionsHandler sanctionsHandler;
+    private final GamesHandler gamesHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -80,7 +81,8 @@ public final class DashboardRouter implements HttpHandler {
                            AuditHandler auditHandler,
                            PlayerProfileHandler profileHandler,
                            JobsHandler jobsHandler,
-                           SanctionsHandler sanctionsHandler) {
+                           SanctionsHandler sanctionsHandler,
+                           GamesHandler gamesHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -114,6 +116,7 @@ public final class DashboardRouter implements HttpHandler {
         this.profileHandler = profileHandler;
         this.jobsHandler = jobsHandler;
         this.sanctionsHandler = sanctionsHandler;
+        this.gamesHandler = gamesHandler;
     }
 
     @Override
@@ -188,6 +191,9 @@ public final class DashboardRouter implements HttpHandler {
             String id = path.substring("/api/sanctions/".length(), path.length() - "/revoke".length());
             sanctionsHandler.revoke(ex, jwt, users, id); return;
         }
+
+        // ── Games (mini-jeux : CTF, Skywars, Thimble, TNT Run) ───────────────
+        if (eq(path, "/api/games/arenas") && GET(method)) { gamesHandler.arenas(ex, jwt, users); return; }
 
         // ── Player profile (agrégation) ──────────────────────────────────────
         if (path.startsWith("/api/players/") && path.endsWith("/profile") && GET(method)) {

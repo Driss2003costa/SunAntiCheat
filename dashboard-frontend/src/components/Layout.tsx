@@ -59,6 +59,7 @@ const NAV_CATEGORIES = [
     items: [
       { to: '/events',       label: 'Events',          icon: '📅' },
       { to: '/quests',       label: 'Quêtes',          icon: '🎯' },
+      { to: '/games',        label: 'Mini-jeux',       icon: '🎮' },
       { to: '/crates',       label: 'Lootboxes',       icon: '📦' },
       { to: '/daily-rewards',label: 'Daily Rewards',    icon: '🎁' },
       { to: '/announcements',label: 'Annonces',         icon: '📢' },

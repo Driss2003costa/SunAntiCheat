@@ -74,6 +74,11 @@ export const api = {
     method: 'POST', body: JSON.stringify(payload),
   }),
 
+  // Games (mini-jeux)
+  gamesArenas: () => request<{
+    arenas: any[]; games: any[]; totalArenas: number; playing: number; waiting: number
+  }>('/api/games/arenas'),
+
   // Server
   serverStatus: () => request<any>('/api/server/status'),
   players:      () => request<any[]>('/api/server/players'),
