@@ -145,7 +145,7 @@ export default function DailyRewards() {
 
       {/* ── KPIs ──────────────────────────────────────────────────────────── */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Kpi label="Claims (7j)" value={stats.totalClaims || 0} color="#60a5fa"/>
           <Kpi label="Joueurs uniques" value={stats.uniquePlayers || 0} color="#a78bfa"/>
           <Kpi label="Streak moyen" value={(stats.avgStreak || 0).toFixed(1)} color="#fbbf24"/>
@@ -156,7 +156,7 @@ export default function DailyRewards() {
       {/* ── Config globale ──────────────────────────────────────────────── */}
       <div className="rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>⚙️ Configuration du cycle</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center gap-3">
             <Toggle checked={config.enabled} onChange={(v: boolean) => setConfig({ ...config, enabled: v })} disabled={!canEdit}/>
             <span style={{ color: 'var(--text)' }}>Système activé</span>
@@ -231,7 +231,7 @@ export default function DailyRewards() {
       )}
 
       {/* ── Top claimers & Recherche ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="font-semibold mb-3" style={{ color: 'var(--text)' }}>🏆 Top claimers</h2>
           <div className="space-y-1">

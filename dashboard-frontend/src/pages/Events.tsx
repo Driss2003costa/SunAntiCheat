@@ -52,7 +52,7 @@ export default function Events() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {events.map(e => (
           <div key={e.id} className="rounded-xl p-5 relative overflow-hidden"
                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>

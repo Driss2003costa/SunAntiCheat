@@ -152,7 +152,7 @@ export default function Users() {
       )}
 
       {/* Rôles legend */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {ROLES.map(r => {
           const m = ROLE_META[r]
           return (

@@ -173,7 +173,7 @@ export default function Vip() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {plans.sort((a, b) => (a.order || 0) - (b.order || 0)).map(p => (
                 <PlanCard key={p.id} plan={p}
                           onEdit={() => setEditing({ ...p })}
@@ -280,14 +280,14 @@ export default function Vip() {
       {/* ── Onglet STATS ─────────────────────────────────────────────────── */}
       {tab === 'stats' && stats && (
         <div className="space-y-4">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Kpi label="CA total (30j)" value={`${(stats.totalRevenue || 0).toFixed(2)} €`} color="#10b981"/>
             <Kpi label="Ventes (30j)" value={stats.totalSales || 0} color="#60a5fa"/>
             <Kpi label="MRR estimé" value={`${(stats.mrrEstimated || 0).toFixed(2)} €`} color="#a78bfa"/>
             <Kpi label="Churn rate" value={`${(stats.churnRate || 0).toFixed(1)}%`} color="#f97316"/>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Kpi label="Subs actifs" value={stats.activeSubscriptions || 0} color="#10b981"/>
             <Kpi label="Subs expirés (30j)" value={stats.expiredSubscriptions || 0} color="#ef4444"/>
           </div>
@@ -487,7 +487,7 @@ function PlanEditor({ plan, setPlan, onSave, onClose }: any) {
                       rows={2} style={inputStyle} className="w-full px-3 py-2 rounded text-sm"/>
           </Field>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Prix (€)">
               <input type="number" min={0} step={0.01} value={plan.priceEur}
                      onChange={e => setPlan({ ...plan, priceEur: +e.target.value })}

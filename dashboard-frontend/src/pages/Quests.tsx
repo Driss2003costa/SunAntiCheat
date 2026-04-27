@@ -37,7 +37,7 @@ export default function Quests() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {quests.map(q => (
           <div key={q.id} className="rounded-xl p-5" style={{ background: 'var(--surface)', border: `1px solid ${q.enabled ? q.color : 'var(--border)'}` }}>
             <div className="flex items-start justify-between mb-2">
@@ -76,7 +76,7 @@ export default function Quests() {
             <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{editing.id ? 'Modifier' : 'Nouvelle'} quête</h2>
             <input placeholder="Titre" value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} className="w-full px-3 py-2 rounded" style={inp}/>
             <textarea placeholder="Description" value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} rows={2} className="w-full px-3 py-2 rounded" style={inp}/>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <label className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 Type
                 <select value={editing.type} onChange={e => setEditing({ ...editing, type: e.target.value })} className="w-full mt-1 px-3 py-2 rounded" style={inp}>

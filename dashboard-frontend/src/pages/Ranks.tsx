@@ -191,7 +191,7 @@ export default function Ranks() {
             <div style={{ color: 'var(--text-muted)' }}>Aucun joueur en ligne</div>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {filtered.map(p => (
               <button key={p.uuid}
                       onClick={() => lookupPlayer(p.name)}

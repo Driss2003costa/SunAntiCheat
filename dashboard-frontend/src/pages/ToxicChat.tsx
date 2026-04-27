@@ -31,13 +31,13 @@ export default function ToxicChat() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>🗯️ Chat Toxicité</h1>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Stat label="Mots filtrés" value={stats.wordlistSize}/>
         <Stat label="Joueurs flagués" value={stats.topPlayers?.length ?? 0}/>
         <Stat label="Messages récents" value={stats.recent?.length ?? 0}/>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Top offenseurs</h2>
           <div className="space-y-2">

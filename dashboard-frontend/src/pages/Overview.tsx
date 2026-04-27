@@ -74,7 +74,7 @@ export default function Overview() {
       )}
 
       {/* ── KPIs ─────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           icon="⚡" label="Performance (TPS)"
           value={status?.tps1m ?? '—'}
@@ -125,10 +125,10 @@ export default function Overview() {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* ── Joueurs en ligne ──────────────────────────────────────────── */}
-        <div className="col-span-2 space-y-4">
+        <div className="col-span-1 lg:col-span-2 space-y-4">
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
               Joueurs en ligne ({players.length})
@@ -196,7 +196,7 @@ export default function Overview() {
             <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
               Mondes ({worlds.length})
             </h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {worlds.map(w => (
                 <div key={w.name} className="rounded-xl p-4"
                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>

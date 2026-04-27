@@ -160,7 +160,7 @@ export default function Announcements() {
 
       {/* ── KPIs ──────────────────────────────────────────────────────────── */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Kpi label="Annonces" value={stats.totalAnnouncements || 0} color="#60a5fa"/>
           <Kpi label="Messages envoyés" value={stats.totalSent || 0} color="#34d399"/>
           <Kpi label="Clics" value={stats.totalClicks || 0} color="#f59e0b"/>
@@ -447,7 +447,7 @@ function StepContent({ ann, setAnn, templates }: any) {
         <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
           🚀 Templates rapides (optionnel)
         </label>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {templates.map((t: any) => (
             <button key={t.name} onClick={() => applyTemplate(t)}
                     className="p-3 rounded-lg text-center transition hover:scale-105"
@@ -604,7 +604,7 @@ function StepAppearance({ ann, setAnn }: any) {
 function StepSchedule({ ann, setAnn }: any) {
   return (
     <>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <ScheduleOption selected={ann.scheduleType === 'ONCE'}
                         onClick={() => setAnn({ ...ann, scheduleType: 'ONCE' })}
                         icon="📅" title="Une seule fois" desc="À une date précise"/>

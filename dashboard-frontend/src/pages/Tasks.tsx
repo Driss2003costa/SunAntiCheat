@@ -486,7 +486,7 @@ function TaskModal({ task, onClose, onSave }: {
           </div>
 
           {/* Couleur + Icon */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs text-muted uppercase tracking-wider">Couleur</label>
               <div className="mt-2 flex flex-wrap gap-2">

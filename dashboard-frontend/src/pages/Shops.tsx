@@ -419,7 +419,7 @@ export default function Shops() {
 
       {/* KPIs */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Kpi label="Shops configurés" value={shops.length} color="#60a5fa"/>
           <Kpi label="Transactions (7j)" value={stats.totalTransactions || 0} color="#a78bfa"/>
           <Kpi label="CA total (7j)" value={`${(stats.totalRevenue || 0).toLocaleString('fr-FR')} $`} color="#10b981"/>
@@ -453,7 +453,7 @@ export default function Shops() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {shops.map(s => (
             <ShopCard key={s.id} shop={s}
                       onOpen={() => openEditor(s)}
@@ -683,7 +683,7 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
       )}
 
       {/* Body 3 columns */}
-      <div className="flex-1 grid grid-cols-[280px_1fr_320px] gap-4 p-4 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-4 p-4 overflow-hidden lg:overflow-hidden overflow-y-auto">
 
         {/* Colonne palette */}
         <div className="rounded-xl flex flex-col overflow-hidden"
@@ -896,7 +896,7 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
 // ── Paramètres shop (section collapsible) ───────────────────────────────────
 function ShopSettings({ shop, setShop, canEdit }: any) {
   return (
-    <div className="p-4 grid grid-cols-3 gap-4"
+    <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
          style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
       <Field label="Nom interne (slug unique)">
         <input value={shop.name}
@@ -1116,7 +1116,7 @@ function ShopStatsView({ shop, onBack }: any) {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Kpi label="Transactions" value={s.totalTransactions || 0} color="#60a5fa"/>
         <Kpi label="CA total" value={`${(s.totalRevenue || 0).toLocaleString('fr-FR')} $`} color="#10b981"/>
         <Kpi label="Clients uniques" value={s.uniqueCustomers || 0} color="#a78bfa"/>

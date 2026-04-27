@@ -208,7 +208,7 @@ export default function Worlds() {
             </div>
 
             {/* Stats */}
-            <div className="p-5 grid grid-cols-4 gap-3">
+            <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: 'Chunks', value: scanResult.chunksScanned, icon: '📦' },
                 { label: 'Conteneurs', value: scanResult.containersScanned, icon: '🗃️' },

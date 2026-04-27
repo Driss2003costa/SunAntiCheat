@@ -30,7 +30,7 @@ export default function Honeypot() {
 
       {isAdmin && <div className="rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Nouveau piège</h2>
-        <div className="grid grid-cols-6 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           <input placeholder="Label" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })}
                  className="col-span-2 px-3 py-2 rounded" style={inputStyle}/>
           <input placeholder="Monde" value={form.world} onChange={e => setForm({ ...form, world: e.target.value })}
@@ -54,7 +54,7 @@ export default function Honeypot() {
         </div>
       </div>}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Pièges ({traps.length})</h2>
           <div className="space-y-2">

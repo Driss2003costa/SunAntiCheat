@@ -169,7 +169,7 @@ export default function Crates() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {crates.map(c => (
           <div key={c.id} className="rounded-xl overflow-hidden"
                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -253,7 +253,7 @@ export default function Crates() {
       {stats && (
         <Modal onClose={() => setStats(null)} title={`📊 Stats — ${stats.crateName || ''}`}>
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <StatCard label="Ouvertures" value={stats.totalOpens || 0}/>
               <StatCard label="Joueurs uniques" value={stats.uniquePlayers || 0}/>
               <StatCard label="Opens/joueur" value={(stats.avgOpensPerPlayer || 0).toFixed(1)}/>

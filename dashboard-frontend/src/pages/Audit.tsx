@@ -107,7 +107,7 @@ export default function Audit() {
       </div>
 
       {/* Filtres */}
-      <div className="rounded-xl p-4 grid grid-cols-4 gap-3"
+      <div className="rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-3"
            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div>
           <label className="block text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>User</label>

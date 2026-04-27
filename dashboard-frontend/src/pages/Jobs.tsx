@@ -163,7 +163,7 @@ function OverviewTab({ data, days }: { data: any, days: number }) {
   return (
     <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi icon="💰" label={`Argent gagné (${days}j)`} value={fmtMoney(totalMoney)} color="#10b981"/>
         <Kpi icon="📊" label="Paiements" value={String(totalPays)} color="#3b82f6"/>
         <Kpi icon="👥" label="Joueurs actifs" value={String(totalUnique)} color="#f59e0b"/>
@@ -178,7 +178,7 @@ function OverviewTab({ data, days }: { data: any, days: number }) {
       </div>
 
       {/* Top jobs + top players */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-xl p-4"
              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h3 className="font-bold mb-3" style={{ color: 'var(--text)' }}>🏆 Top jobs ({days}j)</h3>

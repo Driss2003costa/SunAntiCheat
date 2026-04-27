@@ -234,7 +234,7 @@ export default function Permissions() {
       </div>
 
       {/* Footer stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {ROLES.map(role => {
           const m = ROLE_META[role]
           const count = (draft[role] || new Set()).size

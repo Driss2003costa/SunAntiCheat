@@ -149,7 +149,7 @@ export default function PlayerProfile() {
 
       {/* Content */}
       {tab === 'overview' && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* LuckPerms */}
           <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <h3 className="font-semibold mb-3" style={{ color: 'var(--text)' }}>🎖️ Rangs LuckPerms</h3>
