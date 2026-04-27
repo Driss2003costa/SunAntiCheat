@@ -99,13 +99,18 @@ export default function Sanctions() {
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [presetTemplate, setPresetTemplate] = useState<any>(null)
+  // Filtres pour la liste des sanctions
+  const [typeFilter, setTypeFilter] = useState<string>('ALL')
+  const [search, setSearch] = useState('')
 
   const refresh = async () => {
     setLoading(true)
     try {
       if (tab === 'active' || tab === 'all') {
-        const params: any = { limit: 200 }
+        const params: any = { limit: 500 }
         if (tab === 'active') params.activeOnly = 'true'
+        if (typeFilter !== 'ALL' && typeFilter !== 'BAN_ALL') params.type = typeFilter
+        if (search.trim()) params.target = search.trim()
         setData(await api.sanctionsList(params))
       } else if (tab === 'stats') {
         setStats(await api.sanctionsStats(30))
@@ -114,7 +119,7 @@ export default function Sanctions() {
     } catch {} finally { setLoading(false) }
   }
 
-  useEffect(() => { refresh() }, [tab])
+  useEffect(() => { refresh() }, [tab, typeFilter, search])
 
   const openModal = (preset?: any) => {
     setPresetTemplate(preset || null)
@@ -161,9 +166,18 @@ export default function Sanctions() {
       </div>
 
       {(tab === 'active' || tab === 'all') && (
-        <SanctionList data={data} onRevoke={refresh} onClickPlayer={(name) => {
-          openModal({ target: name })
-        }}/>
+        <>
+          <FilterBar
+            typeFilter={typeFilter} onChangeType={setTypeFilter}
+            search={search} onChangeSearch={setSearch}
+            counts={countsByType(data?.entries || [])}
+          />
+          <SanctionList
+            data={filterClientSide(data, typeFilter)}
+            onRevoke={refresh}
+            onClickPlayer={(name) => openModal({ target: name })}
+          />
+        </>
       )}
       {tab === 'templates' && (
         <TemplatesGrid templates={templates} onUse={(t) => openModal(t)}/>
@@ -182,6 +196,71 @@ export default function Sanctions() {
   )
 }
 
+// ── Filter bar ─────────────────────────────────────────────────────────────
+function FilterBar({ typeFilter, onChangeType, search, onChangeSearch, counts }: {
+  typeFilter: string;
+  onChangeType: (v: string) => void;
+  search: string;
+  onChangeSearch: (v: string) => void;
+  counts: Record<string, number>;
+}) {
+  const FILTERS = [
+    { id: 'ALL',     label: 'Tous',         icon: '📋', count: counts.ALL ?? 0 },
+    { id: 'BAN_ALL', label: 'Bannis',       icon: '🚫', count: (counts.BAN ?? 0) + (counts.IP_BAN ?? 0) },
+    { id: 'MUTE',    label: 'Muets',        icon: '🔇', count: counts.MUTE ?? 0 },
+    { id: 'WARN',    label: 'Avertis',      icon: '⚠️',  count: counts.WARN ?? 0 },
+    { id: 'KICK',    label: 'Kicks',        icon: '👢', count: counts.KICK ?? 0 },
+  ]
+  return (
+    <div className="rounded-xl p-3 flex items-center gap-3 flex-wrap"
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {/* Filter chips */}
+      <div className="flex gap-1.5 flex-wrap">
+        {FILTERS.map(f => (
+          <button key={f.id} onClick={() => onChangeType(f.id)}
+                  className="px-3 py-1.5 rounded text-xs font-medium transition flex items-center gap-1.5"
+                  style={{
+                    background: typeFilter === f.id ? 'var(--primary)' : 'var(--surface-2)',
+                    color: typeFilter === f.id ? 'white' : 'var(--text-muted)',
+                    border: '1px solid var(--border)',
+                  }}>
+            <span>{f.icon} {f.label}</span>
+            <span className="px-1.5 rounded text-xs font-bold"
+                  style={{
+                    background: typeFilter === f.id ? 'rgba(255,255,255,0.25)' : 'var(--bg)',
+                    color: typeFilter === f.id ? 'white' : 'var(--text)',
+                  }}>
+              {f.count}
+            </span>
+          </button>
+        ))}
+      </div>
+      {/* Search */}
+      <div className="flex-1 min-w-[200px]">
+        <input value={search} onChange={e => onChangeSearch(e.target.value)}
+               placeholder="🔍 Rechercher par nom de joueur..."
+               className="w-full px-3 py-1.5 rounded text-sm"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+      </div>
+    </div>
+  )
+}
+
+function countsByType(entries: any[]): Record<string, number> {
+  const c: Record<string, number> = { ALL: entries.length }
+  for (const e of entries) c[e.type] = (c[e.type] ?? 0) + 1
+  return c
+}
+
+function filterClientSide(data: any, typeFilter: string): any {
+  if (!data) return data
+  if (typeFilter === 'BAN_ALL') {
+    const filtered = (data.entries || []).filter((e: any) => e.type === 'BAN' || e.type === 'IP_BAN')
+    return { ...data, entries: filtered, total: filtered.length }
+  }
+  return data
+}
+
 // ── Sanction list ──────────────────────────────────────────────────────────
 function SanctionList({ data, onRevoke, onClickPlayer }: { data: any; onRevoke: () => void; onClickPlayer: (n: string) => void }) {
   if (!data) return <Loading/>
@@ -190,11 +269,15 @@ function SanctionList({ data, onRevoke, onClickPlayer }: { data: any; onRevoke: 
     return <div className="rounded-xl p-12 text-center"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
       <div className="text-4xl mb-2">✨</div>
-      Aucune sanction
+      Aucun résultat
+      <div className="text-xs mt-1">Pas de sanction qui correspond aux filtres</div>
     </div>
   }
   return (
     <div className="space-y-2">
+      <div className="text-xs flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
+        <span>{entries.length} résultat{entries.length > 1 ? 's' : ''}</span>
+      </div>
       {entries.map(e => <SanctionCard key={e.id} entry={e} onRevoke={onRevoke} onClickPlayer={onClickPlayer}/>)}
     </div>
   )
