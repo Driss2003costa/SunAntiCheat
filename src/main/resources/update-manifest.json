@@ -1,0 +1,16 @@
+{
+    "pluginVersion": "2.0.0",
+    "generatedAt": "2026-04-27T15:21:27Z",
+    "files": [
+        {
+            "name": "plugin.yml",
+            "configVersion": 0,
+            "userEditable": true
+        },
+        {
+            "name": "config.yml",
+            "configVersion": 0,
+            "userEditable": true
+        }
+    ]
+}

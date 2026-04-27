@@ -12,6 +12,8 @@ java {
 }
 
 repositories {
+    // Fallback local — préchargé par CI ou sur poste dev si CDN indisponible
+    maven { url = 'file:///tmp/local-maven-repo' }
     mavenCentral()
     maven { url = 'https://repo.papermc.io/repository/maven-public/' }
     maven { url = 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
@@ -74,3 +76,28 @@ shadowJar {
 // Le JAR standard est remplacé par le shadowJar
 jar.enabled = false
 assemble.dependsOn(shadowJar)
+
+// Génère src/main/resources/update-manifest.json avant la compilation
+// avec la liste des fichiers YAML et leur config-version.
+task generateUpdateManifest {
+    inputs.dir  'src/main/resources'
+    outputs.file 'src/main/resources/update-manifest.json'
+
+    doLast {
+        def files = []
+        fileTree(dir: 'src/main/resources', include: '*.yml').each { f ->
+            int configVersion = 0
+            def m = (f.text =~ /(?m)^config-version:\s*(\d+)/)
+            if (m.find()) configVersion = m.group(1).toInteger()
+            files << [name: f.name, configVersion: configVersion, userEditable: true]
+        }
+        def manifest = [
+            pluginVersion: project.version,
+            generatedAt  : new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone('UTC')),
+            files        : files
+        ]
+        def json = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifest))
+        file('src/main/resources/update-manifest.json').text = json
+    }
+}
+processResources.dependsOn generateUpdateManifest

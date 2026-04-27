@@ -52,6 +52,7 @@ public final class DashboardRouter implements HttpHandler {
     private final PickupHandler pickupHandler;
     private final XRayStatsHandler xrayStatsHandler;
     private final ReportsHandler reportsHandler;
+    private final UpdateHandler updateHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -90,7 +91,8 @@ public final class DashboardRouter implements HttpHandler {
                            ConnectionHandler connectionHandler,
                            PickupHandler pickupHandler,
                            XRayStatsHandler xrayStatsHandler,
-                           ReportsHandler reportsHandler) {
+                           ReportsHandler reportsHandler,
+                           UpdateHandler updateHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -129,6 +131,7 @@ public final class DashboardRouter implements HttpHandler {
         this.pickupHandler = pickupHandler;
         this.xrayStatsHandler = xrayStatsHandler;
         this.reportsHandler = reportsHandler;
+        this.updateHandler = updateHandler;
     }
 
     @Override
@@ -518,6 +521,10 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/reports/") && GET(method)) {
             reportsHandler.get(ex, jwt, users, id(path, "/api/reports/")); return;
         }
+
+        // ── Auto-Update ───────────────────────────────────────────────────────
+        if (eq(path, "/api/update/status") && GET(method))  { updateHandler.status(ex, jwt, users); return; }
+        if (eq(path, "/api/update/check")  && POST(method)) { updateHandler.check(ex, jwt, users);  return; }
 
         HttpHelper.error(ex, 404, "Route introuvable: " + method + " " + path);
     }

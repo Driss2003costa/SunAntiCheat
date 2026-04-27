@@ -47,6 +47,7 @@ import sunanticheat.xray.XRayLogManager;
 import sunanticheat.xray.XRayTracker;
 import sunanticheat.dashboard.DashboardModule;
 import sunanticheat.dashboard.GameDataBundle;
+import sunanticheat.updater.UpdateManager;
 import sunanticheat.weaponmechanics.MultiverseInventoriesSpawnWmJoinListener;
 import sunanticheat.weaponmechanics.MultiverseInventoriesSpawnWeaponFileScanner;
 import sunanticheat.weaponmechanics.SpawnWorldWeaponStripListener;
@@ -68,6 +69,7 @@ public class SunAntiCheat extends JavaPlugin {
     private SanctionHistoryStorage sanctionHistoryStorageRef;
     private ReportStorage reportStorageRef;
     private SanctionService sanctionService;
+    private UpdateManager updateManager;
 
     /** Scan MV-Inv spawn (armes WM) — ex. commande {@code /sunguard mvinvscan}. */
     public MultiverseInventoriesSpawnWeaponFileScanner getMultiverseInventoriesSpawnWeaponFileScanner() {
@@ -97,6 +99,10 @@ public class SunAntiCheat extends JavaPlugin {
 
     public SanctionService getSanctionService() {
         return sanctionService;
+    }
+
+    public UpdateManager getUpdateManager() {
+        return updateManager;
     }
 
     @Override
@@ -231,6 +237,10 @@ public class SunAntiCheat extends JavaPlugin {
             reportCommand.setExecutor(rptCmd);
             reportCommand.setTabCompleter(rptCmd);
         }
+        // ── Auto-Update ───────────────────────────────────────────────────────
+        updateManager = new UpdateManager(this);
+        updateManager.start();
+
         // ── Dashboard Web Admin ───────────────────────────────────────────────
         dashboardModule = new DashboardModule(this);
         try {
@@ -332,6 +342,9 @@ public class SunAntiCheat extends JavaPlugin {
                 getLogger().warning("Un scan WM des conteneurs était en cours à l'arrêt du plugin.");
             }
             worldContainerWeaponMechanicsScanner.stop();
+        }
+        if (updateManager != null) {
+            updateManager.applyUpdate();
         }
         if (dashboardModule != null) {
             dashboardModule.stop();

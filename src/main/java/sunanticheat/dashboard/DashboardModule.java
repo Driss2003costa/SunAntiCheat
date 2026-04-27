@@ -359,6 +359,7 @@ public final class DashboardModule {
         PickupHandler     pickupHandler     = new PickupHandler(gameData.itemPickup());
         XRayStatsHandler  xrayStatsHandler  = new XRayStatsHandler(gameData.xrayTracker(), gameData.xrayLogManager());
         ReportsHandler    reportsHandler    = new ReportsHandler(reportStorage);
+        UpdateHandler     updateHandler     = new UpdateHandler(plugin.getUpdateManager());
 
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
@@ -369,7 +370,7 @@ public final class DashboardModule {
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
                 auditHandler, profileHandler, jobsHandler,
                 clientInfoHandler, playtimeHandler, connectionHandler,
-                pickupHandler, xrayStatsHandler, reportsHandler);
+                pickupHandler, xrayStatsHandler, reportsHandler, updateHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

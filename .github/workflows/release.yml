@@ -101,6 +101,13 @@ jobs:
           ls -lh "$JAR"
           echo "jar_path=$JAR" >> "$GITHUB_ENV"
 
+      # ── 6b. SHA-256 ────────────────────────────────────────────────────────
+      - name: Generate SHA-256
+        run: |
+          JAR="build/libs/SunAntiCheat-${{ steps.ver.outputs.version }}.jar"
+          sha256sum "$JAR" | awk '{print $1}' > "${JAR}.sha256"
+          echo "SHA-256 : $(cat ${JAR}.sha256)"
+
       # ── 7. Tag Git annoté ─────────────────────────────────────────────────
       - name: Create and push tag
         run: |
@@ -138,3 +145,4 @@ jobs:
 
           files: |
             build/libs/SunAntiCheat-${{ steps.ver.outputs.version }}.jar
+            build/libs/SunAntiCheat-${{ steps.ver.outputs.version }}.jar.sha256
