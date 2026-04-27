@@ -52,7 +52,7 @@ public final class PickupHandler {
         Map<Material, Integer> agg = storage.getAggregatedByMaterial(op.getUniqueId());
         List<Map<String, Object>> aggregated = new ArrayList<>();
         agg.entrySet().stream()
-                .sorted(Comparator.<Map.Entry<Material, Integer>>comparingByValue().reversed())
+                .sorted(Map.Entry.<Material, Integer>comparingByValue().reversed())
                 .forEach(e -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("material", e.getKey().name());
