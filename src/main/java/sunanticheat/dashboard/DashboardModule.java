@@ -252,12 +252,19 @@ public final class DashboardModule {
         // ── Auto-update depuis GitHub Releases ───────────────────────────────
         if (cfg.getBoolean("dashboard.auto-update.enabled", true)) {
             String repo = cfg.getString("dashboard.auto-update.repo", "Driss2003costa/SunAntiCheat");
+            String ghToken = cfg.getString("dashboard.auto-update.github-token", "");
+            // Aussi : variable d'env GITHUB_TOKEN comme fallback (pratique sur certains hostings)
+            if (ghToken == null || ghToken.isBlank()) {
+                String env = System.getenv("GITHUB_TOKEN");
+                if (env != null && !env.isBlank()) ghToken = env;
+            }
             boolean prerelease = cfg.getBoolean("dashboard.auto-update.prerelease", false);
             int hours = cfg.getInt("dashboard.auto-update.check-interval-hours", 6);
             long intervalMs = hours <= 0 ? 0 : hours * 3600_000L;
-            autoUpdater = new AutoUpdater(plugin, repo, prerelease, intervalMs);
+            autoUpdater = new AutoUpdater(plugin, repo, ghToken, prerelease, intervalMs);
             autoUpdater.start();
-            plugin.getLogger().info("[Dashboard] Auto-update activé (repo " + repo + ")");
+            plugin.getLogger().info("[Dashboard] Auto-update activé (repo " + repo
+                + (ghToken != null && !ghToken.isBlank() ? ", auth: ✓" : ", auth: ✗ (anonyme)") + ")");
         } else {
             plugin.getLogger().info("[Dashboard] Auto-update désactivé.");
         }

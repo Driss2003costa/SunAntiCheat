@@ -52,6 +52,7 @@ public final class AutoUpdater {
     private final JavaPlugin plugin;
     private final Logger logger;
     private final String repo;          // "owner/repo"
+    private final String token;         // PAT GitHub (optionnel, requis pour repos privés)
     private final boolean allowPrerelease;
     private final long checkIntervalMs;
     private final HttpClient http = HttpClient.newBuilder()
@@ -61,10 +62,11 @@ public final class AutoUpdater {
 
     private volatile boolean stopping = false;
 
-    public AutoUpdater(JavaPlugin plugin, String repo, boolean allowPrerelease, long checkIntervalMs) {
+    public AutoUpdater(JavaPlugin plugin, String repo, String token, boolean allowPrerelease, long checkIntervalMs) {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
         this.repo = repo;
+        this.token = (token != null && !token.isBlank()) ? token : null;
         this.allowPrerelease = allowPrerelease;
         this.checkIntervalMs = checkIntervalMs;
     }
@@ -115,7 +117,16 @@ public final class AutoUpdater {
                 JsonObject asset = el.getAsJsonObject();
                 String name = optString(asset, "name");
                 if (name != null && name.endsWith(".jar")) {
-                    jarUrl = optString(asset, "browser_download_url");
+                    // Pour repo privé : on doit passer par l'API URL avec
+                    // Authorization + Accept: application/octet-stream
+                    // (browser_download_url ne marche pas avec un PAT).
+                    // Pour repo public : les deux fonctionnent, on prend l'API
+                    // URL pour cohérence.
+                    jarUrl = optString(asset, "url");           // API URL
+                    if (jarUrl == null || token == null) {
+                        // Fallback browser_download_url si pas de token
+                        jarUrl = optString(asset, "browser_download_url");
+                    }
                     jarName = name;
                     break;
                 }
@@ -158,17 +169,31 @@ public final class AutoUpdater {
                 ? "https://api.github.com/repos/" + repo + "/releases?per_page=10"
                 : "https://api.github.com/repos/" + repo + "/releases/latest";
 
-        HttpRequest req = HttpRequest.newBuilder()
+        HttpRequest.Builder b = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Accept", "application/vnd.github+json")
+                .header("X-GitHub-Api-Version", "2022-11-28")
                 .header("User-Agent", "SunAntiCheat-AutoUpdater")
                 .timeout(Duration.ofSeconds(15))
-                .GET()
-                .build();
+                .GET();
+        if (token != null) b.header("Authorization", "Bearer " + token);
+        HttpRequest req = b.build();
 
         HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
         if (res.statusCode() == 404) {
-            logger.info("[AutoUpdate] Pas encore de release publique sur " + repo);
+            // Soit le repo n'existe pas, soit il est privé sans token
+            if (token == null) {
+                logger.warning("[AutoUpdate] " + repo + " inaccessible (404). Si le repo est privé, "
+                    + "ajoute un Personal Access Token dans dashboard.auto-update.github-token.");
+            } else {
+                logger.warning("[AutoUpdate] " + repo + " : pas de release ou token sans permission "
+                    + "« contents:read ».");
+            }
+            return null;
+        }
+        if (res.statusCode() == 401 || res.statusCode() == 403) {
+            logger.warning("[AutoUpdate] Token GitHub invalide ou sans permission (HTTP "
+                + res.statusCode() + ")");
             return null;
         }
         if (res.statusCode() != 200) {
@@ -189,13 +214,18 @@ public final class AutoUpdater {
     }
 
     private void downloadTo(String url, File target) throws IOException, InterruptedException {
-        HttpRequest req = HttpRequest.newBuilder()
+        HttpRequest.Builder b = HttpRequest.newBuilder()
                 .uri(URI.create(url))
+                // Accept: application/octet-stream → demande le binaire (pas le JSON metadata)
+                // Sur l'API URL d'un asset, GitHub redirige alors vers une URL signée S3 que
+                // notre HttpClient suit (Redirect.NORMAL).
                 .header("Accept", "application/octet-stream")
+                .header("X-GitHub-Api-Version", "2022-11-28")
                 .header("User-Agent", "SunAntiCheat-AutoUpdater")
                 .timeout(Duration.ofMinutes(5))
-                .GET()
-                .build();
+                .GET();
+        if (token != null) b.header("Authorization", "Bearer " + token);
+        HttpRequest req = b.build();
 
         HttpResponse<InputStream> res = http.send(req, HttpResponse.BodyHandlers.ofInputStream());
         if (res.statusCode() < 200 || res.statusCode() >= 300) {

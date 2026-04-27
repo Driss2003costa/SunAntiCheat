@@ -223,6 +223,18 @@ dashboard:
     check-interval-hours: 6     # 0 = check seulement au boot
     prerelease: false           # true pour inclure les pre-releases (alpha/beta)
 
+    # Personal Access Token GitHub — REQUIS si ton repo est privé.
+    # Crée un fine-grained PAT sur https://github.com/settings/personal-access-tokens
+    # avec les permissions :
+    #   - Repository : sélectionne uniquement Driss2003costa/SunAntiCheat
+    #   - Repository permissions :
+    #       * Contents : Read-only
+    #       * Metadata : Read-only (auto-coché)
+    # Expiration : recommandé 1 an. Le token sera stocké en clair dans config.yml,
+    # protège-le bien.
+    # Alternative : laisser vide ici et définir la variable d'env GITHUB_TOKEN.
+    github-token: ""
+
   # ── Base de données ─────────────────────────────────────────────────────
   # Toutes les données du dashboard (audit log, transactions, users, shops,
   # crates, VIP, daily rewards, etc.) sont persistées en DB. Au premier boot
