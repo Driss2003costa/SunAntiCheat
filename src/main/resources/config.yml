@@ -273,6 +273,17 @@ dashboard:
       password-hash: "$2b$12$6JRbVXzhOXEZI9GmjqprHu0lM69.jE9aYm6YWQ1iptVoOIdoSbf/S"
       role: ADMIN
 
+# ── Jobs Reborn — détection farm (bot) ──────────────────────────────────────
+# Surveille les paiements Jobs en fenêtre glissante de 60s par joueur×actionType.
+# Dépasse le seuil → alerte staff en jeu [TP][Sanctions] + alerte dashboard WS.
+jobs:
+  farm-detection:
+    enabled: true
+    # Paiements reçus en moins de 60s avant déclenchement de l'alerte (ex: 30 = 30/min)
+    max-payments-per-minute: 30
+    # Délai minimum (minutes) entre deux alertes pour le même joueur
+    cooldown-minutes: 5
+
 # Première connexion (first join)
 first-join:
   enabled: true

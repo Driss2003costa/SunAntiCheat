@@ -121,6 +121,11 @@ public final class DashboardWsServer extends WebSocketServer {
         broadcastJson("stats", statsData);
     }
 
+    /** Pousse un paiement Jobs en temps réel aux clients abonnés au channel "jobs". */
+    public void broadcastJobsPayment(Object paymentData) {
+        broadcastJson("jobs", paymentData);
+    }
+
     // -------------------------------------------------------------------------
     // Handlers internes
     // -------------------------------------------------------------------------
@@ -147,7 +152,7 @@ public final class DashboardWsServer extends WebSocketServer {
         if (!isAuthenticated(conn)) { conn.send(error("Non authentifié")); return; }
         if (!msg.has("channel")) { conn.send(error("Channel manquant")); return; }
         String channel = msg.get("channel").getAsString();
-        if (!Set.of("console", "alerts", "stats").contains(channel)) {
+        if (!Set.of("console", "alerts", "stats", "jobs").contains(channel)) {
             conn.send(error("Channel inconnu: " + channel)); return;
         }
         subscriptions.get(conn).add(channel);

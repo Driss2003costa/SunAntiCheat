@@ -9,7 +9,10 @@ import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 /**
@@ -26,11 +29,17 @@ public final class JobsRecorder implements Listener {
     private final JobsStore store;
     private final Plugin plugin;
     private final Logger logger;
+    private final JobsFarmDetector farmDetector;
+    private final Consumer<Map<String, Object>> liveCallback;
 
-    public JobsRecorder(JobsStore store, Plugin plugin) {
+    public JobsRecorder(JobsStore store, Plugin plugin,
+                        JobsFarmDetector farmDetector,
+                        Consumer<Map<String, Object>> liveCallback) {
         this.store = store;
         this.plugin = plugin;
         this.logger = plugin.getLogger();
+        this.farmDetector = farmDetector;
+        this.liveCallback = liveCallback;
     }
 
     /**
@@ -116,6 +125,21 @@ public final class JobsRecorder implements Listener {
         } catch (Throwable ignored) {}
 
         store.recordPayment(uuid, name, jobName, money, exp, actionType);
+
+        if (farmDetector != null) farmDetector.record(uuid, name, actionType);
+
+        if (liveCallback != null) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "payment");
+            payload.put("timestamp", System.currentTimeMillis());
+            payload.put("playerName", name);
+            payload.put("playerUuid", uuid);
+            payload.put("jobName", jobName);
+            payload.put("money", money);
+            payload.put("exp", exp);
+            payload.put("actionType", actionType);
+            liveCallback.accept(payload);
+        }
     }
 
     private void handleEvent(Event e, String evType, int level) throws Throwable {

@@ -10,6 +10,7 @@ import sunanticheat.dashboard.analytics.AnalyticsRecorder;
 import sunanticheat.dashboard.analytics.SnapshotStore;
 import sunanticheat.dashboard.economy.EconomyRecorder;
 import sunanticheat.dashboard.economy.TransactionStore;
+import sunanticheat.dashboard.jobs.JobsFarmDetector;
 import sunanticheat.dashboard.jobs.JobsLiveService;
 import sunanticheat.dashboard.jobs.JobsRecorder;
 import sunanticheat.dashboard.jobs.JobsStore;
@@ -203,9 +204,16 @@ public final class DashboardModule {
         if (Bukkit.getPluginManager().getPlugin("Jobs") != null) {
             try {
                 jobsLive = new JobsLiveService();
-                JobsRecorder jobsRecorder = new JobsRecorder(jobsStore, plugin);
+                // Détection farm : fenêtre glissante → alerte staff + dashboard WS
+                JobsFarmDetector farmDetector = new JobsFarmDetector(plugin, this::pushAlertRaw);
+                // Live feed : chaque paiement poussé sur le channel WS "jobs"
+                // wsServer est initialisé plus bas dans start() — la lambda capture this,
+                // donc wsServer sera résolu à l'exécution (pas à la création de la lambda).
+                java.util.function.Consumer<java.util.Map<String, Object>> livePaymentCallback =
+                        data -> { if (wsServer != null) wsServer.broadcastJobsPayment(data); };
+                JobsRecorder jobsRecorder = new JobsRecorder(jobsStore, plugin, farmDetector, livePaymentCallback);
                 if (jobsRecorder.register()) {
-                    plugin.getLogger().info("[Dashboard] Jobs Reborn détecté — tracking activé.");
+                    plugin.getLogger().info("[Dashboard] Jobs Reborn détecté — tracking + farm detection + live feed activés.");
                 } else {
                     plugin.getLogger().warning("[Dashboard] Jobs Reborn présent mais aucun event hooké (API incompatible ?).");
                 }
@@ -434,7 +442,7 @@ public final class DashboardModule {
         if (type == null) return false;
         String t = type.toUpperCase();
         return t.contains("XRAY") || t.contains("KILLAURA") || t.contains("FREECAM")
-                || t.contains("HACK") || t.contains("HONEYPOT");
+                || t.contains("HACK") || t.contains("HONEYPOT") || t.contains("FARM");
     }
 
     private static String prettyType(String type) {
