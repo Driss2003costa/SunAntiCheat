@@ -46,6 +46,7 @@ import sunanticheat.xray.XRayGui;
 import sunanticheat.xray.XRayLogManager;
 import sunanticheat.xray.XRayTracker;
 import sunanticheat.dashboard.DashboardModule;
+import sunanticheat.dashboard.GameDataBundle;
 import sunanticheat.weaponmechanics.MultiverseInventoriesSpawnWmJoinListener;
 import sunanticheat.weaponmechanics.MultiverseInventoriesSpawnWeaponFileScanner;
 import sunanticheat.weaponmechanics.SpawnWorldWeaponStripListener;
@@ -228,7 +229,11 @@ public class SunAntiCheat extends JavaPlugin {
         // ── Dashboard Web Admin ───────────────────────────────────────────────
         dashboardModule = new DashboardModule(this);
         try {
-            dashboardModule.start(sanctionHistoryStorageRef, reportStorageRef, economy);
+            GameDataBundle gameData = new GameDataBundle(
+                    clientInfoTracker, playtimeTracker,
+                    connectionLogStorage, itemPickupStorage,
+                    xRayTracker, xRayLogManager);
+            dashboardModule.start(sanctionHistoryStorageRef, reportStorageRef, economy, gameData);
         } catch (Exception e) {
             getLogger().severe("[Dashboard] Échec du démarrage : " + e.getMessage());
             e.printStackTrace();

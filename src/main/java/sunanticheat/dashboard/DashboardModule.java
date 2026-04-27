@@ -10,6 +10,12 @@ import sunanticheat.dashboard.analytics.AnalyticsRecorder;
 import sunanticheat.dashboard.analytics.SnapshotStore;
 import sunanticheat.dashboard.economy.EconomyRecorder;
 import sunanticheat.dashboard.economy.TransactionStore;
+import sunanticheat.dashboard.handlers.ClientInfoHandler;
+import sunanticheat.dashboard.handlers.ConnectionHandler;
+import sunanticheat.dashboard.handlers.PickupHandler;
+import sunanticheat.dashboard.handlers.PlaytimeHandler;
+import sunanticheat.dashboard.handlers.ReportsHandler;
+import sunanticheat.dashboard.handlers.XRayStatsHandler;
 import sunanticheat.dashboard.jobs.JobsFarmDetector;
 import sunanticheat.dashboard.jobs.JobsLiveService;
 import sunanticheat.dashboard.jobs.JobsRecorder;
@@ -107,7 +113,8 @@ public final class DashboardModule {
 
     public void start(SanctionHistoryStorage sanctionHistory,
                       ReportStorage reportStorage,
-                      Economy economy) throws Exception {
+                      Economy economy,
+                      GameDataBundle gameData) throws Exception {
 
         var cfg = plugin.getConfig();
         // ── Auto-migration des anciens ports (serveurs mis à jour) ──────────
@@ -346,6 +353,13 @@ public final class DashboardModule {
         consoleCapture = ConsoleLogCapture.install(wsServer::broadcastConsole);
 
         // ── HTTP Server ───────────────────────────────────────────────────────
+        ClientInfoHandler clientInfoHandler = new ClientInfoHandler(gameData.clientInfoTracker());
+        PlaytimeHandler   playtimeHandler   = new PlaytimeHandler(gameData.playtimeTracker());
+        ConnectionHandler connectionHandler = new ConnectionHandler(gameData.connectionLog());
+        PickupHandler     pickupHandler     = new PickupHandler(gameData.itemPickup());
+        XRayStatsHandler  xrayStatsHandler  = new XRayStatsHandler(gameData.xrayTracker(), gameData.xrayLogManager());
+        ReportsHandler    reportsHandler    = new ReportsHandler(reportStorage);
+
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
                 taskHandler, pluginHandler, configHandler, rebootHandler, backupHandler,
@@ -353,7 +367,9 @@ public final class DashboardModule {
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
-                auditHandler, profileHandler, jobsHandler);
+                auditHandler, profileHandler, jobsHandler,
+                clientInfoHandler, playtimeHandler, connectionHandler,
+                pickupHandler, xrayStatsHandler, reportsHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

@@ -46,6 +46,12 @@ public final class DashboardRouter implements HttpHandler {
     private final AuditHandler auditHandler;
     private final PlayerProfileHandler profileHandler;
     private final JobsHandler jobsHandler;
+    private final ClientInfoHandler clientInfoHandler;
+    private final PlaytimeHandler playtimeHandler;
+    private final ConnectionHandler connectionHandler;
+    private final PickupHandler pickupHandler;
+    private final XRayStatsHandler xrayStatsHandler;
+    private final ReportsHandler reportsHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -78,7 +84,13 @@ public final class DashboardRouter implements HttpHandler {
                            MobileHandler mobileHandler,
                            AuditHandler auditHandler,
                            PlayerProfileHandler profileHandler,
-                           JobsHandler jobsHandler) {
+                           JobsHandler jobsHandler,
+                           ClientInfoHandler clientInfoHandler,
+                           PlaytimeHandler playtimeHandler,
+                           ConnectionHandler connectionHandler,
+                           PickupHandler pickupHandler,
+                           XRayStatsHandler xrayStatsHandler,
+                           ReportsHandler reportsHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -111,6 +123,12 @@ public final class DashboardRouter implements HttpHandler {
         this.auditHandler = auditHandler;
         this.profileHandler = profileHandler;
         this.jobsHandler = jobsHandler;
+        this.clientInfoHandler = clientInfoHandler;
+        this.playtimeHandler = playtimeHandler;
+        this.connectionHandler = connectionHandler;
+        this.pickupHandler = pickupHandler;
+        this.xrayStatsHandler = xrayStatsHandler;
+        this.reportsHandler = reportsHandler;
     }
 
     @Override
@@ -453,6 +471,47 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/users/") && path.endsWith("/role")   && PATCH(method))  { userHandler.changeRole(ex, jwt, users, id(path, "/api/users/", "/role")); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/password") && POST(method)) { userHandler.resetPassword(ex, jwt, users, id(path, "/api/users/", "/password")); return; }
         if (path.startsWith("/api/users/")           && DELETE(method)) { userHandler.delete(ex, jwt, users, id(path, "/api/users/")); return; }
+
+        // ── ClientInfo ────────────────────────────────────────────────────────
+        if (eq(path, "/api/clientinfo/online") && GET(method)) { clientInfoHandler.online(ex, jwt, users); return; }
+        if (path.startsWith("/api/clientinfo/player/") && GET(method)) {
+            clientInfoHandler.player(ex, jwt, users, id(path, "/api/clientinfo/player/")); return;
+        }
+
+        // ── Playtime ──────────────────────────────────────────────────────────
+        if (eq(path, "/api/playtime/top") && GET(method)) { playtimeHandler.top(ex, jwt, users); return; }
+        if (path.startsWith("/api/playtime/player/") && GET(method)) {
+            playtimeHandler.player(ex, jwt, users, id(path, "/api/playtime/player/")); return;
+        }
+
+        // ── Connections ───────────────────────────────────────────────────────
+        if (path.startsWith("/api/connections/player/") && GET(method)) {
+            connectionHandler.player(ex, jwt, users, id(path, "/api/connections/player/")); return;
+        }
+
+        // ── Pickup ────────────────────────────────────────────────────────────
+        if (path.startsWith("/api/pickup/player/") && GET(method)) {
+            pickupHandler.player(ex, jwt, users, id(path, "/api/pickup/player/")); return;
+        }
+
+        // ── XRay Stats ────────────────────────────────────────────────────────
+        if (eq(path, "/api/xray/stats") && GET(method))  { xrayStatsHandler.stats(ex, jwt, users); return; }
+        if (eq(path, "/api/xray/logs")  && GET(method))  { xrayStatsHandler.logs(ex, jwt, users); return; }
+        if (path.startsWith("/api/xray/logs/") && GET(method)) {
+            xrayStatsHandler.logForDate(ex, jwt, users, id(path, "/api/xray/logs/")); return;
+        }
+        if (path.startsWith("/api/xray/stats/") && GET(method)) {
+            xrayStatsHandler.playerStats(ex, jwt, users, id(path, "/api/xray/stats/")); return;
+        }
+
+        // ── Reports ───────────────────────────────────────────────────────────
+        if (eq(path, "/api/reports") && GET(method)) { reportsHandler.list(ex, jwt, users); return; }
+        if (path.startsWith("/api/reports/") && path.endsWith("/resolve") && PUT(method)) {
+            reportsHandler.resolve(ex, jwt, users, id(path, "/api/reports/", "/resolve")); return;
+        }
+        if (path.startsWith("/api/reports/") && GET(method)) {
+            reportsHandler.get(ex, jwt, users, id(path, "/api/reports/")); return;
+        }
 
         HttpHelper.error(ex, 404, "Route introuvable: " + method + " " + path);
     }
