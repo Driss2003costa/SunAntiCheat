@@ -80,6 +80,28 @@ export default function Jobs() {
 
   const installed = overview?.installed ?? active?.installed ?? null
 
+  // Jobs Reborn absent → plein écran
+  if (installed === false) {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="text-6xl mb-4">💼</div>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>Jobs Reborn non installé</h1>
+          <p className="max-w-md mx-auto text-sm" style={{ color: 'var(--text-muted)' }}>
+            Installe le plugin <b>Jobs Reborn</b> sur ton serveur pour activer le tracking
+            des emplois, des gains et des statistiques de tes joueurs.
+          </p>
+          <a href="https://www.spigotmc.org/resources/jobs-reborn.4216/"
+             target="_blank" rel="noreferrer"
+             className="inline-block mt-6 px-5 py-2 rounded-lg text-white font-medium"
+             style={{ background: 'var(--primary)' }}>
+            📥 Télécharger Jobs Reborn
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 space-y-4 max-w-7xl">
       <div className="flex items-center justify-between">
@@ -112,20 +134,6 @@ export default function Jobs() {
           </button>
         </div>
       </div>
-
-      {/* Bandeau si Jobs Reborn pas installé */}
-      {installed === false && (
-        <div className="rounded-xl p-4 flex items-center gap-3"
-             style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)' }}>
-          <div className="text-2xl">⚠️</div>
-          <div>
-            <div className="font-bold" style={{ color: '#f59e0b' }}>Jobs Reborn non installé</div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Le tracking des jobs est inactif. Les données historiques restent visibles.
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>

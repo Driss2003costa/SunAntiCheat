@@ -290,6 +290,36 @@ export default function Shops() {
 
   // ── Views ──────────────────────────────────────────────────────────────────
 
+  // EconomyShopGUI absent → plein écran
+  if (esgStatus && !esgStatus.installed) {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="text-6xl mb-4">🛒</div>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>EconomyShopGUI non installé</h1>
+          <p className="max-w-md mx-auto text-sm" style={{ color: 'var(--text-muted)' }}>
+            Le plugin <b>EconomyShopGUI</b> (ou EconomyShopGUI+) n'est pas détecté sur ce serveur.
+            Installe-le pour gérer tes shops directement depuis ce dashboard avec synchronisation automatique.
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-6 flex-wrap">
+            <a href="https://www.spigotmc.org/resources/economyshopgui.69476/"
+               target="_blank" rel="noreferrer"
+               className="inline-block px-5 py-2 rounded-lg text-white font-medium"
+               style={{ background: 'var(--primary)' }}>
+              📥 Télécharger EconomyShopGUI
+            </a>
+            <a href="https://polymart.org/resource/economyshopgui.598"
+               target="_blank" rel="noreferrer"
+               className="inline-block px-5 py-2 rounded-lg font-medium"
+               style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
+              💎 EconomyShopGUI+
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (view === 'editor' && editing) {
     return (
       <ShopEditor

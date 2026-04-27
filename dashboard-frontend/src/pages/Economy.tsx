@@ -28,6 +28,36 @@ export default function Economy() {
   const moneyData = toChartData(moneyChart.data)
   const s = summary.data
 
+  // Vault / Economy absent → plein écran
+  if (s && s.economyAvailable === false) {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="text-6xl mb-4">💰</div>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>Vault non disponible</h1>
+          <p className="max-w-md mx-auto text-sm" style={{ color: 'var(--text-muted)' }}>
+            Aucun plugin d'économie compatible <b>Vault</b> n'est détecté sur ce serveur.
+            Installe Vault puis un plugin d'économie (EssentialsX, CMI…) pour activer cette section.
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-6 flex-wrap">
+            <a href="https://www.spigotmc.org/resources/vault.34315/"
+               target="_blank" rel="noreferrer"
+               className="inline-block px-5 py-2 rounded-lg text-white font-medium"
+               style={{ background: 'var(--primary)' }}>
+              📥 Télécharger Vault
+            </a>
+            <a href="https://www.spigotmc.org/resources/essentialsx.9089/"
+               target="_blank" rel="noreferrer"
+               className="inline-block px-5 py-2 rounded-lg font-medium"
+               style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
+              📥 EssentialsX
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const pieData = stats.data ? [
     { name: 'Achats', value: stats.data.totalBuy },
     { name: 'Ventes', value: stats.data.totalSell },
