@@ -40,44 +40,30 @@ jobs:
       - name: Compute version
         id: ver
         run: |
-          # Si version fournie manuellement, on l'utilise telle quelle
           if [ -n "${{ github.event.inputs.version }}" ]; then
             NEW_VER="${{ github.event.inputs.version }}"
-            echo "Version manuelle : $NEW_VER"
           else
-            # Dernier tag vX.Y.Z
             LATEST=$(git tag --sort=-version:refname \
               | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
               | head -1)
-
-            if [ -z "$LATEST" ]; then
-              LATEST="v2.0.0"
-            fi
-
+            if [ -z "$LATEST" ]; then LATEST="v2.0.0"; fi
             VER="${LATEST#v}"
             MAJOR=$(echo "$VER" | cut -d. -f1)
             MINOR=$(echo "$VER" | cut -d. -f2)
             PATCH=$(echo "$VER" | cut -d. -f3)
-
             BUMP="${{ github.event.inputs.bump }}"
-            BUMP="${BUMP:-patch}"   # défaut = patch sur push
-
+            BUMP="${BUMP:-patch}"
             case "$BUMP" in
               major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
               minor) MINOR=$((MINOR+1)); PATCH=0 ;;
               *)     PATCH=$((PATCH+1)) ;;
             esac
-
             NEW_VER="$MAJOR.$MINOR.$PATCH"
-            echo "Auto-incrément ($BUMP) depuis $LATEST → $NEW_VER"
           fi
-
-          # Vérifier que le tag n'existe pas déjà
           if git rev-parse "v$NEW_VER" >/dev/null 2>&1; then
             echo "::error::Le tag v$NEW_VER existe déjà !"
             exit 1
           fi
-
           echo "version=$NEW_VER" >> "$GITHUB_OUTPUT"
           echo "tag=v$NEW_VER"    >> "$GITHUB_OUTPUT"
 
@@ -93,7 +79,9 @@ jobs:
 
       # ── 6. Build ───────────────────────────────────────────────────────────
       - name: Build shadow JAR
-        run: ./gradlew shadowJar --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew shadowJar --no-daemon
 
       - name: Verify JAR
         run: |
