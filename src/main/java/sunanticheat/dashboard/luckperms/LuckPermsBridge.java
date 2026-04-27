@@ -5,6 +5,7 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.group.Group;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.model.user.UserManager;
+import net.luckperms.api.node.NodeType;
 import net.luckperms.api.node.types.InheritanceNode;
 import org.bukkit.Bukkit;
 
@@ -14,6 +15,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
@@ -228,6 +230,63 @@ public final class LuckPermsBridge {
         } catch (Throwable t) {
             LOG.warning("[LP] isInGroup fail: " + t.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Retourne les permissions d'un groupe LuckPerms :
+     *  - directPermissions : permissions posées directement sur le groupe (+ ou -)
+     *  - inheritedFrom     : groupes parents (InheritanceNode)
+     *  - resolvedPermissions : map effective après héritage (depuis le cache LP)
+     */
+    public static Map<String, Object> groupPermissions(String groupName) {
+        if (!isAvailable() || groupName == null) return Map.of("error", "LuckPerms non disponible");
+        try {
+            LuckPerms api = getApi();
+            if (api == null) return Map.of("error", "API indisponible");
+            Group g = api.getGroupManager().getGroup(groupName);
+            if (g == null) return Map.of("error", "groupe introuvable : " + groupName);
+
+            // Permissions directes (PermissionNode uniquement, pas meta/inheritance)
+            List<Map<String, Object>> direct = new ArrayList<>();
+            for (var node : g.getNodes(NodeType.PERMISSION)) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("permission", node.getKey());
+                m.put("value", node.getValue());
+                direct.add(m);
+            }
+            direct.sort(Comparator.comparing(m -> (String) m.get("permission")));
+
+            // Groupes parents (héritage)
+            List<String> inherited = new ArrayList<>();
+            for (InheritanceNode node : g.getNodes(NodeType.INHERITANCE)) {
+                inherited.add(node.getGroupName());
+            }
+
+            // Permissions résolues (après héritage, depuis le cache LuckPerms)
+            List<Map<String, Object>> resolved = new ArrayList<>();
+            try {
+                Map<String, Boolean> pmap = new TreeMap<>(
+                        g.getCachedData().getPermissionData().getPermissionMap());
+                for (Map.Entry<String, Boolean> entry : pmap.entrySet()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("permission", entry.getKey());
+                    m.put("value", entry.getValue());
+                    resolved.add(m);
+                }
+            } catch (Throwable ignored) {}
+
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("group", groupName);
+            out.put("directPermissions", direct);
+            out.put("directCount", direct.size());
+            out.put("inheritedFrom", inherited);
+            out.put("resolvedPermissions", resolved);
+            out.put("resolvedCount", resolved.size());
+            return out;
+        } catch (Throwable t) {
+            LOG.warning("[LP] groupPermissions fail: " + t.getMessage());
+            return Map.of("error", t.getMessage() == null ? "erreur inconnue" : t.getMessage());
         }
     }
 

@@ -144,6 +144,21 @@ public final class LuckPermsHandler {
         }
     }
 
+    /**
+     * GET /api/luckperms/group/{groupName}/permissions — MOD+.
+     * Retourne les permissions directes, les groupes parents et les permissions
+     * résolues (après héritage) pour un groupe LuckPerms.
+     */
+    public void groupPermissions(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
+                                 String groupName) throws IOException {
+        if (HttpHelper.requireAtLeast(ex, jwt, users, DashboardRole.MOD) == null) return;
+        if (groupName == null || groupName.isBlank()) {
+            HttpHelper.error(ex, 400, "groupName requis");
+            return;
+        }
+        HttpHelper.json(ex, 200, LuckPermsBridge.groupPermissions(groupName));
+    }
+
     /** GET /api/luckperms/online — MOD+. Joueurs connectés avec leurs groupes. */
     public void onlinePlayersWithGroups(HttpExchange ex, JwtUtil jwt,
                                         Map<String, DashboardUser> users) throws IOException {
