@@ -230,6 +230,51 @@ public final class JobsStore {
         return out;
     }
 
+    /** Vide complètement l'historique des events JOIN/LEAVE/LEVEL_UP. */
+    public synchronized int clearAllEvents() {
+        try (PreparedStatement ps = db.conn().prepareStatement("DELETE FROM jobs_events")) {
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] clearAllEvents erreur", e);
+            return 0;
+        }
+    }
+
+    /** Vide complètement l'historique des paiements. */
+    public synchronized int clearAllPayments() {
+        try (PreparedStatement ps = db.conn().prepareStatement("DELETE FROM jobs_payments")) {
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] clearAllPayments erreur", e);
+            return 0;
+        }
+    }
+
+    /**
+     * Supprime UNIQUEMENT les events dupliqués (même player + job + type + ts).
+     * Garde une seule ligne par groupe (la première par id alphabétique).
+     * Portable SQLite + MySQL.
+     */
+    public synchronized int dedupEvents() {
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "DELETE FROM jobs_events WHERE id NOT IN ("
+              + "  SELECT * FROM (SELECT MIN(id) FROM jobs_events GROUP BY player_uuid, job_name, event_type, ts) AS keep"
+              + ")")) {
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            // Fallback SQLite (qui n'aime pas le double SELECT)
+            try (PreparedStatement ps2 = db.conn().prepareStatement(
+                    "DELETE FROM jobs_events WHERE id NOT IN ("
+                  + "  SELECT MIN(id) FROM jobs_events GROUP BY player_uuid, job_name, event_type, ts"
+                  + ")")) {
+                return ps2.executeUpdate();
+            } catch (SQLException ex) {
+                logger.log(Level.WARNING, "[Jobs] dedupEvents erreur", ex);
+                return 0;
+            }
+        }
+    }
+
     /** Revenus globaux par jour (N derniers jours, tous jobs confondus). */
     public synchronized Map<String, Object> moneyOverTime(int days) {
         List<String> labels = new ArrayList<>();

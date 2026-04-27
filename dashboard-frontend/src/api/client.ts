@@ -57,6 +57,10 @@ export const api = {
   jobsHistory:   (limit = 100, offset = 0) => request<any>(`/api/jobs/history?limit=${limit}&offset=${offset}`),
   jobsPlayer:    (name: string, days = 30) =>
     request<any>(`/api/jobs/player/${encodeURIComponent(name)}?days=${days}`),
+  jobsClearHistory: (mode: 'all' | 'duplicates' | 'payments') =>
+    request<{ success: boolean; mode: string; deleted: number }>('/api/jobs/history/clear', {
+      method: 'POST', body: JSON.stringify({ mode }),
+    }),
 
   // Sanctions (kick / ban / mute / warn modernes)
   sanctionsList: (params: Record<string, any> = {}) => {

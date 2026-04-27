@@ -143,7 +143,7 @@ export default function Jobs() {
 
       {tab === 'overview' && <OverviewTab data={overview} days={days}/>}
       {tab === 'active'   && <ActiveTab data={active} />}
-      {tab === 'history'  && <HistoryTab data={history} />}
+      {tab === 'history'  && <HistoryTab data={history} onRefresh={refresh} />}
       {tab === 'catalog'  && <CatalogTab data={overview} />}
     </div>
   )
@@ -305,22 +305,73 @@ function ActiveTab({ data }: { data: any }) {
 }
 
 // ── History ────────────────────────────────────────────────────────────────────
-function HistoryTab({ data }: { data: any }) {
+function HistoryTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+  const [busy, setBusy] = useState(false)
+
+  const clearAll = async () => {
+    if (!confirm('Vider TOUT l\'historique des events Jobs (JOIN/LEAVE/LEVEL_UP) ?\n\nCette action est irréversible.')) return
+    setBusy(true)
+    try {
+      const res = await api.jobsClearHistory('all')
+      alert(`✓ ${res.deleted} event(s) supprimé(s)`)
+      onRefresh()
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
+    } finally { setBusy(false) }
+  }
+
+  const dedup = async () => {
+    if (!confirm('Supprimer uniquement les events dupliqués ?\n\nGarde 1 ligne par groupe (player, job, type, ts). Recommandé après le fix anti-doublons.')) return
+    setBusy(true)
+    try {
+      const res = await api.jobsClearHistory('duplicates')
+      alert(`✓ ${res.deleted} doublon(s) supprimé(s)`)
+      onRefresh()
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
+    } finally { setBusy(false) }
+  }
+
+  const Toolbar = (
+    <div className="flex items-center justify-between mb-2 px-1">
+      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        {data?.entries?.length ?? 0} événement{(data?.entries?.length ?? 0) > 1 ? 's' : ''}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={dedup} disabled={busy}
+                className="px-3 py-1.5 rounded text-xs font-medium"
+                style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+          {busy ? '⏳' : '🧹 Supprimer doublons'}
+        </button>
+        <button onClick={clearAll} disabled={busy}
+                className="px-3 py-1.5 rounded text-xs font-medium"
+                style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+          {busy ? '⏳' : '🗑 Tout vider'}
+        </button>
+      </div>
+    </div>
+  )
+
   if (!data) return <Loading/>
   const entries: any[] = data.entries || []
 
   if (entries.length === 0) {
-    return <div className="rounded-xl p-12 text-center"
+    return <div>
+      {Toolbar}
+      <div className="rounded-xl p-12 text-center"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-      <div className="text-4xl mb-2">📜</div>
-      Aucun événement enregistré
+        <div className="text-4xl mb-2">📜</div>
+        Aucun événement enregistré
+      </div>
     </div>
   }
 
   return (
-    <div className="rounded-xl overflow-hidden"
-         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      {entries.map((e, i) => (
+    <div>
+      {Toolbar}
+      <div className="rounded-xl overflow-hidden"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        {entries.map((e, i) => (
         <div key={i} className="px-4 py-2 flex items-center gap-3 hover:bg-white/[0.02]"
              style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="text-xl">{EVENT_ICONS[e.eventType] || '📋'}</div>
@@ -345,7 +396,8 @@ function HistoryTab({ data }: { data: any }) {
             {timeAgo(e.timestamp)}
           </div>
         </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

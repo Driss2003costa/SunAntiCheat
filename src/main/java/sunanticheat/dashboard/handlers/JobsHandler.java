@@ -81,4 +81,30 @@ public final class JobsHandler {
         out.put("earnings", store.playerEarnings(playerName, days));
         HttpHelper.json(ex, 200, out);
     }
+
+    /**
+     * POST /api/jobs/history/clear — vide l'historique des events.
+     * Body : { mode: "all" | "duplicates" | "payments" }
+     * Permission : ADMIN.
+     */
+    public void clearHistory(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requireAdmin(ex, u)) return;
+
+        String mode = "duplicates";
+        try {
+            com.google.gson.JsonObject body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), com.google.gson.JsonObject.class);
+            if (body != null && body.has("mode")) mode = body.get("mode").getAsString();
+        } catch (Exception ignored) {}
+
+        int deleted;
+        switch (mode) {
+            case "all":        deleted = store.clearAllEvents();   break;
+            case "payments":   deleted = store.clearAllPayments(); break;
+            case "duplicates":
+            default:           deleted = store.dedupEvents();      break;
+        }
+        HttpHelper.json(ex, 200, Map.of("success", true, "mode", mode, "deleted", deleted));
+    }
 }
