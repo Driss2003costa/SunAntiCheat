@@ -72,16 +72,24 @@ public final class JobsRecorder implements Listener {
     // ── Handlers (par réflexion) ─────────────────────────────────────────────
 
     private void handlePayment(Event e) throws Throwable {
-        Class<?> ec = e.getClass();
-        OfflinePlayer p = invoke(e, "getPlayer", OfflinePlayer.class);
-        String uuid = playerUuid(p);
-        String name = p == null ? null : p.getName();
+        // getPlayer() on JobsPaymentEvent returns a JobsPlayer, not OfflinePlayer
+        Object jobsPlayer = invoke(e, "getPlayer", Object.class);
+        String uuid = null, name = null;
+        if (jobsPlayer instanceof OfflinePlayer op) {
+            uuid = playerUuid(op);
+            name = op.getName();
+        } else if (jobsPlayer != null) {
+            Object u = invoke(jobsPlayer, "getPlayerUUID", Object.class);
+            if (u instanceof UUID uu) uuid = uu.toString();
+            Object n = invoke(jobsPlayer, "getName", Object.class);
+            if (n != null) name = String.valueOf(n);
+        }
 
-        // Job
         Object job = invoke(e, "getJob", Object.class);
         String jobName = jobName(job);
 
-        // Payment map (CurrencyType → Double)
+        // API ancienne : getPayment() → Map<CurrencyType, Double>
+        // API récente (5.x+) : getMoney() / getExp() directs
         double money = 0, exp = 0;
         Object paymentMap = invoke(e, "getPayment", Object.class);
         if (paymentMap instanceof java.util.Map<?, ?> map) {
@@ -91,9 +99,13 @@ public final class JobsRecorder implements Listener {
                 if ("MONEY".equalsIgnoreCase(key)) money = v;
                 else if ("EXP".equalsIgnoreCase(key) || "POINTS".equalsIgnoreCase(key)) exp = v;
             }
+        } else {
+            Object m = invoke(e, "getMoney", Object.class);
+            if (m instanceof Number n) money = n.doubleValue();
+            Object ex2 = invoke(e, "getExp", Object.class);
+            if (ex2 instanceof Number n) exp = n.doubleValue();
         }
 
-        // ActionType (optional)
         String actionType = null;
         try {
             Object actionInfo = invoke(e, "getActionInfo", Object.class);

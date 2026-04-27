@@ -77,9 +77,9 @@ public final class JobsStore {
 
     public synchronized void recordPayment(String playerUuid, String playerName, String jobName,
                                            double amount, double exp, String actionType) {
-        if (jobName == null) return;
+        if (jobName == null || jobName.equalsIgnoreCase("unknown")) return;
         try (PreparedStatement ps = db.conn().prepareStatement(
-                "REPLACE INTO jobs_payments(id, ts, player_uuid, player_name, job_name, amount, exp, action_type) "
+                "INSERT INTO jobs_payments(id, ts, player_uuid, player_name, job_name, amount, exp, action_type) "
               + "VALUES(?,?,?,?,?,?,?,?)")) {
             ps.setString(1, UUID.randomUUID().toString());
             ps.setLong  (2, System.currentTimeMillis());
@@ -97,9 +97,9 @@ public final class JobsStore {
 
     public synchronized void recordEvent(String playerUuid, String playerName, String jobName,
                                          String eventType, int level) {
-        if (jobName == null || eventType == null) return;
+        if (jobName == null || jobName.equalsIgnoreCase("unknown") || eventType == null) return;
         try (PreparedStatement ps = db.conn().prepareStatement(
-                "REPLACE INTO jobs_events(id, ts, player_uuid, player_name, job_name, event_type, level) "
+                "INSERT INTO jobs_events(id, ts, player_uuid, player_name, job_name, event_type, level) "
               + "VALUES(?,?,?,?,?,?,?)")) {
             ps.setString(1, UUID.randomUUID().toString());
             ps.setLong  (2, System.currentTimeMillis());
