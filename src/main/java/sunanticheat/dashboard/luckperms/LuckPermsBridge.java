@@ -7,6 +7,7 @@ import net.luckperms.api.model.user.User;
 import net.luckperms.api.model.user.UserManager;
 import net.luckperms.api.node.NodeType;
 import net.luckperms.api.node.types.InheritanceNode;
+import net.luckperms.api.node.types.PermissionNode;
 import org.bukkit.Bukkit;
 
 import java.util.ArrayList;
@@ -287,6 +288,60 @@ public final class LuckPermsBridge {
         } catch (Throwable t) {
             LOG.warning("[LP] groupPermissions fail: " + t.getMessage());
             return Map.of("error", t.getMessage() == null ? "erreur inconnue" : t.getMessage());
+        }
+    }
+
+    /**
+     * Ajoute une permission directe sur un groupe (async).
+     *
+     * @param groupName  Nom du groupe (ex: "admin")
+     * @param permission Nœud de permission (ex: "essentials.fly")
+     * @param value      true = accordée, false = refusée (nœud négatif)
+     */
+    public static CompletableFuture<Boolean> addPermission(String groupName, String permission, boolean value) {
+        if (!isAvailable() || groupName == null || permission == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        try {
+            LuckPerms api = getApi();
+            if (api == null) return CompletableFuture.completedFuture(false);
+            Group g = api.getGroupManager().getGroup(groupName);
+            if (g == null) return CompletableFuture.completedFuture(false);
+            g.data().add(PermissionNode.builder(permission).value(value).build());
+            return api.getGroupManager().saveGroup(g)
+                    .thenApply(v -> true)
+                    .exceptionally(t -> { LOG.warning("[LP] addPermission save fail: " + t.getMessage()); return false; });
+        } catch (Throwable t) {
+            LOG.warning("[LP] addPermission fail: " + t.getMessage());
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    /**
+     * Supprime une permission directe d'un groupe (async).
+     * Supprime le nœud quelle que soit sa valeur (true ou false).
+     *
+     * @param groupName  Nom du groupe
+     * @param permission Nœud de permission à retirer
+     */
+    public static CompletableFuture<Boolean> removePermission(String groupName, String permission) {
+        if (!isAvailable() || groupName == null || permission == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        try {
+            LuckPerms api = getApi();
+            if (api == null) return CompletableFuture.completedFuture(false);
+            Group g = api.getGroupManager().getGroup(groupName);
+            if (g == null) return CompletableFuture.completedFuture(false);
+            // On tente de retirer les deux variantes (true ET false) pour être sûr
+            g.data().remove(PermissionNode.builder(permission).value(true).build());
+            g.data().remove(PermissionNode.builder(permission).value(false).build());
+            return api.getGroupManager().saveGroup(g)
+                    .thenApply(v -> true)
+                    .exceptionally(t -> { LOG.warning("[LP] removePermission save fail: " + t.getMessage()); return false; });
+        } catch (Throwable t) {
+            LOG.warning("[LP] removePermission fail: " + t.getMessage());
+            return CompletableFuture.completedFuture(false);
         }
     }
 

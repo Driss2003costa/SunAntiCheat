@@ -159,6 +159,69 @@ public final class LuckPermsHandler {
         HttpHelper.json(ex, 200, LuckPermsBridge.groupPermissions(groupName));
     }
 
+    /**
+     * POST /api/luckperms/group/{groupName}/permissions — ADMIN.
+     * Body: { "permission": "essentials.fly", "value": true }
+     * Ajoute une permission directe sur le groupe (value=false = nœud négatif).
+     */
+    @SuppressWarnings("unchecked")
+    public void addGroupPermission(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
+                                   String groupName) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.LUCKPERMS_EDIT)) return;
+        if (groupName == null || groupName.isBlank()) {
+            HttpHelper.error(ex, 400, "groupName requis");
+            return;
+        }
+        Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+        if (body == null || body.get("permission") == null) {
+            HttpHelper.error(ex, 400, "body { permission, value? } requis");
+            return;
+        }
+        String permission = (String) body.get("permission");
+        boolean value = body.get("value") instanceof Boolean b ? b : true;
+        try {
+            boolean ok = LuckPermsBridge.addPermission(groupName, permission, value).get(5, TimeUnit.SECONDS);
+            if (ok) {
+                plugin.getLogger().info("[LP] " + u.username() + " a ajouté la permission "
+                        + (value ? "+" : "-") + permission + " au groupe " + groupName);
+                HttpHelper.json(ex, 200, Map.of("success", true));
+            } else {
+                HttpHelper.error(ex, 500, "Échec de l'ajout de la permission");
+            }
+        } catch (Exception e) {
+            HttpHelper.error(ex, 500, "Erreur : " + e.getMessage());
+        }
+    }
+
+    /**
+     * DELETE /api/luckperms/group/{groupName}/permissions/{permission} — ADMIN.
+     * Supprime une permission directe du groupe (retire les nœuds + et -).
+     */
+    public void removeGroupPermission(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
+                                      String groupName, String permission) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.LUCKPERMS_EDIT)) return;
+        if (groupName == null || groupName.isBlank() || permission == null || permission.isBlank()) {
+            HttpHelper.error(ex, 400, "groupName et permission requis");
+            return;
+        }
+        try {
+            boolean ok = LuckPermsBridge.removePermission(groupName, permission).get(5, TimeUnit.SECONDS);
+            if (ok) {
+                plugin.getLogger().info("[LP] " + u.username() + " a supprimé la permission "
+                        + permission + " du groupe " + groupName);
+                HttpHelper.json(ex, 200, Map.of("success", true));
+            } else {
+                HttpHelper.error(ex, 500, "Échec de la suppression de la permission");
+            }
+        } catch (Exception e) {
+            HttpHelper.error(ex, 500, "Erreur : " + e.getMessage());
+        }
+    }
+
     /** GET /api/luckperms/online — MOD+. Joueurs connectés avec leurs groupes. */
     public void onlinePlayersWithGroups(HttpExchange ex, JwtUtil jwt,
                                         Map<String, DashboardUser> users) throws IOException {

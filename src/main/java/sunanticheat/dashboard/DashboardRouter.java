@@ -360,6 +360,15 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/luckperms/status")       && GET(method))    { luckPermsHandler.status(ex, jwt, users); return; }
         if (eq(path, "/api/luckperms/groups")       && GET(method))    { luckPermsHandler.listGroups(ex, jwt, users); return; }
         if (eq(path, "/api/luckperms/online")       && GET(method))    { luckPermsHandler.onlinePlayersWithGroups(ex, jwt, users); return; }
+        if (path.matches("/api/luckperms/group/[^/]+/permissions/.*") && DELETE(method)) {
+            String after = path.substring("/api/luckperms/group/".length());
+            int sep = after.indexOf("/permissions/");
+            luckPermsHandler.removeGroupPermission(ex, jwt, users,
+                    after.substring(0, sep), after.substring(sep + "/permissions/".length())); return;
+        }
+        if (path.startsWith("/api/luckperms/group/") && path.endsWith("/permissions") && POST(method)) {
+            luckPermsHandler.addGroupPermission(ex, jwt, users, id(path, "/api/luckperms/group/", "/permissions")); return;
+        }
         if (path.startsWith("/api/luckperms/group/") && path.endsWith("/permissions") && GET(method)) {
             luckPermsHandler.groupPermissions(ex, jwt, users, id(path, "/api/luckperms/group/", "/permissions")); return;
         }
