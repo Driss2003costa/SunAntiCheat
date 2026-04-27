@@ -24,7 +24,8 @@ const NAV_CATEGORIES = [
     label: 'Sécurité',
     icon: '🛡️',
     items: [
-      { to: '/sanctions',    label: 'Sanctions',       icon: '⚖️' },
+      { to: '/sanctions',    label: 'Sanctions (legacy)', icon: '⚖️' },
+      { to: '/moderation',   label: 'Modération',      icon: '⚒️' },
       { to: '/reports',      label: 'Reports',         icon: '🚨' },
       { to: '/honeypot',     label: 'Honeypot',        icon: '🍯' },
       { to: '/toxic-chat',   label: 'Chat toxique',    icon: '🗯️' },

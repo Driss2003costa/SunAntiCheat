@@ -13,6 +13,10 @@ import sunanticheat.dashboard.economy.TransactionStore;
 import sunanticheat.dashboard.jobs.JobsLiveService;
 import sunanticheat.dashboard.jobs.JobsRecorder;
 import sunanticheat.dashboard.jobs.JobsStore;
+import sunanticheat.dashboard.sanctions.KickScreenFormatter;
+import sunanticheat.dashboard.sanctions.SanctionListeners;
+import sunanticheat.dashboard.sanctions.SanctionService;
+import sunanticheat.dashboard.sanctions.SanctionStore;
 import sunanticheat.dashboard.backup.BackupManager;
 import sunanticheat.dashboard.announcements.AnnouncementService;
 import sunanticheat.dashboard.announcements.AnnouncementStore;
@@ -99,6 +103,7 @@ public final class DashboardModule {
     private VipStore vipStore;
     private VipExpirationScheduler vipScheduler;
     private Database database;
+    private SanctionListeners sanctionListeners;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -225,6 +230,17 @@ public final class DashboardModule {
         MobileHandler   mobileHandler    = new MobileHandler();
         AuditHandler    auditHandler     = new AuditHandler(auditStore);
         JobsHandler     jobsHandler      = new JobsHandler(jobsStore, jobsLive);
+
+        // ── Sanctions modernes (kick/ban/mute/warn DB-backed + stylized) ─────
+        SanctionStore sanctionStore = new SanctionStore(database, blobs, plugin.getLogger());
+        String appealUrl = cfg.getString("dashboard.sanctions.appeal-url", "");
+        String serverName = cfg.getString("dashboard.sanctions.server-name", "Serveur");
+        KickScreenFormatter formatter = new KickScreenFormatter(serverName, appealUrl);
+        SanctionService sanctionService = new SanctionService(plugin, sanctionStore, formatter);
+        sanctionListeners = new SanctionListeners(plugin, sanctionService);
+        sanctionListeners.start();
+        SanctionsHandler sanctionsHandler = new SanctionsHandler(sanctionService);
+        plugin.getLogger().info("[Dashboard] Système de sanctions modernes activé.");
         PlayerProfileHandler profileHandler = new PlayerProfileHandler(
                 plugin, sanctionHistory, reportStorage, alertStore,
                 transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
@@ -345,7 +361,7 @@ public final class DashboardModule {
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
-                auditHandler, profileHandler, jobsHandler);
+                auditHandler, profileHandler, jobsHandler, sanctionsHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -392,6 +408,7 @@ public final class DashboardModule {
         if (vipScheduler != null) vipScheduler.stop();
         if (vipStore != null) vipStore.save();
         if (Audit.store() != null) Audit.store().save();
+        if (sanctionListeners != null) { sanctionListeners.stop(); sanctionListeners = null; }
         if (database != null) { database.close(); database = null; }
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }

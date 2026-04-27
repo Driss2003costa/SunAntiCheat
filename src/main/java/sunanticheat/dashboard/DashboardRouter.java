@@ -46,6 +46,7 @@ public final class DashboardRouter implements HttpHandler {
     private final AuditHandler auditHandler;
     private final PlayerProfileHandler profileHandler;
     private final JobsHandler jobsHandler;
+    private final SanctionsHandler sanctionsHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -78,7 +79,8 @@ public final class DashboardRouter implements HttpHandler {
                            MobileHandler mobileHandler,
                            AuditHandler auditHandler,
                            PlayerProfileHandler profileHandler,
-                           JobsHandler jobsHandler) {
+                           JobsHandler jobsHandler,
+                           SanctionsHandler sanctionsHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -111,6 +113,7 @@ public final class DashboardRouter implements HttpHandler {
         this.auditHandler = auditHandler;
         this.profileHandler = profileHandler;
         this.jobsHandler = jobsHandler;
+        this.sanctionsHandler = sanctionsHandler;
     }
 
     @Override
@@ -172,6 +175,18 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/jobs/history")   && GET(method))    { jobsHandler.history(ex, jwt, users); return; }
         if (path.startsWith("/api/jobs/player/") && GET(method)) {
             jobsHandler.player(ex, jwt, users, path.substring("/api/jobs/player/".length())); return;
+        }
+
+        // ── Sanctions (kick/ban/mute/warn modernes) ──────────────────────────
+        if (eq(path, "/api/sanctions")           && GET(method))   { sanctionsHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions")           && POST(method))  { sanctionsHandler.issue(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/templates") && GET(method))   { sanctionsHandler.listTemplates(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/templates") && POST(method))  { sanctionsHandler.saveTemplates(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/stats")     && GET(method))   { sanctionsHandler.stats(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/preview")   && POST(method))  { sanctionsHandler.preview(ex, jwt, users); return; }
+        if (path.matches("/api/sanctions/[^/]+/revoke") && POST(method)) {
+            String id = path.substring("/api/sanctions/".length(), path.length() - "/revoke".length());
+            sanctionsHandler.revoke(ex, jwt, users, id); return;
         }
 
         // ── Player profile (agrégation) ──────────────────────────────────────
