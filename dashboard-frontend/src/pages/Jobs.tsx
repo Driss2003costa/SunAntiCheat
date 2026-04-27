@@ -33,6 +33,30 @@ function fmtMoney(n: number): string {
   return `${n.toFixed(2)} $`
 }
 
+/**
+ * Nettoie un nom de job des codes couleur Minecraft (§a, &c) et des
+ * glyphes Unicode de la PUA (Private Use Area) utilisés par ItemsAdder
+ * pour rendre des icônes custom — invisibles côté web.
+ */
+function cleanJobName(s: string | undefined | null): string {
+  if (!s) return '?'
+  // Strip color codes
+  let r = s.replace(/[§&][0-9a-fk-orxA-FK-ORX]/g, '')
+  // Strip PUA chars (BMP + supplementary)
+  r = r.replace(/[\uE000-\uF8FF]/g, '')
+       .replace(/[\u{F0000}-\u{FFFFD}]/gu, '')
+       .replace(/[\u{100000}-\u{10FFFD}]/gu, '')
+  r = r.replace(/\s{2,}/g, ' ').trim()
+  return r || '?'
+}
+
+/** Nom à afficher : displayName s'il est fourni et lisible, sinon name. */
+function jobDisplay(j: any, fallbackKey = 'name'): string {
+  const dn = cleanJobName(j?.displayName)
+  if (dn && dn !== '?') return dn
+  return cleanJobName(j?.[fallbackKey])
+}
+
 function timeAgo(ts: number): string {
   const sec = Math.floor((Date.now() - ts) / 1000)
   if (sec < 60)    return `${sec}s`
@@ -202,7 +226,7 @@ function OverviewTab({ data, days }: { data: any, days: number }) {
                 return (
                   <tr key={j.jobName} style={{ borderTop: '1px solid var(--border)' }}>
                     <td className="py-2">
-                      <div className="font-medium" style={{ color: 'var(--text)' }}>{j.jobName}</div>
+                      <div className="font-medium" style={{ color: 'var(--text)' }}>{cleanJobName(j.jobName)}</div>
                       <div className="h-1 rounded mt-1" style={{ background: 'var(--surface-2)' }}>
                         <div className="h-full rounded" style={{ background: 'var(--primary)', width: `${pct}%` }}/>
                       </div>
@@ -287,7 +311,7 @@ function ActiveTab({ data }: { data: any }) {
               <div key={j.name}
                    className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-2"
                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                <span className="font-bold" style={{ color: 'var(--text)' }}>{j.name}</span>
+                <span className="font-bold" style={{ color: 'var(--text)' }}>{jobDisplay(j)}</span>
                 <span style={{ color: '#f59e0b' }}>Lv {j.level}{j.maxLevel ? `/${j.maxLevel}` : ''}</span>
                 {j.nextLevelExp > 0 && (
                   <div className="w-16 h-1 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
@@ -389,7 +413,7 @@ function HistoryTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
               {' '}
               <span style={{ color: 'var(--text-muted)' }}>→</span>
               {' '}
-              <span className="font-medium" style={{ color: 'var(--text)' }}>{e.jobName}</span>
+              <span className="font-medium" style={{ color: 'var(--text)' }}>{cleanJobName(e.jobName)}</span>
             </div>
           </div>
           <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -429,7 +453,7 @@ function CatalogTab({ data }: { data: any }) {
                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-lg" style={{ color: 'var(--text)' }}>
-                {j.displayName || j.name}
+                {jobDisplay(j)}
               </h3>
               <span className="text-xs px-2 py-0.5 rounded"
                     style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
