@@ -222,6 +222,15 @@ public final class LuckPermsHandler {
         }
     }
 
+    /**
+     * GET /api/luckperms/matrix — MOD+.
+     * Retourne tous les groupes avec leurs permissions directes et résolues en un seul appel.
+     */
+    public void matrix(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        if (HttpHelper.requireAtLeast(ex, jwt, users, DashboardRole.MOD) == null) return;
+        HttpHelper.json(ex, 200, LuckPermsBridge.permissionsMatrix());
+    }
+
     /** GET /api/luckperms/online — MOD+. Joueurs connectés avec leurs groupes. */
     public void onlinePlayersWithGroups(HttpExchange ex, JwtUtil jwt,
                                         Map<String, DashboardUser> users) throws IOException {

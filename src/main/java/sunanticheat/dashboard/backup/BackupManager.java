@@ -12,6 +12,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -104,7 +105,100 @@ public final class BackupManager {
         return f.isFile() && f.delete();
     }
 
+    /**
+     * Restaure un backup ZIP vers le dossier du monde.
+     * Séquence : décharge le monde → supprime l'ancien dossier → décompresse → recharge.
+     */
+    public CompletableFuture<Map<String, Object>> restoreBackup(String worldName, String filename) {
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\"))
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Nom de fichier invalide"));
+        File zipFile = new File(new File(backupsDir, worldName), filename);
+        if (!zipFile.isFile())
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Backup introuvable: " + filename));
+
+        return CompletableFuture.supplyAsync(() -> {
+            World world = Bukkit.getWorld(worldName);
+            File worldDir = world != null ? world.getWorldFolder()
+                    : new File(Bukkit.getWorldContainer(), worldName);
+
+            // Décharge sur le main thread
+            if (world != null) {
+                try {
+                    Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                        world.getPlayers().forEach(p ->
+                                p.kickPlayer("Restauration du monde " + worldName + " en cours…"));
+                        return Bukkit.unloadWorld(world, false);
+                    }).get();
+                } catch (Exception e) {
+                    throw new RuntimeException("Impossible de décharger le monde: " + e.getMessage(), e);
+                }
+            }
+
+            // Supprime l'ancien dossier monde
+            try { deleteDir(worldDir); }
+            catch (IOException e) {
+                throw new RuntimeException("Impossible de supprimer l'ancien dossier monde: " + e.getMessage(), e);
+            }
+
+            // Décompresse le ZIP
+            try { unzip(zipFile, worldDir.getParentFile()); }
+            catch (IOException e) {
+                throw new RuntimeException("Décompression échouée: " + e.getMessage(), e);
+            }
+
+            // Recharge le monde sur le main thread
+            try {
+                Bukkit.getScheduler().callSyncMethod(plugin, () -> {
+                    Bukkit.createWorld(new org.bukkit.WorldCreator(worldName));
+                    return null;
+                }).get();
+            } catch (Exception e) {
+                logger.warning("[Dashboard/Backup] Monde restauré mais rechargement échoué: " + e.getMessage());
+            }
+
+            logger.info("[Dashboard/Backup] Monde " + worldName + " restauré depuis " + filename);
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("world", worldName);
+            res.put("filename", filename);
+            res.put("restored", true);
+            return res;
+        });
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    private static void deleteDir(File dir) throws IOException {
+        if (!dir.exists()) return;
+        Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<>() {
+            @Override public FileVisitResult visitFile(Path file, BasicFileAttributes a) throws IOException {
+                Files.delete(file); return FileVisitResult.CONTINUE;
+            }
+            @Override public FileVisitResult postVisitDirectory(Path d, IOException e) throws IOException {
+                if (e != null) throw e;
+                Files.delete(d); return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    private static void unzip(File zip, File destDir) throws IOException {
+        destDir.mkdirs();
+        try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(zip)))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                File out = new File(destDir, entry.getName().replace('\\', '/'));
+                // Prevent path traversal
+                if (!out.getCanonicalPath().startsWith(destDir.getCanonicalPath() + File.separator)) continue;
+                if (entry.isDirectory()) { out.mkdirs(); }
+                else {
+                    out.getParentFile().mkdirs();
+                    try (OutputStream os = new BufferedOutputStream(new FileOutputStream(out))) {
+                        zis.transferTo(os);
+                    }
+                }
+                zis.closeEntry();
+            }
+        }
+    }
 
     private static void zipFolder(Path root, String baseName, ZipOutputStream zos) throws IOException {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {

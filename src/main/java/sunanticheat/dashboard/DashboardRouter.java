@@ -183,6 +183,7 @@ public final class DashboardRouter implements HttpHandler {
         // ── Audit log ─────────────────────────────────────────────────────────
         if (eq(path, "/api/audit")          && GET(method))    { auditHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/audit/actions")  && GET(method))    { auditHandler.actions(ex, jwt, users); return; }
+        if (eq(path, "/api/audit/export")   && GET(method))    { auditHandler.export(ex, jwt, users); return; }
 
         // ── Jobs (Jobs Reborn) ────────────────────────────────────────────────
         if (eq(path, "/api/jobs/overview")  && GET(method))    { jobsHandler.overview(ex, jwt, users); return; }
@@ -287,9 +288,10 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/reboot/now")      && POST(method)) { rebootHandler.now(ex, jwt, users); return; }
 
         // ── Backups ───────────────────────────────────────────────────────────
-        if (eq(path, "/api/backups") && GET(method))    { backupHandler.list(ex, jwt, users); return; }
-        if (eq(path, "/api/backups") && POST(method))   { backupHandler.create(ex, jwt, users); return; }
-        if (eq(path, "/api/backups") && DELETE(method)) { backupHandler.delete(ex, jwt, users); return; }
+        if (eq(path, "/api/backups")         && GET(method))    { backupHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/backups")         && POST(method))   { backupHandler.create(ex, jwt, users); return; }
+        if (eq(path, "/api/backups")         && DELETE(method)) { backupHandler.delete(ex, jwt, users); return; }
+        if (eq(path, "/api/backups/restore") && POST(method))   { backupHandler.restore(ex, jwt, users); return; }
 
         // ── Panic Mode ────────────────────────────────────────────────────────
         if (eq(path, "/api/panic/status")     && GET(method))  { panicHandler.status(ex, jwt, users); return; }
@@ -377,6 +379,7 @@ public final class DashboardRouter implements HttpHandler {
         // ── LuckPerms ─────────────────────────────────────────────────────────
         if (eq(path, "/api/luckperms/status")       && GET(method))    { luckPermsHandler.status(ex, jwt, users); return; }
         if (eq(path, "/api/luckperms/groups")       && GET(method))    { luckPermsHandler.listGroups(ex, jwt, users); return; }
+        if (eq(path, "/api/luckperms/matrix")       && GET(method))    { luckPermsHandler.matrix(ex, jwt, users); return; }
         if (eq(path, "/api/luckperms/online")       && GET(method))    { luckPermsHandler.onlinePlayersWithGroups(ex, jwt, users); return; }
         if (path.matches("/api/luckperms/group/[^/]+/permissions/.*") && DELETE(method)) {
             String after = path.substring("/api/luckperms/group/".length());
@@ -455,9 +458,12 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/vip/webhook/paypal")  && POST(method))  { vipPublicHandler.paypalWebhook(ex); return; }
 
         // ── Mobile (push notifications) ──────────────────────────────────────
-        if (eq(path, "/api/mobile/push/register") && POST(method)) { mobileHandler.registerPush(ex, jwt, users); return; }
-        if (eq(path, "/api/mobile/push/test")     && POST(method)) { mobileHandler.testPush(ex, jwt, users); return; }
-        if (eq(path, "/api/mobile/devices")       && GET(method))  { mobileHandler.listDevices(ex, jwt, users); return; }
+        if (eq(path, "/api/mobile/push/register") && POST(method))   { mobileHandler.registerPush(ex, jwt, users); return; }
+        if (eq(path, "/api/mobile/push/test")     && POST(method))   { mobileHandler.testPush(ex, jwt, users); return; }
+        if (eq(path, "/api/mobile/devices")       && GET(method))    { mobileHandler.listDevices(ex, jwt, users); return; }
+        if (path.startsWith("/api/mobile/devices/") && DELETE(method)) {
+            mobileHandler.unregisterPush(ex, jwt, users, id(path, "/api/mobile/devices/")); return;
+        }
 
         // ── Permissions matrix ────────────────────────────────────────────────
         if (eq(path, "/api/permissions")            && GET(method))    { permsHandler.get(ex, jwt, users); return; }

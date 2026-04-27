@@ -48,4 +48,21 @@ public final class BackupHandler {
         if (!ok) { HttpHelper.error(ex, 404, "Backup introuvable"); return; }
         HttpHelper.noContent(ex);
     }
+
+    @SuppressWarnings("unchecked")
+    public void restore(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.BACKUP_MANAGE)) return;
+        Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+        String world    = body != null ? (String) body.get("world")    : null;
+        String filename = body != null ? (String) body.get("filename") : null;
+        if (world == null || filename == null) { HttpHelper.error(ex, 400, "world+filename requis"); return; }
+        try {
+            Map<String, Object> res = manager.restoreBackup(world, filename).get(15, java.util.concurrent.TimeUnit.MINUTES);
+            HttpHelper.json(ex, 200, res);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 500, "Restauration échouée: " + e.getMessage());
+        }
+    }
 }

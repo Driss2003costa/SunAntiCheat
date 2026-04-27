@@ -145,7 +145,19 @@ public final class JobsRecorder implements Listener {
     private void handleEvent(Event e, String evType, int level) throws Throwable {
         OfflinePlayer p = invoke(e, "getPlayer", OfflinePlayer.class);
         Object job = invoke(e, "getJob", Object.class);
-        store.recordEvent(playerUuid(p), p == null ? null : p.getName(), jobName(job), evType, level);
+        String jName = jobName(job);
+        store.recordEvent(playerUuid(p), p == null ? null : p.getName(), jName, evType, level);
+
+        if (liveCallback != null) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", evType);
+            payload.put("timestamp", System.currentTimeMillis());
+            payload.put("playerName", p == null ? null : p.getName());
+            payload.put("playerUuid", playerUuid(p));
+            payload.put("jobName", jName);
+            payload.put("level", level);
+            liveCallback.accept(payload);
+        }
     }
 
     private void handleLevelUp(Event e) throws Throwable {
@@ -159,12 +171,24 @@ public final class JobsRecorder implements Listener {
             if (n != null) name = String.valueOf(n);
         }
         Object job = invoke(e, "getJob", Object.class);
+        String jName = jobName(job);
         int level = 0;
         try {
             Object lvl = invoke(e, "getNewLevel", Object.class);
             if (lvl instanceof Number num) level = num.intValue();
         } catch (Throwable ignored) {}
-        store.recordEvent(uuid, name, jobName(job), "LEVEL_UP", level);
+        store.recordEvent(uuid, name, jName, "LEVEL_UP", level);
+
+        if (liveCallback != null) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "LEVEL_UP");
+            payload.put("timestamp", System.currentTimeMillis());
+            payload.put("playerName", name);
+            payload.put("playerUuid", uuid);
+            payload.put("jobName", jName);
+            payload.put("level", level);
+            liveCallback.accept(payload);
+        }
     }
 
     // ── Helpers réflexion ────────────────────────────────────────────────────

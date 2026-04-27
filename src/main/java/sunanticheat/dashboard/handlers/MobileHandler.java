@@ -71,4 +71,15 @@ public final class MobileHandler {
                 "Les notifications push fonctionnent correctement !", "default");
         HttpHelper.json(ex, 200, Map.of("ok", true, "sent", true));
     }
+
+    /** DELETE /api/mobile/devices/{token} — supprime l'enregistrement d'un appareil (auth requise). */
+    public void unregisterPush(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
+                               String token) throws IOException {
+        if (HttpHelper.authenticate(ex, jwt, users) == null) return;
+        if (token == null || token.isBlank()) { HttpHelper.error(ex, 400, "token requis"); return; }
+        PushService svc = PushService.get();
+        if (svc == null) { HttpHelper.error(ex, 503, "Push service non initialisé"); return; }
+        svc.removeDevice(token);
+        HttpHelper.noContent(ex);
+    }
 }

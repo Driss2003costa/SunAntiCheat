@@ -345,6 +345,30 @@ public final class LuckPermsBridge {
         }
     }
 
+    /**
+     * Retourne la matrice complète groupes × permissions.
+     * Pour chaque groupe chargé : ses permissions directes, l'héritage et les permissions résolues.
+     */
+    public static Map<String, Object> permissionsMatrix() {
+        if (!isAvailable()) return Map.of("error", "LuckPerms non disponible");
+        try {
+            LuckPerms api = getApi();
+            if (api == null) return Map.of("error", "API indisponible");
+            List<Map<String, Object>> groups = new ArrayList<>();
+            for (Group g : api.getGroupManager().getLoadedGroups()) {
+                groups.add(groupPermissions(g.getName()));
+            }
+            groups.sort(Comparator.comparing(m -> (String) m.get("group")));
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("groups", groups);
+            out.put("groupCount", groups.size());
+            return out;
+        } catch (Throwable t) {
+            LOG.warning("[LP] permissionsMatrix fail: " + t.getMessage());
+            return Map.of("error", t.getMessage() == null ? "erreur inconnue" : t.getMessage());
+        }
+    }
+
     /** Récupère le groupe principal d'un joueur, ou null. */
     public static String getPrimaryGroup(String uuidStr) {
         if (!isAvailable() || uuidStr == null) return null;

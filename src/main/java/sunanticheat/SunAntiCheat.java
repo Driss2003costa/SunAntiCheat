@@ -67,6 +67,7 @@ public class SunAntiCheat extends JavaPlugin {
     private DashboardModule dashboardModule;
     private SanctionHistoryStorage sanctionHistoryStorageRef;
     private ReportStorage reportStorageRef;
+    private SanctionService sanctionService;
 
     /** Scan MV-Inv spawn (armes WM) — ex. commande {@code /sunguard mvinvscan}. */
     public MultiverseInventoriesSpawnWeaponFileScanner getMultiverseInventoriesSpawnWeaponFileScanner() {
@@ -92,6 +93,10 @@ public class SunAntiCheat extends JavaPlugin {
 
     public DashboardModule getDashboardModule() {
         return dashboardModule;
+    }
+
+    public SanctionService getSanctionService() {
+        return sanctionService;
     }
 
     @Override
@@ -134,7 +139,7 @@ public class SunAntiCheat extends JavaPlugin {
         MainMenuGui mainMenuGui = new MainMenuGui(xRayGui, playerListGui, freecamGui, clientInfoGui);
 
         MuteStorage muteStorage = new MuteStorage(this);
-        SanctionService sanctionService = new SanctionService(muteStorage);
+        this.sanctionService = new SanctionService(muteStorage);
         SanctionHistoryStorage sanctionHistoryStorage = new SanctionHistoryStorage(this);
         this.sanctionHistoryStorageRef = sanctionHistoryStorage;
         SanctionMenuGui sanctionMenuGui = new SanctionMenuGui(sanctionService);
