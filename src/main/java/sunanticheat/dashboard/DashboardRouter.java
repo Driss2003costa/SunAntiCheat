@@ -183,6 +183,9 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/jobs/player/") && GET(method)) {
             jobsHandler.player(ex, jwt, users, path.substring("/api/jobs/player/".length())); return;
         }
+        if (path.startsWith("/api/jobs/job/") && GET(method)) {
+            jobsHandler.jobDetail(ex, jwt, users, path.substring("/api/jobs/job/".length())); return;
+        }
         if (eq(path, "/api/jobs/history/clear") && POST(method)) { jobsHandler.clearHistory(ex, jwt, users); return; }
 
         // ── Sanctions (kick/ban/mute/warn modernes) ──────────────────────────

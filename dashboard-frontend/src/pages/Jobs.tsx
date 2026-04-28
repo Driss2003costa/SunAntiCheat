@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 
 /**
@@ -185,7 +186,7 @@ export default function Jobs() {
       {tab === 'history'  && <HistoryTab data={history} onRefresh={refresh}
                                           filter={historyFilter}
                                           onFilterChange={f => { setHistoryFilter(f); refreshHistory(f) }} />}
-      {tab === 'catalog'  && <CatalogTab data={overview} />}
+      {tab === 'catalog'  && <CatalogTab data={overview} days={days} />}
     </div>
   )
 }
@@ -278,7 +279,12 @@ function OverviewTab({ data, days }: { data: any, days: number }) {
               {topPlayers.slice(0, 10).map((p: any, i: number) => (
                 <tr key={p.playerUuid || i} style={{ borderTop: '1px solid var(--border)' }}>
                   <td className="py-2" style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
-                  <td className="py-2 font-medium" style={{ color: 'var(--text)' }}>{p.playerName}</td>
+                  <td className="py-2 font-medium">
+                    <Link to={`/players/${encodeURIComponent(p.playerName)}`}
+                          className="hover:underline" style={{ color: 'var(--text)' }}>
+                      {p.playerName}
+                    </Link>
+                  </td>
                   <td className="py-2 text-right" style={{ color: 'var(--text-muted)' }}>{p.payments}</td>
                   <td className="py-2 text-right font-bold" style={{ color: '#10b981' }}>{fmtMoney(p.totalMoney)}</td>
                 </tr>
@@ -522,7 +528,8 @@ function HistoryTab({ data, onRefresh, filter, onFilterChange }: {
 }
 
 // ── Catalog ────────────────────────────────────────────────────────────────────
-function CatalogTab({ data }: { data: any }) {
+function CatalogTab({ data, days }: { data: any; days?: number }) {
+  const [openJob, setOpenJob] = useState<string | null>(null)
   if (!data) return <Loading/>
   const jobs: any[] = data.jobs || []
   const occupancy: any[] = data.occupancy || []
@@ -539,40 +546,155 @@ function CatalogTab({ data }: { data: any }) {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-      {jobs.map(j => {
-        const occ = occMap[j.name]
-        const total = totalMap[j.name]
-        return (
-          <div key={j.name} className="rounded-xl p-4"
-               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-bold text-lg" style={{ color: 'var(--text)' }}>
-                {jobDisplay(j)}
-              </h3>
-              <span className="text-xs px-2 py-0.5 rounded"
-                    style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
-                Niv max {j.maxLevel}
-              </span>
-            </div>
-            {j.description && (
-              <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{j.description}</p>
-            )}
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <Stat label="Total inscrits" value={String(j.totalPlayers)} color="#3b82f6"/>
-              <Stat label="Online" value={String(occ?.onlineCount ?? 0)} color="#10b981"/>
-              <Stat label="Niv. moy. (online)" value={String(occ?.avgLevel ?? 0)} color="#f59e0b"/>
-            </div>
-            {total && (
-              <div className="mt-3 pt-3 text-xs flex items-center justify-between"
-                   style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                <span>Gains période :</span>
-                <span className="font-bold" style={{ color: '#10b981' }}>{fmtMoney(total.totalMoney)}</span>
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {jobs.map(j => {
+          const occ = occMap[j.name]
+          const total = totalMap[j.name]
+          return (
+            <button key={j.name}
+                 onClick={() => setOpenJob(j.name)}
+                 className="text-left rounded-xl p-4 transition hover:scale-[1.02] cursor-pointer"
+                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-lg" style={{ color: 'var(--text)' }}>
+                  {jobDisplay(j)}
+                </h3>
+                <span className="text-xs px-2 py-0.5 rounded"
+                      style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                  Niv max {j.maxLevel}
+                </span>
               </div>
-            )}
-          </div>
-        )
-      })}
+              {j.description && (
+                <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{j.description}</p>
+              )}
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <Stat label="Total inscrits" value={String(j.totalPlayers)} color="#3b82f6"/>
+                <Stat label="Online" value={String(occ?.onlineCount ?? 0)} color="#10b981"/>
+                <Stat label="Niv. moy. (online)" value={String(occ?.avgLevel ?? 0)} color="#f59e0b"/>
+              </div>
+              {total && (
+                <div className="mt-3 pt-3 text-xs flex items-center justify-between"
+                     style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                  <span>Gains période :</span>
+                  <span className="font-bold" style={{ color: '#10b981' }}>{fmtMoney(total.totalMoney)}</span>
+                </div>
+              )}
+              <div className="mt-2 text-xs text-center" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+                Cliquer pour les détails →
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      {openJob && <JobDetailModal jobName={openJob} days={days || 7} onClose={() => setOpenJob(null)}/>}
+    </>
+  )
+}
+
+// ── Job detail modal ───────────────────────────────────────────────────────────
+function JobDetailModal({ jobName, days, onClose }: { jobName: string; days: number; onClose: () => void }) {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    api.jobsJobDetail(jobName, days).then(setData).catch(() => {}).finally(() => setLoading(false))
+  }, [jobName, days])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+         onClick={onClose}>
+      <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 space-y-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+           onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+            💼 {cleanJobName(jobName)} <span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>({days}j)</span>
+          </h2>
+          <button onClick={onClose} className="text-2xl" style={{ color: 'var(--text-muted)' }}>×</button>
+        </div>
+
+        {loading || !data ? <Loading/> : (
+          <>
+            {/* KPIs */}
+            <div className="grid grid-cols-4 gap-3">
+              <Kpi icon="💰" label="Gains total" value={fmtMoney(data.totalMoney || 0)} color="#10b981"/>
+              <Kpi icon="📊" label="Paiements" value={String(data.totalPayments || 0)} color="#3b82f6"/>
+              <Kpi icon="👥" label="Joueurs uniques" value={String(data.uniquePlayers || 0)} color="#f59e0b"/>
+              <Kpi icon="⭐" label="EXP totale" value={fmtMoney(data.totalExp || 0).replace(' $', '')} color="#8b5cf6"/>
+            </div>
+
+            {/* Top players */}
+            <div className="rounded-xl p-4"
+                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <h3 className="font-bold mb-2" style={{ color: 'var(--text)' }}>🥇 Top joueurs</h3>
+              {!data.topPlayers || data.topPlayers.length === 0 ? (
+                <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Aucun joueur actif sur ce job</div>
+              ) : (
+                <div className="space-y-1">
+                  {data.topPlayers.slice(0, 10).map((p: any, i: number) => (
+                    <div key={p.playerUuid || i}
+                         className="flex items-center gap-3 px-2 py-1.5 rounded text-sm"
+                         style={{ background: 'var(--surface)' }}>
+                      <span className="w-6 text-right" style={{ color: 'var(--text-muted)' }}>{i + 1}.</span>
+                      <Link to={`/players/${encodeURIComponent(p.playerName)}`}
+                            className="flex-1 font-medium hover:underline" style={{ color: 'var(--text)' }}>
+                        {p.playerName}
+                      </Link>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{p.payments} paiements</span>
+                      <span className="font-bold" style={{ color: '#10b981' }}>{fmtMoney(p.totalMoney)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Action type breakdown */}
+            <div className="rounded-xl p-4"
+                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <h3 className="font-bold mb-2" style={{ color: 'var(--text)' }}>⚙️ Breakdown par action</h3>
+              <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                Quelles actions rapportent le plus pour ce job
+              </p>
+              {!data.byActionType || data.byActionType.length === 0 ? (
+                <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Aucune donnée d'action_type</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ color: 'var(--text-muted)' }}>
+                      <th className="text-left pb-1">Action</th>
+                      <th className="text-right pb-1">Nb</th>
+                      <th className="text-right pb-1">Moyen</th>
+                      <th className="text-right pb-1">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.byActionType.slice(0, 15).map((a: any, i: number) => {
+                      const max = data.byActionType[0]?.totalMoney || 1
+                      const pct = (a.totalMoney / max) * 100
+                      return (
+                        <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
+                          <td className="py-1.5">
+                            <div className="font-mono text-xs" style={{ color: 'var(--text)' }}>{a.actionType}</div>
+                            <div className="h-0.5 rounded mt-0.5" style={{ background: 'var(--bg)' }}>
+                              <div className="h-full rounded" style={{ background: '#10b981', width: `${pct}%` }}/>
+                            </div>
+                          </td>
+                          <td className="text-right" style={{ color: 'var(--text-muted)' }}>{a.count}</td>
+                          <td className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>{fmtMoney(a.avgMoney)}</td>
+                          <td className="text-right font-bold" style={{ color: '#10b981' }}>{fmtMoney(a.totalMoney)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

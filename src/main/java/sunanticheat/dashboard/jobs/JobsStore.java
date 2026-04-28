@@ -309,6 +309,119 @@ public final class JobsStore {
         return out;
     }
 
+    /**
+     * Détail complet d'un job : top players, breakdown par action_type,
+     * statistiques globales depuis N jours.
+     */
+    public synchronized Map<String, Object> jobDetail(String jobName, int sinceDays) {
+        long since = System.currentTimeMillis() - sinceDays * 86_400_000L;
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("jobName", jobName);
+        out.put("days", sinceDays);
+
+        // Totaux globaux
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT COUNT(*) AS n, COUNT(DISTINCT player_uuid) AS players, "
+              + "COALESCE(SUM(amount), 0) AS money, COALESCE(SUM(exp), 0) AS exp "
+              + "FROM jobs_payments WHERE job_name = ? AND ts >= ?")) {
+            ps.setString(1, jobName);
+            ps.setLong  (2, since);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    out.put("totalPayments", rs.getInt("n"));
+                    out.put("uniquePlayers", rs.getInt("players"));
+                    out.put("totalMoney", round(rs.getDouble("money")));
+                    out.put("totalExp", round(rs.getDouble("exp")));
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] jobDetail totals erreur", e);
+        }
+
+        // Top players sur ce job
+        List<Map<String, Object>> topPlayers = new ArrayList<>();
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT player_uuid, player_name, "
+              + "       COALESCE(SUM(amount), 0) AS total_money, "
+              + "       COALESCE(SUM(exp), 0)    AS total_exp, "
+              + "       COUNT(*)                AS payments_count "
+              + "FROM jobs_payments WHERE job_name = ? AND ts >= ? "
+              + "GROUP BY player_uuid, player_name "
+              + "ORDER BY total_money DESC LIMIT 20")) {
+            ps.setString(1, jobName);
+            ps.setLong  (2, since);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("playerUuid", rs.getString("player_uuid"));
+                    m.put("playerName", rs.getString("player_name"));
+                    m.put("totalMoney", round(rs.getDouble("total_money")));
+                    m.put("totalExp", round(rs.getDouble("total_exp")));
+                    m.put("payments", rs.getInt("payments_count"));
+                    topPlayers.add(m);
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] jobDetail topPlayers erreur", e);
+        }
+        out.put("topPlayers", topPlayers);
+
+        // Breakdown par action_type (BREAK_DIAMOND_ORE, KILL_ZOMBIE, etc.)
+        List<Map<String, Object>> byAction = new ArrayList<>();
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT COALESCE(action_type, 'UNKNOWN') AS atype, "
+              + "       COUNT(*)                       AS n, "
+              + "       COALESCE(SUM(amount), 0)        AS total_money, "
+              + "       COALESCE(AVG(amount), 0)        AS avg_money "
+              + "FROM jobs_payments WHERE job_name = ? AND ts >= ? "
+              + "GROUP BY atype ORDER BY total_money DESC LIMIT 30")) {
+            ps.setString(1, jobName);
+            ps.setLong  (2, since);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("actionType", rs.getString("atype"));
+                    m.put("count", rs.getInt("n"));
+                    m.put("totalMoney", round(rs.getDouble("total_money")));
+                    m.put("avgMoney", round(rs.getDouble("avg_money")));
+                    byAction.add(m);
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] jobDetail byAction erreur", e);
+        }
+        out.put("byActionType", byAction);
+
+        // Activité quotidienne sur ce job (graph)
+        out.put("daily", dailyMoneyForJob(jobName, sinceDays));
+        return out;
+    }
+
+    private Map<String, Object> dailyMoneyForJob(String jobName, int days) {
+        List<String> labels = new ArrayList<>();
+        List<Double> data = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        for (int i = days - 1; i >= 0; i--) {
+            long start = now - (i + 1) * 86_400_000L;
+            long end   = now - i * 86_400_000L;
+            double v = 0;
+            try (PreparedStatement ps = db.conn().prepareStatement(
+                    "SELECT COALESCE(SUM(amount), 0) FROM jobs_payments "
+                  + "WHERE job_name = ? AND ts >= ? AND ts < ?")) {
+                ps.setString(1, jobName);
+                ps.setLong  (2, start);
+                ps.setLong  (3, end);
+                try (ResultSet rs = ps.executeQuery()) { if (rs.next()) v = rs.getDouble(1); }
+            } catch (SQLException ignored) {}
+            labels.add(java.time.LocalDate.now().minusDays(i).toString().substring(5));
+            data.add(round(v));
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("labels", labels);
+        out.put("data", data);
+        return out;
+    }
+
     /** Vide complètement l'historique des events JOIN/LEAVE/LEVEL_UP. */
     public synchronized int clearAllEvents() {
         try (PreparedStatement ps = db.conn().prepareStatement("DELETE FROM jobs_events")) {

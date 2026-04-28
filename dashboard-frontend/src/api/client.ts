@@ -77,6 +77,8 @@ export const api = {
   },
   jobsPlayer:    (name: string, days = 30) =>
     request<any>(`/api/jobs/player/${encodeURIComponent(name)}?days=${days}`),
+  jobsJobDetail: (name: string, days = 7) =>
+    request<any>(`/api/jobs/job/${encodeURIComponent(name)}?days=${days}`),
   jobsClearHistory: (mode: 'all' | 'duplicates' | 'payments') =>
     request<{ success: boolean; mode: string; deleted: number }>('/api/jobs/history/clear', {
       method: 'POST', body: JSON.stringify({ mode }),

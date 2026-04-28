@@ -82,6 +82,15 @@ public final class JobsHandler {
         HttpHelper.json(ex, 200, store.paymentsHistory(limit, offset, player, job));
     }
 
+    /** GET /api/jobs/job/{name}?days=30 — détails d'un job (top players + action breakdown). */
+    public void jobDetail(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
+                           String jobName) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        int days = Math.max(1, Math.min(90, HttpHelper.queryInt(ex, "days", 7)));
+        HttpHelper.json(ex, 200, store.jobDetail(jobName, days));
+    }
+
     /** GET /api/jobs/player/{name} — détails d'un joueur (gains par job). */
     public void player(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
                        String playerName) throws IOException {
