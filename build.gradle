@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'sunanticheat'
-version = '2.0.0'
+version = '2.0.12'
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -28,17 +28,14 @@ dependencies {
     compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
     compileOnly 'com.github.Gypopo:EconomyShopGUI-API:1.9.0'
     compileOnly 'net.luckperms:api:5.4'
-    // Note : Jobs Reborn n'est PAS une dépendance compile-time. On l'utilise via
-    // réflexion dans JobsRecorder/JobsLiveService → plugin compile sans Jobs présent.
 
     // Dashboard — shaded dans le JAR final
     implementation 'org.java-websocket:Java-WebSocket:1.5.6'
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly    'io.jsonwebtoken:jjwt-impl:0.12.6'
-    runtimeOnly    'io.jsonwebtoken:jjwt-gson:0.12.6'   // utilise Gson fourni par Paper
+    runtimeOnly    'io.jsonwebtoken:jjwt-gson:0.12.6'
     implementation 'at.favre.lib:bcrypt:0.10.2'
     implementation 'org.xerial:sqlite-jdbc:3.46.1.0'
-    // MariaDB connector — compatible aussi avec MySQL 5.7/8.x
     implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
 }
 
@@ -59,12 +56,9 @@ shadowJar {
 
     mergeServiceFiles()
 
-    // Relocalisation pour éviter tout conflit classpath côté serveur
     relocate 'org.java_websocket', 'sunanticheat.deps.websocket'
     relocate 'io.jsonwebtoken',    'sunanticheat.deps.jwt'
     relocate 'at.favre.lib',       'sunanticheat.deps.bcrypt'
-    // sqlite-jdbc : on NE relocate PAS org.sqlite car le driver charge des libs natives
-    // par chemin résolu au runtime ; relocation casse le DriverManager.
 
     exclude 'META-INF/*.SF'
     exclude 'META-INF/*.DSA'
@@ -73,12 +67,9 @@ shadowJar {
     exclude 'META-INF/LICENSE*'
 }
 
-// Le JAR standard est remplacé par le shadowJar
 jar.enabled = false
 assemble.dependsOn(shadowJar)
 
-// Génère src/main/resources/update-manifest.json avant la compilation
-// avec la liste des fichiers YAML et leur config-version.
 task generateUpdateManifest {
     inputs.dir  'src/main/resources'
     outputs.file 'src/main/resources/update-manifest.json'

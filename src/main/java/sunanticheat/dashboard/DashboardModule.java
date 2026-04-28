@@ -10,16 +10,16 @@ import sunanticheat.dashboard.analytics.AnalyticsRecorder;
 import sunanticheat.dashboard.analytics.SnapshotStore;
 import sunanticheat.dashboard.economy.EconomyRecorder;
 import sunanticheat.dashboard.economy.TransactionStore;
-import sunanticheat.dashboard.handlers.ClientInfoHandler;
-import sunanticheat.dashboard.handlers.ConnectionHandler;
-import sunanticheat.dashboard.handlers.PickupHandler;
-import sunanticheat.dashboard.handlers.PlaytimeHandler;
-import sunanticheat.dashboard.handlers.ReportsHandler;
-import sunanticheat.dashboard.handlers.XRayStatsHandler;
-import sunanticheat.dashboard.jobs.JobsFarmDetector;
+import sunanticheat.dashboard.games.GameArenaScanner;
 import sunanticheat.dashboard.jobs.JobsLiveService;
 import sunanticheat.dashboard.jobs.JobsRecorder;
 import sunanticheat.dashboard.jobs.JobsStore;
+import sunanticheat.dashboard.sanctions.KickScreenFormatter;
+import sunanticheat.dashboard.sanctions.SanctionListeners;
+import sunanticheat.dashboard.sanctions.SanctionService;
+import sunanticheat.dashboard.sanctions.SanctionStore;
+import sunanticheat.dashboard.sanctions.VanillaBansImporter;
+import sunanticheat.dashboard.update.AutoUpdater;
 import sunanticheat.dashboard.backup.BackupManager;
 import sunanticheat.dashboard.announcements.AnnouncementService;
 import sunanticheat.dashboard.announcements.AnnouncementStore;
@@ -106,6 +106,8 @@ public final class DashboardModule {
     private VipStore vipStore;
     private VipExpirationScheduler vipScheduler;
     private Database database;
+    private SanctionListeners sanctionListeners;
+    private AutoUpdater autoUpdater;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -113,8 +115,7 @@ public final class DashboardModule {
 
     public void start(SanctionHistoryStorage sanctionHistory,
                       ReportStorage reportStorage,
-                      Economy economy,
-                      GameDataBundle gameData) throws Exception {
+                      Economy economy) throws Exception {
 
         var cfg = plugin.getConfig();
         // ── Auto-migration des anciens ports (serveurs mis à jour) ──────────
@@ -211,16 +212,9 @@ public final class DashboardModule {
         if (Bukkit.getPluginManager().getPlugin("Jobs") != null) {
             try {
                 jobsLive = new JobsLiveService();
-                // Détection farm : fenêtre glissante → alerte staff + dashboard WS
-                JobsFarmDetector farmDetector = new JobsFarmDetector(plugin, this::pushAlertRaw);
-                // Live feed : chaque paiement poussé sur le channel WS "jobs"
-                // wsServer est initialisé plus bas dans start() — la lambda capture this,
-                // donc wsServer sera résolu à l'exécution (pas à la création de la lambda).
-                java.util.function.Consumer<java.util.Map<String, Object>> livePaymentCallback =
-                        data -> { if (wsServer != null) wsServer.broadcastJobsPayment(data); };
-                JobsRecorder jobsRecorder = new JobsRecorder(jobsStore, plugin, farmDetector, livePaymentCallback);
+                JobsRecorder jobsRecorder = new JobsRecorder(jobsStore, plugin);
                 if (jobsRecorder.register()) {
-                    plugin.getLogger().info("[Dashboard] Jobs Reborn détecté — tracking + farm detection + live feed activés.");
+                    plugin.getLogger().info("[Dashboard] Jobs Reborn détecté — tracking activé.");
                 } else {
                     plugin.getLogger().warning("[Dashboard] Jobs Reborn présent mais aucun event hooké (API incompatible ?).");
                 }
@@ -240,10 +234,47 @@ public final class DashboardModule {
         MobileHandler   mobileHandler    = new MobileHandler();
         AuditHandler    auditHandler     = new AuditHandler(auditStore);
         JobsHandler     jobsHandler      = new JobsHandler(jobsStore, jobsLive);
+        GamesHandler    gamesHandler     = new GamesHandler(new GameArenaScanner(plugin.getLogger()));
+
+        // ── Sanctions modernes (kick/ban/mute/warn DB-backed + stylized) ─────
+        SanctionStore sanctionStore = new SanctionStore(database, blobs, plugin.getLogger());
+        String appealUrl = cfg.getString("dashboard.sanctions.appeal-url", "");
+        String serverName = cfg.getString("dashboard.sanctions.server-name", "Serveur");
+        KickScreenFormatter formatter = new KickScreenFormatter(serverName, appealUrl);
+        SanctionService sanctionService = new SanctionService(plugin, sanctionStore, formatter);
+        sanctionListeners = new SanctionListeners(plugin, sanctionService);
+        sanctionListeners.start();
+        SanctionsHandler sanctionsHandler = new SanctionsHandler(sanctionService);
+        // Import idempotent des bans Bukkit existants (banned-players.json + banned-ips.json)
+        new VanillaBansImporter(sanctionStore, blobs, plugin.getLogger()).importIfNeeded();
+        plugin.getLogger().info("[Dashboard] Système de sanctions modernes activé.");
+
+        // ── Auto-update depuis GitHub Releases ───────────────────────────────
+        if (cfg.getBoolean("dashboard.auto-update.enabled", true)) {
+            String repo = cfg.getString("dashboard.auto-update.repo", "Driss2003costa/SunAntiCheat");
+            String ghToken = cfg.getString("dashboard.auto-update.github-token", "");
+            // Aussi : variable d'env GITHUB_TOKEN comme fallback (pratique sur certains hostings)
+            if (ghToken == null || ghToken.isBlank()) {
+                String env = System.getenv("GITHUB_TOKEN");
+                if (env != null && !env.isBlank()) ghToken = env;
+            }
+            boolean prerelease = cfg.getBoolean("dashboard.auto-update.prerelease", false);
+            int hours = cfg.getInt("dashboard.auto-update.check-interval-hours", 6);
+            long intervalMs = hours <= 0 ? 0 : hours * 3600_000L;
+            autoUpdater = new AutoUpdater(plugin, repo, ghToken, prerelease, intervalMs);
+            autoUpdater.start();
+            plugin.getLogger().info("[Dashboard] Auto-update activé (repo " + repo
+                + (ghToken != null && !ghToken.isBlank() ? ", auth: ✓" : ", auth: ✗ (anonyme)") + ")");
+        } else {
+            plugin.getLogger().info("[Dashboard] Auto-update désactivé.");
+        }
         PlayerProfileHandler profileHandler = new PlayerProfileHandler(
                 plugin, sanctionHistory, reportStorage, alertStore,
                 transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
+        // L'ancien bouton Ban/Kick du dashboard /players délègue désormais au SanctionService
+        // → écran stylisé + entrée DB + audit auto + listener login pour bloquer reconnexion.
+        serverHandler.setSanctionService(sanctionService);
         SecurityHandler securityHandler = new SecurityHandler(plugin, sanctionHistory, reportStorage, alertStore);
         EconomyHandler  economyHandler  = new EconomyHandler(plugin, economy, transactionStore);
         AnalyticsHandler analyticsHandler = new AnalyticsHandler(snapshotStore);
@@ -353,14 +384,6 @@ public final class DashboardModule {
         consoleCapture = ConsoleLogCapture.install(wsServer::broadcastConsole);
 
         // ── HTTP Server ───────────────────────────────────────────────────────
-        ClientInfoHandler clientInfoHandler = new ClientInfoHandler(gameData.clientInfoTracker());
-        PlaytimeHandler   playtimeHandler   = new PlaytimeHandler(gameData.playtimeTracker());
-        ConnectionHandler connectionHandler = new ConnectionHandler(gameData.connectionLog());
-        PickupHandler     pickupHandler     = new PickupHandler(gameData.itemPickup());
-        XRayStatsHandler  xrayStatsHandler  = new XRayStatsHandler(gameData.xrayTracker(), gameData.xrayLogManager());
-        ReportsHandler    reportsHandler    = new ReportsHandler(reportStorage);
-        UpdateHandler     updateHandler     = new UpdateHandler(plugin.getUpdateManager());
-
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
                 taskHandler, pluginHandler, configHandler, rebootHandler, backupHandler,
@@ -368,9 +391,7 @@ public final class DashboardModule {
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
-                auditHandler, profileHandler, jobsHandler,
-                clientInfoHandler, playtimeHandler, connectionHandler,
-                pickupHandler, xrayStatsHandler, reportsHandler, updateHandler);
+                auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -417,6 +438,8 @@ public final class DashboardModule {
         if (vipScheduler != null) vipScheduler.stop();
         if (vipStore != null) vipStore.save();
         if (Audit.store() != null) Audit.store().save();
+        if (sanctionListeners != null) { sanctionListeners.stop(); sanctionListeners = null; }
+        if (autoUpdater != null) { autoUpdater.stop(); autoUpdater = null; }
         if (database != null) { database.close(); database = null; }
         plugin.getLogger().info("[Dashboard] Arrêté.");
     }
@@ -459,7 +482,7 @@ public final class DashboardModule {
         if (type == null) return false;
         String t = type.toUpperCase();
         return t.contains("XRAY") || t.contains("KILLAURA") || t.contains("FREECAM")
-                || t.contains("HACK") || t.contains("HONEYPOT") || t.contains("FARM");
+                || t.contains("HACK") || t.contains("HONEYPOT");
     }
 
     private static String prettyType(String type) {

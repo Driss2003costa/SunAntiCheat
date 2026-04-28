@@ -10,6 +10,11 @@ import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.auth.Permission;
+import sunanticheat.dashboard.sanctions.SanctionCategory;
+import sunanticheat.dashboard.sanctions.SanctionEntry;
+import sunanticheat.dashboard.sanctions.SanctionService;
+import sunanticheat.dashboard.sanctions.SanctionType;
+import sunanticheat.dashboard.sanctions.Severity;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -21,11 +26,15 @@ public final class ServerHandler {
     private final JavaPlugin plugin;
     private final List<String> allowedCommands;
     private final long startedAt = System.currentTimeMillis();
+    private SanctionService sanctionService;   // injecté tardivement (cycle de dépendances)
 
     public ServerHandler(JavaPlugin plugin, List<String> allowedCommands) {
         this.plugin = plugin;
         this.allowedCommands = allowedCommands;
     }
+
+    /** Permet à DashboardModule de wirer le service après création. */
+    public void setSanctionService(SanctionService s) { this.sanctionService = s; }
 
     /** GET /api/server/status */
     public void status(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
@@ -164,21 +173,29 @@ public final class ServerHandler {
             HttpHelper.error(ex, 400, "uuid ou player requis"); return;
         }
 
-        var future = new CompletableFuture<Boolean>();
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            Player target = null;
-            if (uuid != null && !uuid.isBlank()) {
-                try { target = Bukkit.getPlayer(java.util.UUID.fromString(uuid)); } catch (Exception ignored) {}
-            }
-            if (target == null && pname != null) target = Bukkit.getPlayerExact(pname);
-            if (target == null) { future.complete(false); return; }
-            target.kickPlayer(reason);
-            plugin.getLogger().info("[Dashboard] Kick par " + user.username() + " : " + target.getName() + " — " + reason);
-            future.complete(true);
-        });
+        // Résout le nom (le SanctionService a besoin du nom)
+        String resolvedName = pname;
+        String resolvedUuid = uuid;
+        Player online = null;
+        if (uuid != null && !uuid.isBlank()) {
+            try { online = Bukkit.getPlayer(java.util.UUID.fromString(uuid)); } catch (Exception ignored) {}
+        }
+        if (online == null && pname != null) online = Bukkit.getPlayerExact(pname);
+        if (online == null) { HttpHelper.error(ex, 404, "Joueur introuvable / hors-ligne"); return; }
+        resolvedName = online.getName();
+        resolvedUuid = online.getUniqueId().toString();
 
-        if (!future.join()) { HttpHelper.error(ex, 404, "Joueur introuvable / hors-ligne"); return; }
-        HttpHelper.json(ex, 200, Map.of("success", true, "reason", reason));
+        // Délègue au SanctionService → l'écran stylisé est appliqué + entrée en DB + audit
+        if (sanctionService != null) {
+            sanctionService.issue(SanctionType.KICK, Severity.LOW, SanctionCategory.OTHER.name(),
+                    resolvedUuid, resolvedName, null,
+                    user.username(), 0L, reason, null, null, false, null);
+        } else {
+            online.kickPlayer(reason);
+            plugin.getLogger().info("[Dashboard] Kick par " + user.username() + " : " + resolvedName + " — " + reason);
+        }
+
+        HttpHelper.json(ex, 200, Map.of("success", true, "reason", reason, "player", resolvedName));
     }
 
     /**
@@ -187,7 +204,6 @@ public final class ServerHandler {
      * durationMs absent ou 0 = ban permanent. Sinon ban temporaire.
      * Permission : MODERATE_PLAYERS (MOD+ par défaut).
      */
-    @SuppressWarnings("deprecation")
     public void ban(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
         if (user == null) return;
@@ -208,39 +224,48 @@ public final class ServerHandler {
             HttpHelper.error(ex, 400, "uuid ou player requis"); return;
         }
 
-        var future = new CompletableFuture<String>();
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            String targetName = pname;
-            if (uuid != null && !uuid.isBlank()) {
-                try {
-                    var off = Bukkit.getOfflinePlayer(java.util.UUID.fromString(uuid));
-                    if (off != null && off.getName() != null) targetName = off.getName();
-                } catch (Exception ignored) {}
-            }
-            if (targetName == null || targetName.isBlank()) { future.complete(null); return; }
+        // Résout le nom canonique
+        String targetName = pname;
+        String targetUuid = uuid;
+        if (uuid != null && !uuid.isBlank()) {
+            try {
+                var off = Bukkit.getOfflinePlayer(java.util.UUID.fromString(uuid));
+                if (off != null && off.getName() != null) targetName = off.getName();
+            } catch (Exception ignored) {}
+        }
+        if ((targetName == null || targetName.isBlank()) && pname != null) targetName = pname;
+        if (targetName == null || targetName.isBlank()) { HttpHelper.error(ex, 404, "Joueur introuvable"); return; }
 
-            java.util.Date expires = (durationMs > 0)
-                    ? new java.util.Date(System.currentTimeMillis() + durationMs)
-                    : null;
+        // Délègue au SanctionService si dispo (le screen stylisé + DB + listener login)
+        if (sanctionService != null) {
+            SanctionEntry entry = sanctionService.issue(SanctionType.BAN, Severity.HIGH,
+                    SanctionCategory.OTHER.name(),
+                    targetUuid, targetName, null,
+                    user.username(), durationMs, reason, null, null, false, null);
+            HttpHelper.json(ex, 200, Map.of(
+                    "success", true,
+                    "player", targetName,
+                    "reason", reason,
+                    "permanent", durationMs == 0,
+                    "sanctionId", entry.id
+            ));
+            return;
+        }
 
-            // BanList.Type.NAME (legacy mais marche partout)
-            Bukkit.getBanList(org.bukkit.BanList.Type.NAME)
-                    .addBan(targetName, reason, expires, user.username());
-
-            // Kick si online
-            Player p = Bukkit.getPlayerExact(targetName);
-            if (p != null) p.kickPlayer("§cVous avez été banni : §f" + reason);
-
-            plugin.getLogger().info("[Dashboard] Ban par " + user.username() + " : " + targetName +
-                    " (durée " + (durationMs > 0 ? durationMs + "ms" : "permanent") + ") — " + reason);
-            future.complete(targetName);
-        });
-
-        String banned = future.join();
-        if (banned == null) { HttpHelper.error(ex, 404, "Joueur introuvable"); return; }
+        // ── Fallback (sanctionService absent) : ancien comportement Bukkit BanList ─
+        @SuppressWarnings("deprecation")
+        java.util.Date expires = (durationMs > 0)
+                ? new java.util.Date(System.currentTimeMillis() + durationMs)
+                : null;
+        @SuppressWarnings("deprecation")
+        Object _ignored = Bukkit.getBanList(org.bukkit.BanList.Type.NAME)
+                .addBan(targetName, reason, expires, user.username());
+        Player p = Bukkit.getPlayerExact(targetName);
+        if (p != null) p.kickPlayer("§cVous avez été banni : §f" + reason);
+        plugin.getLogger().info("[Dashboard] Ban (fallback) par " + user.username() + " : " + targetName);
         HttpHelper.json(ex, 200, Map.of(
                 "success", true,
-                "player", banned,
+                "player", targetName,
                 "reason", reason,
                 "permanent", durationMs == 0
         ));

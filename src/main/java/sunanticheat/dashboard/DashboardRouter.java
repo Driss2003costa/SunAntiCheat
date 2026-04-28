@@ -46,13 +46,8 @@ public final class DashboardRouter implements HttpHandler {
     private final AuditHandler auditHandler;
     private final PlayerProfileHandler profileHandler;
     private final JobsHandler jobsHandler;
-    private final ClientInfoHandler clientInfoHandler;
-    private final PlaytimeHandler playtimeHandler;
-    private final ConnectionHandler connectionHandler;
-    private final PickupHandler pickupHandler;
-    private final XRayStatsHandler xrayStatsHandler;
-    private final ReportsHandler reportsHandler;
-    private final UpdateHandler updateHandler;
+    private final SanctionsHandler sanctionsHandler;
+    private final GamesHandler gamesHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -86,13 +81,8 @@ public final class DashboardRouter implements HttpHandler {
                            AuditHandler auditHandler,
                            PlayerProfileHandler profileHandler,
                            JobsHandler jobsHandler,
-                           ClientInfoHandler clientInfoHandler,
-                           PlaytimeHandler playtimeHandler,
-                           ConnectionHandler connectionHandler,
-                           PickupHandler pickupHandler,
-                           XRayStatsHandler xrayStatsHandler,
-                           ReportsHandler reportsHandler,
-                           UpdateHandler updateHandler) {
+                           SanctionsHandler sanctionsHandler,
+                           GamesHandler gamesHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -125,13 +115,8 @@ public final class DashboardRouter implements HttpHandler {
         this.auditHandler = auditHandler;
         this.profileHandler = profileHandler;
         this.jobsHandler = jobsHandler;
-        this.clientInfoHandler = clientInfoHandler;
-        this.playtimeHandler = playtimeHandler;
-        this.connectionHandler = connectionHandler;
-        this.pickupHandler = pickupHandler;
-        this.xrayStatsHandler = xrayStatsHandler;
-        this.reportsHandler = reportsHandler;
-        this.updateHandler = updateHandler;
+        this.sanctionsHandler = sanctionsHandler;
+        this.gamesHandler = gamesHandler;
     }
 
     @Override
@@ -186,16 +171,30 @@ public final class DashboardRouter implements HttpHandler {
         // ── Audit log ─────────────────────────────────────────────────────────
         if (eq(path, "/api/audit")          && GET(method))    { auditHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/audit/actions")  && GET(method))    { auditHandler.actions(ex, jwt, users); return; }
-        if (eq(path, "/api/audit/export")   && GET(method))    { auditHandler.export(ex, jwt, users); return; }
 
         // ── Jobs (Jobs Reborn) ────────────────────────────────────────────────
         if (eq(path, "/api/jobs/overview")  && GET(method))    { jobsHandler.overview(ex, jwt, users); return; }
         if (eq(path, "/api/jobs/active")    && GET(method))    { jobsHandler.active(ex, jwt, users); return; }
-        if (eq(path, "/api/jobs/history")      && GET(method))  { jobsHandler.history(ex, jwt, users); return; }
-        if (eq(path, "/api/jobs/deduplicate")  && POST(method)) { jobsHandler.deduplicate(ex, jwt, users); return; }
+        if (eq(path, "/api/jobs/history")   && GET(method))    { jobsHandler.history(ex, jwt, users); return; }
         if (path.startsWith("/api/jobs/player/") && GET(method)) {
             jobsHandler.player(ex, jwt, users, path.substring("/api/jobs/player/".length())); return;
         }
+        if (eq(path, "/api/jobs/history/clear") && POST(method)) { jobsHandler.clearHistory(ex, jwt, users); return; }
+
+        // ── Sanctions (kick/ban/mute/warn modernes) ──────────────────────────
+        if (eq(path, "/api/sanctions")           && GET(method))   { sanctionsHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions")           && POST(method))  { sanctionsHandler.issue(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/templates") && GET(method))   { sanctionsHandler.listTemplates(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/templates") && POST(method))  { sanctionsHandler.saveTemplates(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/stats")     && GET(method))   { sanctionsHandler.stats(ex, jwt, users); return; }
+        if (eq(path, "/api/sanctions/preview")   && POST(method))  { sanctionsHandler.preview(ex, jwt, users); return; }
+        if (path.matches("/api/sanctions/[^/]+/revoke") && POST(method)) {
+            String id = path.substring("/api/sanctions/".length(), path.length() - "/revoke".length());
+            sanctionsHandler.revoke(ex, jwt, users, id); return;
+        }
+
+        // ── Games (mini-jeux : CTF, Skywars, Thimble, TNT Run) ───────────────
+        if (eq(path, "/api/games/arenas") && GET(method)) { gamesHandler.arenas(ex, jwt, users); return; }
 
         // ── Player profile (agrégation) ──────────────────────────────────────
         if (path.startsWith("/api/players/") && path.endsWith("/profile") && GET(method)) {
@@ -292,10 +291,9 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/reboot/now")      && POST(method)) { rebootHandler.now(ex, jwt, users); return; }
 
         // ── Backups ───────────────────────────────────────────────────────────
-        if (eq(path, "/api/backups")         && GET(method))    { backupHandler.list(ex, jwt, users); return; }
-        if (eq(path, "/api/backups")         && POST(method))   { backupHandler.create(ex, jwt, users); return; }
-        if (eq(path, "/api/backups")         && DELETE(method)) { backupHandler.delete(ex, jwt, users); return; }
-        if (eq(path, "/api/backups/restore") && POST(method))   { backupHandler.restore(ex, jwt, users); return; }
+        if (eq(path, "/api/backups") && GET(method))    { backupHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/backups") && POST(method))   { backupHandler.create(ex, jwt, users); return; }
+        if (eq(path, "/api/backups") && DELETE(method)) { backupHandler.delete(ex, jwt, users); return; }
 
         // ── Panic Mode ────────────────────────────────────────────────────────
         if (eq(path, "/api/panic/status")     && GET(method))  { panicHandler.status(ex, jwt, users); return; }
@@ -383,20 +381,7 @@ public final class DashboardRouter implements HttpHandler {
         // ── LuckPerms ─────────────────────────────────────────────────────────
         if (eq(path, "/api/luckperms/status")       && GET(method))    { luckPermsHandler.status(ex, jwt, users); return; }
         if (eq(path, "/api/luckperms/groups")       && GET(method))    { luckPermsHandler.listGroups(ex, jwt, users); return; }
-        if (eq(path, "/api/luckperms/matrix")       && GET(method))    { luckPermsHandler.matrix(ex, jwt, users); return; }
         if (eq(path, "/api/luckperms/online")       && GET(method))    { luckPermsHandler.onlinePlayersWithGroups(ex, jwt, users); return; }
-        if (path.matches("/api/luckperms/group/[^/]+/permissions/.*") && DELETE(method)) {
-            String after = path.substring("/api/luckperms/group/".length());
-            int sep = after.indexOf("/permissions/");
-            luckPermsHandler.removeGroupPermission(ex, jwt, users,
-                    after.substring(0, sep), after.substring(sep + "/permissions/".length())); return;
-        }
-        if (path.startsWith("/api/luckperms/group/") && path.endsWith("/permissions") && POST(method)) {
-            luckPermsHandler.addGroupPermission(ex, jwt, users, id(path, "/api/luckperms/group/", "/permissions")); return;
-        }
-        if (path.startsWith("/api/luckperms/group/") && path.endsWith("/permissions") && GET(method)) {
-            luckPermsHandler.groupPermissions(ex, jwt, users, id(path, "/api/luckperms/group/", "/permissions")); return;
-        }
         if (path.startsWith("/api/luckperms/player/") && path.endsWith("/primary") && PUT(method)) {
             luckPermsHandler.setPrimary(ex, jwt, users, id(path, "/api/luckperms/player/", "/primary")); return;
         }
@@ -462,12 +447,9 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/vip/webhook/paypal")  && POST(method))  { vipPublicHandler.paypalWebhook(ex); return; }
 
         // ── Mobile (push notifications) ──────────────────────────────────────
-        if (eq(path, "/api/mobile/push/register") && POST(method))   { mobileHandler.registerPush(ex, jwt, users); return; }
-        if (eq(path, "/api/mobile/push/test")     && POST(method))   { mobileHandler.testPush(ex, jwt, users); return; }
-        if (eq(path, "/api/mobile/devices")       && GET(method))    { mobileHandler.listDevices(ex, jwt, users); return; }
-        if (path.startsWith("/api/mobile/devices/") && DELETE(method)) {
-            mobileHandler.unregisterPush(ex, jwt, users, id(path, "/api/mobile/devices/")); return;
-        }
+        if (eq(path, "/api/mobile/push/register") && POST(method)) { mobileHandler.registerPush(ex, jwt, users); return; }
+        if (eq(path, "/api/mobile/push/test")     && POST(method)) { mobileHandler.testPush(ex, jwt, users); return; }
+        if (eq(path, "/api/mobile/devices")       && GET(method))  { mobileHandler.listDevices(ex, jwt, users); return; }
 
         // ── Permissions matrix ────────────────────────────────────────────────
         if (eq(path, "/api/permissions")            && GET(method))    { permsHandler.get(ex, jwt, users); return; }
@@ -481,51 +463,6 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/users/") && path.endsWith("/role")   && PATCH(method))  { userHandler.changeRole(ex, jwt, users, id(path, "/api/users/", "/role")); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/password") && POST(method)) { userHandler.resetPassword(ex, jwt, users, id(path, "/api/users/", "/password")); return; }
         if (path.startsWith("/api/users/")           && DELETE(method)) { userHandler.delete(ex, jwt, users, id(path, "/api/users/")); return; }
-
-        // ── ClientInfo ────────────────────────────────────────────────────────
-        if (eq(path, "/api/clientinfo/online") && GET(method)) { clientInfoHandler.online(ex, jwt, users); return; }
-        if (path.startsWith("/api/clientinfo/player/") && GET(method)) {
-            clientInfoHandler.player(ex, jwt, users, id(path, "/api/clientinfo/player/")); return;
-        }
-
-        // ── Playtime ──────────────────────────────────────────────────────────
-        if (eq(path, "/api/playtime/top") && GET(method)) { playtimeHandler.top(ex, jwt, users); return; }
-        if (path.startsWith("/api/playtime/player/") && GET(method)) {
-            playtimeHandler.player(ex, jwt, users, id(path, "/api/playtime/player/")); return;
-        }
-
-        // ── Connections ───────────────────────────────────────────────────────
-        if (path.startsWith("/api/connections/player/") && GET(method)) {
-            connectionHandler.player(ex, jwt, users, id(path, "/api/connections/player/")); return;
-        }
-
-        // ── Pickup ────────────────────────────────────────────────────────────
-        if (path.startsWith("/api/pickup/player/") && GET(method)) {
-            pickupHandler.player(ex, jwt, users, id(path, "/api/pickup/player/")); return;
-        }
-
-        // ── XRay Stats ────────────────────────────────────────────────────────
-        if (eq(path, "/api/xray/stats") && GET(method))  { xrayStatsHandler.stats(ex, jwt, users); return; }
-        if (eq(path, "/api/xray/logs")  && GET(method))  { xrayStatsHandler.logs(ex, jwt, users); return; }
-        if (path.startsWith("/api/xray/logs/") && GET(method)) {
-            xrayStatsHandler.logForDate(ex, jwt, users, id(path, "/api/xray/logs/")); return;
-        }
-        if (path.startsWith("/api/xray/stats/") && GET(method)) {
-            xrayStatsHandler.playerStats(ex, jwt, users, id(path, "/api/xray/stats/")); return;
-        }
-
-        // ── Reports ───────────────────────────────────────────────────────────
-        if (eq(path, "/api/reports") && GET(method)) { reportsHandler.list(ex, jwt, users); return; }
-        if (path.startsWith("/api/reports/") && path.endsWith("/resolve") && PUT(method)) {
-            reportsHandler.resolve(ex, jwt, users, id(path, "/api/reports/", "/resolve")); return;
-        }
-        if (path.startsWith("/api/reports/") && GET(method)) {
-            reportsHandler.get(ex, jwt, users, id(path, "/api/reports/")); return;
-        }
-
-        // ── Auto-Update ───────────────────────────────────────────────────────
-        if (eq(path, "/api/update/status") && GET(method))  { updateHandler.status(ex, jwt, users); return; }
-        if (eq(path, "/api/update/check")  && POST(method)) { updateHandler.check(ex, jwt, users);  return; }
 
         HttpHelper.error(ex, 404, "Route introuvable: " + method + " " + path);
     }

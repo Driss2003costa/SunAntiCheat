@@ -42,6 +42,8 @@ const Audit           = lazy(() => import('./pages/Audit'))
 const PlayerProfile   = lazy(() => import('./pages/PlayerProfile'))
 const TwoFactorSetup  = lazy(() => import('./pages/TwoFactorSetup'))
 const Jobs            = lazy(() => import('./pages/Jobs'))
+const SanctionsModern = lazy(() => import('./pages/SanctionsModern'))
+const Games          = lazy(() => import('./pages/Games'))
 
 function Protected({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated())
@@ -106,6 +108,8 @@ export default function App() {
                   <Route path="/players/:name" element={<PlayerProfile />} />
                   <Route path="/2fa"           element={<TwoFactorSetup />} />
                   <Route path="/jobs"          element={<Jobs />} />
+                  <Route path="/moderation"    element={<SanctionsModern />} />
+                  <Route path="/games"         element={<Games />} />
                   <Route path="/config"        element={<Config />} />
                 </Routes>
               </Suspense>

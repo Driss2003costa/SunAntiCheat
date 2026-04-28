@@ -33,6 +33,30 @@ function fmtMoney(n: number): string {
   return `${n.toFixed(2)} $`
 }
 
+/**
+ * Nettoie un nom de job des codes couleur Minecraft (§a, &c) et des
+ * glyphes Unicode de la PUA (Private Use Area) utilisés par ItemsAdder
+ * pour rendre des icônes custom — invisibles côté web.
+ */
+function cleanJobName(s: string | undefined | null): string {
+  if (!s) return '?'
+  // Strip color codes
+  let r = s.replace(/[§&][0-9a-fk-orxA-FK-ORX]/g, '')
+  // Strip PUA chars (BMP + supplementary)
+  r = r.replace(/[\uE000-\uF8FF]/g, '')
+       .replace(/[\u{F0000}-\u{FFFFD}]/gu, '')
+       .replace(/[\u{100000}-\u{10FFFD}]/gu, '')
+  r = r.replace(/\s{2,}/g, ' ').trim()
+  return r || '?'
+}
+
+/** Nom à afficher : displayName s'il est fourni et lisible, sinon name. */
+function jobDisplay(j: any, fallbackKey = 'name'): string {
+  const dn = cleanJobName(j?.displayName)
+  if (dn && dn !== '?') return dn
+  return cleanJobName(j?.[fallbackKey])
+}
+
 function timeAgo(ts: number): string {
   const sec = Math.floor((Date.now() - ts) / 1000)
   if (sec < 60)    return `${sec}s`
@@ -80,28 +104,6 @@ export default function Jobs() {
 
   const installed = overview?.installed ?? active?.installed ?? null
 
-  // Jobs Reborn absent → plein écran
-  if (installed === false) {
-    return (
-      <div className="p-6">
-        <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="text-6xl mb-4">💼</div>
-          <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text)' }}>Jobs Reborn non installé</h1>
-          <p className="max-w-md mx-auto text-sm" style={{ color: 'var(--text-muted)' }}>
-            Installe le plugin <b>Jobs Reborn</b> sur ton serveur pour activer le tracking
-            des emplois, des gains et des statistiques de tes joueurs.
-          </p>
-          <a href="https://www.spigotmc.org/resources/jobs-reborn.4216/"
-             target="_blank" rel="noreferrer"
-             className="inline-block mt-6 px-5 py-2 rounded-lg text-white font-medium"
-             style={{ background: 'var(--primary)' }}>
-            📥 Télécharger Jobs Reborn
-          </a>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="p-6 space-y-4 max-w-7xl">
       <div className="flex items-center justify-between">
@@ -134,6 +136,20 @@ export default function Jobs() {
           </button>
         </div>
       </div>
+
+      {/* Bandeau si Jobs Reborn pas installé */}
+      {installed === false && (
+        <div className="rounded-xl p-4 flex items-center gap-3"
+             style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)' }}>
+          <div className="text-2xl">⚠️</div>
+          <div>
+            <div className="font-bold" style={{ color: '#f59e0b' }}>Jobs Reborn non installé</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Le tracking des jobs est inactif. Les données historiques restent visibles.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -210,7 +226,7 @@ function OverviewTab({ data, days }: { data: any, days: number }) {
                 return (
                   <tr key={j.jobName} style={{ borderTop: '1px solid var(--border)' }}>
                     <td className="py-2">
-                      <div className="font-medium" style={{ color: 'var(--text)' }}>{j.jobName}</div>
+                      <div className="font-medium" style={{ color: 'var(--text)' }}>{cleanJobName(j.jobName)}</div>
                       <div className="h-1 rounded mt-1" style={{ background: 'var(--surface-2)' }}>
                         <div className="h-full rounded" style={{ background: 'var(--primary)', width: `${pct}%` }}/>
                       </div>
@@ -295,7 +311,7 @@ function ActiveTab({ data }: { data: any }) {
               <div key={j.name}
                    className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-2"
                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                <span className="font-bold" style={{ color: 'var(--text)' }}>{j.name}</span>
+                <span className="font-bold" style={{ color: 'var(--text)' }}>{jobDisplay(j)}</span>
                 <span style={{ color: '#f59e0b' }}>Lv {j.level}{j.maxLevel ? `/${j.maxLevel}` : ''}</span>
                 {j.nextLevelExp > 0 && (
                   <div className="w-16 h-1 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
@@ -313,90 +329,99 @@ function ActiveTab({ data }: { data: any }) {
 }
 
 // ── History ────────────────────────────────────────────────────────────────────
-function HistoryTab({ data, onRefresh }: { data: any; onRefresh?: () => void }) {
-  const [deduping, setDeduping] = useState(false)
-  const [dedupeResult, setDedupeResult] = useState<{ deletedEvents: number; deletedPayments: number; total: number } | null>(null)
+function HistoryTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+  const [busy, setBusy] = useState(false)
 
-  async function handleDeduplicate() {
-    if (!confirm('Supprimer les doublons dans l\'historique Jobs ? Cette action est irréversible.')) return
-    setDeduping(true)
-    setDedupeResult(null)
+  const clearAll = async () => {
+    if (!confirm('Vider TOUT l\'historique des events Jobs (JOIN/LEAVE/LEVEL_UP) ?\n\nCette action est irréversible.')) return
+    setBusy(true)
     try {
-      const result = await api.jobsDeduplicate()
-      setDedupeResult(result)
-      if (onRefresh) onRefresh()
-    } catch (err: any) {
-      alert('Erreur : ' + err.message)
-    } finally {
-      setDeduping(false)
-    }
+      const res = await api.jobsClearHistory('all')
+      alert(`✓ ${res.deleted} event(s) supprimé(s)`)
+      onRefresh()
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
+    } finally { setBusy(false) }
   }
+
+  const dedup = async () => {
+    if (!confirm('Supprimer uniquement les events dupliqués ?\n\nGarde 1 ligne par groupe (player, job, type, ts). Recommandé après le fix anti-doublons.')) return
+    setBusy(true)
+    try {
+      const res = await api.jobsClearHistory('duplicates')
+      alert(`✓ ${res.deleted} doublon(s) supprimé(s)`)
+      onRefresh()
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
+    } finally { setBusy(false) }
+  }
+
+  const Toolbar = (
+    <div className="flex items-center justify-between mb-2 px-1">
+      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        {data?.entries?.length ?? 0} événement{(data?.entries?.length ?? 0) > 1 ? 's' : ''}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={dedup} disabled={busy}
+                className="px-3 py-1.5 rounded text-xs font-medium"
+                style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+          {busy ? '⏳' : '🧹 Supprimer doublons'}
+        </button>
+        <button onClick={clearAll} disabled={busy}
+                className="px-3 py-1.5 rounded text-xs font-medium"
+                style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+          {busy ? '⏳' : '🗑 Tout vider'}
+        </button>
+      </div>
+    </div>
+  )
 
   if (!data) return <Loading/>
   const entries: any[] = data.entries || []
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          {entries.length} événement{entries.length !== 1 ? 's' : ''}
-        </span>
-        <div className="flex items-center gap-3">
-          {dedupeResult && (
-            <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--surface-alt, var(--surface))', color: 'var(--text-muted)' }}>
-              {dedupeResult.total === 0
-                ? 'Aucun doublon trouvé'
-                : `${dedupeResult.total} doublon(s) supprimé(s) (${dedupeResult.deletedEvents} events, ${dedupeResult.deletedPayments} payments)`}
-            </span>
-          )}
-          <button
-            onClick={handleDeduplicate}
-            disabled={deduping}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', opacity: deduping ? 0.6 : 1, cursor: deduping ? 'not-allowed' : 'pointer' }}
-          >
-            {deduping ? 'Nettoyage...' : '🧹 Nettoyer les doublons'}
-          </button>
-        </div>
+  if (entries.length === 0) {
+    return <div>
+      {Toolbar}
+      <div className="rounded-xl p-12 text-center"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+        <div className="text-4xl mb-2">📜</div>
+        Aucun événement enregistré
       </div>
+    </div>
+  }
 
-      {entries.length === 0 ? (
-        <div className="rounded-xl p-12 text-center"
-             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-          <div className="text-4xl mb-2">📜</div>
-          Aucun événement enregistré
-        </div>
-      ) : (
-        <div className="rounded-xl overflow-hidden"
-             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {entries.map((e, i) => (
-            <div key={i} className="px-4 py-2 flex items-center gap-3 hover:bg-white/[0.02]"
-                 style={{ borderBottom: '1px solid var(--border)' }}>
-              <div className="text-xl">{EVENT_ICONS[e.eventType] || '📋'}</div>
-              <div className="flex-1">
-                <div className="text-sm">
-                  <span className="font-bold" style={{ color: EVENT_COLORS[e.eventType] || 'var(--text)' }}>
-                    {e.eventType === 'JOIN' ? 'Pris' :
-                     e.eventType === 'LEAVE' ? 'Quitté' :
-                     e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
-                  </span>
-                  {' '}
-                  <span style={{ color: 'var(--text-muted)' }}>·</span>
-                  {' '}
-                  <span style={{ color: 'var(--text)' }}>{e.playerName}</span>
-                  {' '}
-                  <span style={{ color: 'var(--text-muted)' }}>→</span>
-                  {' '}
-                  <span className="font-medium" style={{ color: 'var(--text)' }}>{e.jobName}</span>
-                </div>
-              </div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {timeAgo(e.timestamp)}
-              </div>
+  return (
+    <div>
+      {Toolbar}
+      <div className="rounded-xl overflow-hidden"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        {entries.map((e, i) => (
+        <div key={i} className="px-4 py-2 flex items-center gap-3 hover:bg-white/[0.02]"
+             style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="text-xl">{EVENT_ICONS[e.eventType] || '📋'}</div>
+          <div className="flex-1">
+            <div className="text-sm">
+              <span className="font-bold" style={{ color: EVENT_COLORS[e.eventType] || 'var(--text)' }}>
+                {e.eventType === 'JOIN' ? 'Pris' :
+                 e.eventType === 'LEAVE' ? 'Quitté' :
+                 e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
+              </span>
+              {' '}
+              <span style={{ color: 'var(--text-muted)' }}>·</span>
+              {' '}
+              <span style={{ color: 'var(--text)' }}>{e.playerName}</span>
+              {' '}
+              <span style={{ color: 'var(--text-muted)' }}>→</span>
+              {' '}
+              <span className="font-medium" style={{ color: 'var(--text)' }}>{cleanJobName(e.jobName)}</span>
             </div>
-          ))}
+          </div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {timeAgo(e.timestamp)}
+          </div>
         </div>
-      )}
+        ))}
+      </div>
     </div>
   )
 }
@@ -428,7 +453,7 @@ function CatalogTab({ data }: { data: any }) {
                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold text-lg" style={{ color: 'var(--text)' }}>
-                {j.displayName || j.name}
+                {jobDisplay(j)}
               </h3>
               <span className="text-xs px-2 py-0.5 rounded"
                     style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>

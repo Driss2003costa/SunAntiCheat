@@ -24,7 +24,8 @@ const NAV_CATEGORIES = [
     label: 'Sécurité',
     icon: '🛡️',
     items: [
-      { to: '/sanctions',    label: 'Sanctions',       icon: '⚖️' },
+      { to: '/sanctions',    label: 'Sanctions (legacy)', icon: '⚖️' },
+      { to: '/moderation',   label: 'Modération',      icon: '⚒️' },
       { to: '/reports',      label: 'Reports',         icon: '🚨' },
       { to: '/honeypot',     label: 'Honeypot',        icon: '🍯' },
       { to: '/toxic-chat',   label: 'Chat toxique',    icon: '🗯️' },
@@ -58,6 +59,7 @@ const NAV_CATEGORIES = [
     items: [
       { to: '/events',       label: 'Events',          icon: '📅' },
       { to: '/quests',       label: 'Quêtes',          icon: '🎯' },
+      { to: '/games',        label: 'Mini-jeux',       icon: '🎮' },
       { to: '/crates',       label: 'Lootboxes',       icon: '📦' },
       { to: '/daily-rewards',label: 'Daily Rewards',    icon: '🎁' },
       { to: '/announcements',label: 'Annonces',         icon: '📢' },

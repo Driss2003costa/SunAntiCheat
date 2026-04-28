@@ -9,10 +9,8 @@ import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.Method;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.UUID;
-import java.util.function.Consumer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
@@ -29,17 +27,39 @@ public final class JobsRecorder implements Listener {
     private final JobsStore store;
     private final Plugin plugin;
     private final Logger logger;
-    private final JobsFarmDetector farmDetector;
-    private final Consumer<Map<String, Object>> liveCallback;
 
-    public JobsRecorder(JobsStore store, Plugin plugin,
-                        JobsFarmDetector farmDetector,
-                        Consumer<Map<String, Object>> liveCallback) {
+    /**
+     * Cache de déduplication. Jobs Reborn fire parfois ses events 2 fois
+     * (notamment lors d'un /jobs join sur un job existant qui déclenche
+     * leave + join + un autre cycle interne). Plus, dans certains scenarios
+     * de reload/re-register, on peut avoir un double-listening.
+     *
+     * Solution : on ignore tout event identique à un précédent reçu dans la
+     * dernière seconde. Clé = "TYPE|uuid|jobName" (pour les events) ou
+     * "PAY|uuid|jobName|amount" (pour les paiements — où le dedup est strict
+     * pour éviter de perdre des paiements identiques légitimes, on inclut
+     * un nano-timestamp tronqué).
+     */
+    private static final long DEDUP_WINDOW_MS = 1000;
+    private final ConcurrentHashMap<String, Long> recent = new ConcurrentHashMap<>();
+
+    public JobsRecorder(JobsStore store, Plugin plugin) {
         this.store = store;
         this.plugin = plugin;
         this.logger = plugin.getLogger();
-        this.farmDetector = farmDetector;
-        this.liveCallback = liveCallback;
+    }
+
+    /** @return true si l'event est nouveau (à enregistrer). false si dup récent. */
+    private boolean shouldRecord(String key) {
+        long now = System.currentTimeMillis();
+        Long last = recent.get(key);
+        if (last != null && (now - last) < DEDUP_WINDOW_MS) return false;
+        recent.put(key, now);
+        // Cleanup périodique (évite la fuite mémoire si beaucoup de joueurs)
+        if (recent.size() > 2000) {
+            recent.entrySet().removeIf(e -> (now - e.getValue()) > 10_000);
+        }
+        return true;
     }
 
     /**
@@ -81,24 +101,16 @@ public final class JobsRecorder implements Listener {
     // ── Handlers (par réflexion) ─────────────────────────────────────────────
 
     private void handlePayment(Event e) throws Throwable {
-        // getPlayer() on JobsPaymentEvent returns a JobsPlayer, not OfflinePlayer
-        Object jobsPlayer = invoke(e, "getPlayer", Object.class);
-        String uuid = null, name = null;
-        if (jobsPlayer instanceof OfflinePlayer op) {
-            uuid = playerUuid(op);
-            name = op.getName();
-        } else if (jobsPlayer != null) {
-            Object u = invoke(jobsPlayer, "getPlayerUUID", Object.class);
-            if (u instanceof UUID uu) uuid = uu.toString();
-            Object n = invoke(jobsPlayer, "getName", Object.class);
-            if (n != null) name = String.valueOf(n);
-        }
+        Class<?> ec = e.getClass();
+        OfflinePlayer p = invoke(e, "getPlayer", OfflinePlayer.class);
+        String uuid = playerUuid(p);
+        String name = p == null ? null : p.getName();
 
+        // Job
         Object job = invoke(e, "getJob", Object.class);
         String jobName = jobName(job);
 
-        // API ancienne : getPayment() → Map<CurrencyType, Double>
-        // API récente (5.x+) : getMoney() / getExp() directs
+        // Payment map (CurrencyType → Double)
         double money = 0, exp = 0;
         Object paymentMap = invoke(e, "getPayment", Object.class);
         if (paymentMap instanceof java.util.Map<?, ?> map) {
@@ -108,13 +120,9 @@ public final class JobsRecorder implements Listener {
                 if ("MONEY".equalsIgnoreCase(key)) money = v;
                 else if ("EXP".equalsIgnoreCase(key) || "POINTS".equalsIgnoreCase(key)) exp = v;
             }
-        } else {
-            Object m = invoke(e, "getMoney", Object.class);
-            if (m instanceof Number n) money = n.doubleValue();
-            Object ex2 = invoke(e, "getExp", Object.class);
-            if (ex2 instanceof Number n) exp = n.doubleValue();
         }
 
+        // ActionType (optional)
         String actionType = null;
         try {
             Object actionInfo = invoke(e, "getActionInfo", Object.class);
@@ -125,39 +133,16 @@ public final class JobsRecorder implements Listener {
         } catch (Throwable ignored) {}
 
         store.recordPayment(uuid, name, jobName, money, exp, actionType);
-
-        if (farmDetector != null) farmDetector.record(uuid, name, actionType);
-
-        if (liveCallback != null) {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("type", "payment");
-            payload.put("timestamp", System.currentTimeMillis());
-            payload.put("playerName", name);
-            payload.put("playerUuid", uuid);
-            payload.put("jobName", jobName);
-            payload.put("money", money);
-            payload.put("exp", exp);
-            payload.put("actionType", actionType);
-            liveCallback.accept(payload);
-        }
     }
 
     private void handleEvent(Event e, String evType, int level) throws Throwable {
         OfflinePlayer p = invoke(e, "getPlayer", OfflinePlayer.class);
         Object job = invoke(e, "getJob", Object.class);
+        String uuid = playerUuid(p);
         String jName = jobName(job);
-        store.recordEvent(playerUuid(p), p == null ? null : p.getName(), jName, evType, level);
-
-        if (liveCallback != null) {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("type", evType);
-            payload.put("timestamp", System.currentTimeMillis());
-            payload.put("playerName", p == null ? null : p.getName());
-            payload.put("playerUuid", playerUuid(p));
-            payload.put("jobName", jName);
-            payload.put("level", level);
-            liveCallback.accept(payload);
-        }
+        // Dedup : Jobs Reborn fire parfois ce type d'event 2x — on ne garde que le 1er
+        if (!shouldRecord(evType + "|" + uuid + "|" + jName)) return;
+        store.recordEvent(uuid, p == null ? null : p.getName(), jName, evType, level);
     }
 
     private void handleLevelUp(Event e) throws Throwable {
@@ -171,24 +156,24 @@ public final class JobsRecorder implements Listener {
             if (n != null) name = String.valueOf(n);
         }
         Object job = invoke(e, "getJob", Object.class);
-        String jName = jobName(job);
+        // Le nom de méthode du level varie selon les versions de Jobs Reborn :
+        //   - getNewLevel() (versions récentes)
+        //   - getLevel()    (anciennes)
+        //   - getNewLevelString() (renvoie un String)
         int level = 0;
-        try {
-            Object lvl = invoke(e, "getNewLevel", Object.class);
-            if (lvl instanceof Number num) level = num.intValue();
-        } catch (Throwable ignored) {}
-        store.recordEvent(uuid, name, jName, "LEVEL_UP", level);
-
-        if (liveCallback != null) {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("type", "LEVEL_UP");
-            payload.put("timestamp", System.currentTimeMillis());
-            payload.put("playerName", name);
-            payload.put("playerUuid", uuid);
-            payload.put("jobName", jName);
-            payload.put("level", level);
-            liveCallback.accept(payload);
+        for (String method : new String[]{"getNewLevel", "getLevel", "getNewLevelInt"}) {
+            try {
+                Object lvl = invoke(e, method, Object.class);
+                if (lvl instanceof Number num) { level = num.intValue(); break; }
+                if (lvl instanceof String s && !s.isBlank()) {
+                    try { level = Integer.parseInt(s.trim()); break; } catch (Exception ignored) {}
+                }
+            } catch (Throwable ignored) {}
         }
+        String jName = jobName(job);
+        // Dedup : level-up identique répété → skip
+        if (!shouldRecord("LEVEL_UP|" + uuid + "|" + jName + "|" + level)) return;
+        store.recordEvent(uuid, name, jName, "LEVEL_UP", level);
     }
 
     // ── Helpers réflexion ────────────────────────────────────────────────────

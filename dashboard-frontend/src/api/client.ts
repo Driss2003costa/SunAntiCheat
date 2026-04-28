@@ -57,8 +57,31 @@ export const api = {
   jobsHistory:   (limit = 100, offset = 0) => request<any>(`/api/jobs/history?limit=${limit}&offset=${offset}`),
   jobsPlayer:    (name: string, days = 30) =>
     request<any>(`/api/jobs/player/${encodeURIComponent(name)}?days=${days}`),
-  jobsDeduplicate: () =>
-    request<{ deletedEvents: number; deletedPayments: number; total: number }>('/api/jobs/deduplicate', { method: 'POST' }),
+  jobsClearHistory: (mode: 'all' | 'duplicates' | 'payments') =>
+    request<{ success: boolean; mode: string; deleted: number }>('/api/jobs/history/clear', {
+      method: 'POST', body: JSON.stringify({ mode }),
+    }),
+
+  // Sanctions (kick / ban / mute / warn modernes)
+  sanctionsList: (params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]))).toString()
+    return request<{ entries: any[]; total: number; offset: number; limit: number; hasMore: boolean }>(`/api/sanctions${qs ? '?' + qs : ''}`)
+  },
+  sanctionsIssue: (payload: any) => request<any>('/api/sanctions', { method: 'POST', body: JSON.stringify(payload) }),
+  sanctionsRevoke: (id: string, reason: string) =>
+    request<any>(`/api/sanctions/${id}/revoke`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  sanctionsTemplates: () => request<any[]>('/api/sanctions/templates'),
+  sanctionsSaveTemplates: (templates: any[]) =>
+    request<any>('/api/sanctions/templates', { method: 'POST', body: JSON.stringify(templates) }),
+  sanctionsStats: (days = 30) => request<any>(`/api/sanctions/stats?days=${days}`),
+  sanctionsPreview: (payload: any) => request<{ screen: string; durationFormatted: string }>('/api/sanctions/preview', {
+    method: 'POST', body: JSON.stringify(payload),
+  }),
+
+  // Games (mini-jeux)
+  gamesArenas: () => request<{
+    arenas: any[]; games: any[]; totalArenas: number; playing: number; waiting: number
+  }>('/api/games/arenas'),
 
   // Server
   serverStatus: () => request<any>('/api/server/status'),
