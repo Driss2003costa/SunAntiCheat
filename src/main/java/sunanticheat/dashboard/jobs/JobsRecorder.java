@@ -83,6 +83,13 @@ public final class JobsRecorder implements Listener {
             Bukkit.getPluginManager().registerEvent(
                     (Class<? extends Event>) eventClass, this, EventPriority.MONITOR,
                     (EventExecutor) (listener, event) -> {
+                        // Vérification STRICTE du type : Jobs Reborn partage parfois
+                        // la HandlerList entre ses events (JoinEvent, PaymentEvent,
+                        // ExpGainEvent...) parce qu'ils héritent d'un parent commun
+                        // sans override getHandlers(). Sans ce check, notre handler
+                        // JOIN reçoit aussi les payments → faux events JOIN dans
+                        // l'historique à chaque gain d'argent.
+                        if (event.getClass() != eventClass) return;
                         try { consumer.accept(event); } catch (Throwable ignored) {}
                     },
                     plugin, true);
