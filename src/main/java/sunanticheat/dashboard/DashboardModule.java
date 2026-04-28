@@ -493,12 +493,21 @@ public final class DashboardModule {
 
     /**
      * Extrait les fichiers du build React (dashboard-dist/) depuis le JAR
-     * vers plugins/SunAntiCheat/dashboard/ — uniquement si index.html est absent.
-     * Utilise JavaPlugin#getFile() via réflexion (méthode protected, stable sur tous les forks).
+     * vers plugins/SunAntiCheat/dashboard/.
+     * Réextrait automatiquement si la version du plugin a changé depuis la dernière extraction.
      */
     private void extractDashboardFiles(File dashboardDir, Logger logger) {
-        File index = new File(dashboardDir, "index.html");
-        if (index.exists()) return; // déjà extrait
+        String currentVersion = plugin.getDescription().getVersion();
+        File versionMarker = new File(dashboardDir, ".version");
+
+        // Vérifier si déjà à jour
+        if (versionMarker.exists()) {
+            try {
+                String extractedVersion = new String(java.nio.file.Files.readAllBytes(versionMarker.toPath())).trim();
+                if (currentVersion.equals(extractedVersion)) return; // déjà à jour
+                logger.info("[Dashboard] Nouvelle version détectée (" + extractedVersion + " → " + currentVersion + "), réextraction du dashboard...");
+            } catch (Exception ignored) {}
+        }
 
         try {
             // getFile() est protected dans JavaPlugin — on y accède par réflexion
@@ -529,10 +538,12 @@ public final class DashboardModule {
                     }
                     count++;
                 }
-                if (count > 0)
+                if (count > 0) {
                     logger.info("[Dashboard] " + count + " fichiers React extraits dans " + dashboardDir);
-                else
+                    java.nio.file.Files.writeString(versionMarker.toPath(), currentVersion);
+                } else {
                     logger.warning("[Dashboard] Aucun fichier React dans le JAR (dashboard-dist/ vide ?)");
+                }
             }
         } catch (Exception e) {
             logger.warning("[Dashboard] Erreur extraction React : " + e.getMessage());
