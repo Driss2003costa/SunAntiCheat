@@ -57,6 +57,8 @@ export const api = {
   jobsHistory:   (limit = 100, offset = 0) => request<any>(`/api/jobs/history?limit=${limit}&offset=${offset}`),
   jobsPlayer:    (name: string, days = 30) =>
     request<any>(`/api/jobs/player/${encodeURIComponent(name)}?days=${days}`),
+  jobsDeduplicate: () =>
+    request<{ deletedEvents: number; deletedPayments: number; total: number }>('/api/jobs/deduplicate', { method: 'POST' }),
 
   // Server
   serverStatus: () => request<any>('/api/server/status'),

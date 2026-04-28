@@ -151,7 +151,7 @@ export default function Jobs() {
 
       {tab === 'overview' && <OverviewTab data={overview} days={days}/>}
       {tab === 'active'   && <ActiveTab data={active} />}
-      {tab === 'history'  && <HistoryTab data={history} />}
+      {tab === 'history'  && <HistoryTab data={history} onRefresh={refresh} />}
       {tab === 'catalog'  && <CatalogTab data={overview} />}
     </div>
   )
@@ -313,47 +313,90 @@ function ActiveTab({ data }: { data: any }) {
 }
 
 // ── History ────────────────────────────────────────────────────────────────────
-function HistoryTab({ data }: { data: any }) {
+function HistoryTab({ data, onRefresh }: { data: any; onRefresh?: () => void }) {
+  const [deduping, setDeduping] = useState(false)
+  const [dedupeResult, setDedupeResult] = useState<{ deletedEvents: number; deletedPayments: number; total: number } | null>(null)
+
+  async function handleDeduplicate() {
+    if (!confirm('Supprimer les doublons dans l\'historique Jobs ? Cette action est irréversible.')) return
+    setDeduping(true)
+    setDedupeResult(null)
+    try {
+      const result = await api.jobsDeduplicate()
+      setDedupeResult(result)
+      if (onRefresh) onRefresh()
+    } catch (err: any) {
+      alert('Erreur : ' + err.message)
+    } finally {
+      setDeduping(false)
+    }
+  }
+
   if (!data) return <Loading/>
   const entries: any[] = data.entries || []
 
-  if (entries.length === 0) {
-    return <div className="rounded-xl p-12 text-center"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-      <div className="text-4xl mb-2">📜</div>
-      Aucun événement enregistré
-    </div>
-  }
-
   return (
-    <div className="rounded-xl overflow-hidden"
-         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      {entries.map((e, i) => (
-        <div key={i} className="px-4 py-2 flex items-center gap-3 hover:bg-white/[0.02]"
-             style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="text-xl">{EVENT_ICONS[e.eventType] || '📋'}</div>
-          <div className="flex-1">
-            <div className="text-sm">
-              <span className="font-bold" style={{ color: EVENT_COLORS[e.eventType] || 'var(--text)' }}>
-                {e.eventType === 'JOIN' ? 'Pris' :
-                 e.eventType === 'LEAVE' ? 'Quitté' :
-                 e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
-              </span>
-              {' '}
-              <span style={{ color: 'var(--text-muted)' }}>·</span>
-              {' '}
-              <span style={{ color: 'var(--text)' }}>{e.playerName}</span>
-              {' '}
-              <span style={{ color: 'var(--text-muted)' }}>→</span>
-              {' '}
-              <span className="font-medium" style={{ color: 'var(--text)' }}>{e.jobName}</span>
-            </div>
-          </div>
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {timeAgo(e.timestamp)}
-          </div>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {entries.length} événement{entries.length !== 1 ? 's' : ''}
+        </span>
+        <div className="flex items-center gap-3">
+          {dedupeResult && (
+            <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--surface-alt, var(--surface))', color: 'var(--text-muted)' }}>
+              {dedupeResult.total === 0
+                ? 'Aucun doublon trouvé'
+                : `${dedupeResult.total} doublon(s) supprimé(s) (${dedupeResult.deletedEvents} events, ${dedupeResult.deletedPayments} payments)`}
+            </span>
+          )}
+          <button
+            onClick={handleDeduplicate}
+            disabled={deduping}
+            className="px-3 py-1.5 rounded-lg text-sm font-medium transition-opacity"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', opacity: deduping ? 0.6 : 1, cursor: deduping ? 'not-allowed' : 'pointer' }}
+          >
+            {deduping ? 'Nettoyage...' : '🧹 Nettoyer les doublons'}
+          </button>
         </div>
-      ))}
+      </div>
+
+      {entries.length === 0 ? (
+        <div className="rounded-xl p-12 text-center"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+          <div className="text-4xl mb-2">📜</div>
+          Aucun événement enregistré
+        </div>
+      ) : (
+        <div className="rounded-xl overflow-hidden"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {entries.map((e, i) => (
+            <div key={i} className="px-4 py-2 flex items-center gap-3 hover:bg-white/[0.02]"
+                 style={{ borderBottom: '1px solid var(--border)' }}>
+              <div className="text-xl">{EVENT_ICONS[e.eventType] || '📋'}</div>
+              <div className="flex-1">
+                <div className="text-sm">
+                  <span className="font-bold" style={{ color: EVENT_COLORS[e.eventType] || 'var(--text)' }}>
+                    {e.eventType === 'JOIN' ? 'Pris' :
+                     e.eventType === 'LEAVE' ? 'Quitté' :
+                     e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
+                  </span>
+                  {' '}
+                  <span style={{ color: 'var(--text-muted)' }}>·</span>
+                  {' '}
+                  <span style={{ color: 'var(--text)' }}>{e.playerName}</span>
+                  {' '}
+                  <span style={{ color: 'var(--text-muted)' }}>→</span>
+                  {' '}
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{e.jobName}</span>
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {timeAgo(e.timestamp)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

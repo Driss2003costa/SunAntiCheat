@@ -81,4 +81,18 @@ public final class JobsHandler {
         out.put("earnings", store.playerEarnings(playerName, days));
         HttpHelper.json(ex, 200, out);
     }
+
+    /** POST /api/jobs/deduplicate — supprime les doublons (ADMIN). */
+    public void deduplicate(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!u.isAdmin()) { HttpHelper.json(ex, 403, Map.of("error", "Admin requis")); return; }
+        int deletedEvents   = store.deduplicateEvents();
+        int deletedPayments = store.deduplicatePayments();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("deletedEvents", deletedEvents);
+        out.put("deletedPayments", deletedPayments);
+        out.put("total", deletedEvents + deletedPayments);
+        HttpHelper.json(ex, 200, out);
+    }
 }

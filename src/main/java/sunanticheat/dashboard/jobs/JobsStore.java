@@ -256,5 +256,94 @@ public final class JobsStore {
         return out;
     }
 
+    /**
+     * Supprime les doublons dans jobs_events.
+     * Doublons = mêmes (player_uuid, job_name, event_type, level) dans la même
+     * fenêtre de 5 secondes. On garde la première entrée (ts le plus petit).
+     */
+    public synchronized int deduplicateEvents() {
+        int deleted = 0;
+        try (Statement st = db.conn().createStatement();
+             ResultSet rs = st.executeQuery(
+                 "SELECT id, ts, player_uuid, job_name, event_type, level "
+               + "FROM jobs_events ORDER BY ts ASC")) {
+
+            Map<String, String> seen = new LinkedHashMap<>();  // key → kept id
+            List<String> toDelete = new ArrayList<>();
+            while (rs.next()) {
+                String key = rs.getString("player_uuid") + "|"
+                           + rs.getString("job_name")    + "|"
+                           + rs.getString("event_type")  + "|"
+                           + rs.getInt("level")           + "|"
+                           + (rs.getLong("ts") / 5000);
+                String id = rs.getString("id");
+                if (seen.containsKey(key)) {
+                    toDelete.add(id);
+                } else {
+                    seen.put(key, id);
+                }
+            }
+
+            deleted = batchDelete("jobs_events", toDelete);
+            if (deleted > 0) logger.info("[Jobs] Déduplication events: " + deleted + " doublon(s) supprimé(s)");
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] deduplicateEvents erreur", e);
+        }
+        return deleted;
+    }
+
+    /**
+     * Supprime les doublons dans jobs_payments.
+     * Doublons = mêmes (player_uuid, job_name, action_type, amount) dans la même
+     * fenêtre de 1 seconde. On garde la première entrée (ts le plus petit).
+     */
+    public synchronized int deduplicatePayments() {
+        int deleted = 0;
+        try (Statement st = db.conn().createStatement();
+             ResultSet rs = st.executeQuery(
+                 "SELECT id, ts, player_uuid, job_name, action_type, amount "
+               + "FROM jobs_payments ORDER BY ts ASC")) {
+
+            Map<String, String> seen = new LinkedHashMap<>();
+            List<String> toDelete = new ArrayList<>();
+            while (rs.next()) {
+                String key = rs.getString("player_uuid")  + "|"
+                           + rs.getString("job_name")     + "|"
+                           + rs.getString("action_type")  + "|"
+                           + rs.getDouble("amount")       + "|"
+                           + (rs.getLong("ts") / 1000);
+                String id = rs.getString("id");
+                if (seen.containsKey(key)) {
+                    toDelete.add(id);
+                } else {
+                    seen.put(key, id);
+                }
+            }
+
+            deleted = batchDelete("jobs_payments", toDelete);
+            if (deleted > 0) logger.info("[Jobs] Déduplication payments: " + deleted + " doublon(s) supprimé(s)");
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] deduplicatePayments erreur", e);
+        }
+        return deleted;
+    }
+
+    private int batchDelete(String table, List<String> ids) throws SQLException {
+        if (ids.isEmpty()) return 0;
+        int total = 0;
+        int batchSize = 500;
+        for (int i = 0; i < ids.size(); i += batchSize) {
+            List<String> batch = ids.subList(i, Math.min(i + batchSize, ids.size()));
+            String placeholders = "?,".repeat(batch.size());
+            placeholders = placeholders.substring(0, placeholders.length() - 1);
+            try (PreparedStatement ps = db.conn().prepareStatement(
+                    "DELETE FROM " + table + " WHERE id IN (" + placeholders + ")")) {
+                for (int j = 0; j < batch.size(); j++) ps.setString(j + 1, batch.get(j));
+                total += ps.executeUpdate();
+            }
+        }
+        return total;
+    }
+
     private static double round(double v) { return Math.round(v * 100.0) / 100.0; }
 }
