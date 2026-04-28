@@ -109,8 +109,10 @@ public final class HttpHelper {
             // Safety fallback : si le store n'est pas initialisé, ADMIN only
             return requireAdmin(ex, user);
         }
-        if (!permStore.has(user.role(), perm)) {
-            error(ex, 403, "Permission refusée : " + perm.label + " (rôle " + user.role() + ")");
+        // Utilise le rôle custom s'il est défini, sinon l'enum
+        String roleId = user.roleIdForPermissionCheck();
+        if (!permStore.has(roleId, perm)) {
+            error(ex, 403, "Permission refusée : " + perm.label + " (rôle " + roleId + ")");
             return false;
         }
         return true;

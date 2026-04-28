@@ -20,6 +20,9 @@ import sunanticheat.dashboard.sanctions.SanctionService;
 import sunanticheat.dashboard.sanctions.SanctionStore;
 import sunanticheat.dashboard.sanctions.VanillaBansImporter;
 import sunanticheat.dashboard.update.AutoUpdater;
+import sunanticheat.dashboard.playerlog.PlayerLogStore;
+import sunanticheat.dashboard.playerlog.PlayerLogService;
+import sunanticheat.dashboard.playerlog.PlayerLogListeners;
 import sunanticheat.dashboard.backup.BackupManager;
 import sunanticheat.dashboard.announcements.AnnouncementService;
 import sunanticheat.dashboard.announcements.AnnouncementStore;
@@ -108,6 +111,7 @@ public final class DashboardModule {
     private Database database;
     private SanctionListeners sanctionListeners;
     private AutoUpdater autoUpdater;
+    private PlayerLogService playerLogService;
 
     public DashboardModule(SunAntiCheat plugin) {
         this.plugin = plugin;
@@ -235,6 +239,31 @@ public final class DashboardModule {
         AuditHandler    auditHandler     = new AuditHandler(auditStore);
         JobsHandler     jobsHandler      = new JobsHandler(jobsStore, jobsLive);
         GamesHandler    gamesHandler     = new GamesHandler(new GameArenaScanner(plugin.getLogger()));
+
+        // ── Player Activity Log ─────────────────────────────────────────────
+        PlayerLogHandler playerLogHandler = null;
+        if (cfg.getBoolean("dashboard.player-log.enabled", true)) {
+            int retention = cfg.getInt("dashboard.player-log.retention-days", 30);
+            java.util.Set<String> enabledCats = new java.util.HashSet<>();
+            for (String cat : new String[]{"LOGIN","DEATH","CHAT","CONTAINER","TELEPORT","ECONOMY","GAMEPLAY","MODERATION"}) {
+                if (cfg.getBoolean("dashboard.player-log.categories." + cat.toLowerCase(),
+                        !cat.equals("CONTAINER"))) { // CONTAINER désactivé par défaut (verbeux)
+                    enabledCats.add(cat);
+                }
+            }
+            // Override : CONTAINER explicitement activé si demandé
+            if (cfg.getBoolean("dashboard.player-log.categories.container", false)) {
+                enabledCats.add("CONTAINER");
+            }
+            PlayerLogStore playerLogStore = new PlayerLogStore(database, plugin.getLogger(), retention);
+            playerLogService = new PlayerLogService(plugin, playerLogStore, enabledCats);
+            playerLogService.start();
+            new PlayerLogListeners(plugin, playerLogService).register();
+            playerLogHandler = new PlayerLogHandler(playerLogStore);
+            plugin.getLogger().info("[Dashboard] Player Activity Log activé — catégories : " + enabledCats);
+        } else {
+            plugin.getLogger().info("[Dashboard] Player Activity Log désactivé.");
+        }
 
         // ── Sanctions modernes (kick/ban/mute/warn DB-backed + stylized) ─────
         SanctionStore sanctionStore = new SanctionStore(database, blobs, plugin.getLogger());
@@ -391,7 +420,8 @@ public final class DashboardModule {
                 questHandler, experimentHandler, aiHandler, userHandler,
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
-                auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler);
+                auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler,
+                playerLogHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
@@ -439,6 +469,7 @@ public final class DashboardModule {
         if (vipStore != null) vipStore.save();
         if (Audit.store() != null) Audit.store().save();
         if (sanctionListeners != null) { sanctionListeners.stop(); sanctionListeners = null; }
+        if (playerLogService != null) { playerLogService.stop(); playerLogService = null; }
         if (autoUpdater != null) { autoUpdater.stop(); autoUpdater = null; }
         if (database != null) { database.close(); database = null; }
         plugin.getLogger().info("[Dashboard] Arrêté.");

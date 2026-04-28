@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { usePermission } from '../hooks/usePermission'
+import PlayerActivityLog from '../components/PlayerActivityLog'
 
 /**
  * Page profil joueur — agrège tout ce qu'on sait du joueur :
@@ -10,6 +11,7 @@ import { usePermission } from '../hooks/usePermission'
 
 const TABS = [
   { id: 'overview',  label: 'Aperçu',     icon: '📊' },
+  { id: 'activity',  label: 'Activité',   icon: '📜' },
   { id: 'sanctions', label: 'Sanctions',  icon: '⚖️' },
   { id: 'alerts',    label: 'Alertes',    icon: '🚨' },
   { id: 'economy',   label: 'Économie',   icon: '💰' },
@@ -148,6 +150,10 @@ export default function PlayerProfile() {
       </div>
 
       {/* Content */}
+      {tab === 'activity' && (
+        <PlayerActivityLog playerName={name!} isAdmin={canEdit}/>
+      )}
+
       {tab === 'overview' && (
         <div className="grid grid-cols-2 gap-4">
           {/* LuckPerms */}

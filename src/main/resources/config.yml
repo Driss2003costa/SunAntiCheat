@@ -212,6 +212,22 @@ dashboard:
   # Origine CORS autorisée (mettre l'URL exacte du frontend en prod)
   cors-origin: "*"
 
+  # ── Player Activity Log ──────────────────────────────────────────────
+  # Log d'activité par joueur consultable depuis le dashboard
+  # (page /players/:name → onglet Activité). Vue par catégories cliquables.
+  player-log:
+    enabled: true
+    retention-days: 30   # purge auto au-delà
+    categories:
+      login: true        # join / quit / kick
+      death: true        # PvP, mob, suicide
+      chat: true         # messages publics + commandes
+      container: false   # ⚠️ très verbeux (50+ events/min en jeu actif)
+      teleport: true     # tp / warp / home / spawn (filtre <8 blocs)
+      economy: true      # buy/sell shop, gain/perte argent
+      gameplay: true     # join job, win arène, level-up
+      moderation: true   # sanctions reçues / levées
+
   # ── Auto-update via GitHub Releases ─────────────────────────────────────
   # Au démarrage (puis toutes les N heures), le plugin vérifie GitHub
   # Releases. Si une version plus récente est dispo, il télécharge le JAR

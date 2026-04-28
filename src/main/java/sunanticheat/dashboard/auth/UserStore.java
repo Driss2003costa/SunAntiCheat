@@ -182,7 +182,7 @@ public final class UserStore {
     private static DashboardUser toDashboardUser(StoredUser u) {
         DashboardRole role;
         try { role = DashboardRole.valueOf(u.role); } catch (Exception e) { role = DashboardRole.MOD; }
-        return new DashboardUser(u.username, u.passwordHash, role);
+        return new DashboardUser(u.username, u.passwordHash, role, u.customRoleId);
     }
 
     private static DashboardRole parseRole(String role) {

@@ -48,6 +48,7 @@ public final class DashboardRouter implements HttpHandler {
     private final JobsHandler jobsHandler;
     private final SanctionsHandler sanctionsHandler;
     private final GamesHandler gamesHandler;
+    private final PlayerLogHandler playerLogHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -82,7 +83,8 @@ public final class DashboardRouter implements HttpHandler {
                            PlayerProfileHandler profileHandler,
                            JobsHandler jobsHandler,
                            SanctionsHandler sanctionsHandler,
-                           GamesHandler gamesHandler) {
+                           GamesHandler gamesHandler,
+                           PlayerLogHandler playerLogHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -117,6 +119,7 @@ public final class DashboardRouter implements HttpHandler {
         this.jobsHandler = jobsHandler;
         this.sanctionsHandler = sanctionsHandler;
         this.gamesHandler = gamesHandler;
+        this.playerLogHandler = playerLogHandler;
     }
 
     @Override
@@ -209,6 +212,21 @@ public final class DashboardRouter implements HttpHandler {
             int s = rest.indexOf("/notes/");
             profileHandler.deleteNote(ex, jwt, users,
                     rest.substring(0, s), rest.substring(s + "/notes/".length())); return;
+        }
+        // Player Activity Log
+        if (playerLogHandler != null) {
+            if (path.matches("/api/players/[^/]+/log/categories") && GET(method)) {
+                String name = path.substring("/api/players/".length(), path.length() - "/log/categories".length());
+                playerLogHandler.categories(ex, jwt, users, name); return;
+            }
+            if (path.matches("/api/players/[^/]+/log/clear") && POST(method)) {
+                String name = path.substring("/api/players/".length(), path.length() - "/log/clear".length());
+                playerLogHandler.clear(ex, jwt, users, name); return;
+            }
+            if (path.matches("/api/players/[^/]+/log") && GET(method)) {
+                String name = path.substring("/api/players/".length(), path.length() - "/log".length());
+                playerLogHandler.list(ex, jwt, users, name); return;
+            }
         }
 
         // ── Server ────────────────────────────────────────────────────────────

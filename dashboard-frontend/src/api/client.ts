@@ -51,6 +51,19 @@ export const api = {
   playerNoteDelete: (name: string, noteId: string) =>
     request<any>(`/api/players/${encodeURIComponent(name)}/notes/${noteId}`, { method: 'DELETE' }),
 
+  // Player activity log
+  playerLogCategories: (name: string, days = 30) =>
+    request<{ categories: any[]; totalEntries: number; days: number }>(
+      `/api/players/${encodeURIComponent(name)}/log/categories?days=${days}`),
+  playerLogList: (name: string, params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]))).toString()
+    return request<{ entries: any[]; total: number; offset: number; limit: number; hasMore: boolean }>(
+      `/api/players/${encodeURIComponent(name)}/log${qs ? '?' + qs : ''}`)
+  },
+  playerLogClear: (name: string) =>
+    request<{ success: boolean; deleted: number }>(
+      `/api/players/${encodeURIComponent(name)}/log/clear`, { method: 'POST' }),
+
   // Jobs (Jobs Reborn)
   jobsOverview:  (days = 7) => request<any>(`/api/jobs/overview?days=${days}`),
   jobsActive:    () => request<any>('/api/jobs/active'),
