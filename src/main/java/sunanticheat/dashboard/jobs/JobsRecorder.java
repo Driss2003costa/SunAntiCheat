@@ -40,7 +40,7 @@ public final class JobsRecorder implements Listener {
      * pour éviter de perdre des paiements identiques légitimes, on inclut
      * un nano-timestamp tronqué).
      */
-    private static final long DEDUP_WINDOW_MS = 1000;
+    private static final long DEDUP_WINDOW_MS = 5000; // 5s anti-spam JOIN/LEAVE
     private final ConcurrentHashMap<String, Long> recent = new ConcurrentHashMap<>();
 
     public JobsRecorder(JobsStore store, Plugin plugin) {
@@ -140,8 +140,8 @@ public final class JobsRecorder implements Listener {
         Object job = invoke(e, "getJob", Object.class);
         String uuid = playerUuid(p);
         String jName = jobName(job);
-        // Dedup : Jobs Reborn fire parfois ce type d'event 2x — on ne garde que le 1er
-        if (!shouldRecord(evType + "|" + uuid + "|" + jName)) return;
+        // Clé commune JOIN/LEAVE : un seul event par joueur×job dans la fenêtre de 5s
+        if (!shouldRecord("CHANGE|" + uuid + "|" + jName)) return;
         store.recordEvent(uuid, p == null ? null : p.getName(), jName, evType, level);
     }
 
