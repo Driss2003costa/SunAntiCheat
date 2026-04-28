@@ -57,6 +57,13 @@ function jobDisplay(j: any, fallbackKey = 'name'): string {
   return cleanJobName(j?.[fallbackKey])
 }
 
+function fmtDatetime(ts: number): string {
+  const d = new Date(ts)
+  const date = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return `${date} ${time}`
+}
+
 function timeAgo(ts: number): string {
   const sec = Math.floor((Date.now() - ts) / 1000)
   if (sec < 60)    return `${sec}s`
@@ -396,28 +403,23 @@ function HistoryTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
       <div className="rounded-xl overflow-hidden"
            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {entries.map((e, i) => (
-        <div key={i} className="px-4 py-2 flex items-center gap-3 hover:bg-white/[0.02]"
+        <div key={i} className="px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02]"
              style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="text-xl">{EVENT_ICONS[e.eventType] || '📋'}</div>
-          <div className="flex-1">
-            <div className="text-sm">
-              <span className="font-bold" style={{ color: EVENT_COLORS[e.eventType] || 'var(--text)' }}>
-                {e.eventType === 'JOIN' ? 'Pris' :
-                 e.eventType === 'LEAVE' ? 'Quitté' :
-                 e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
-              </span>
-              {' '}
-              <span style={{ color: 'var(--text-muted)' }}>·</span>
-              {' '}
-              <span style={{ color: 'var(--text)' }}>{e.playerName}</span>
-              {' '}
-              <span style={{ color: 'var(--text-muted)' }}>→</span>
-              {' '}
-              <span className="font-medium" style={{ color: 'var(--text)' }}>{cleanJobName(e.jobName)}</span>
-            </div>
+          <span className="text-xl w-7 text-center flex-shrink-0">{EVENT_ICONS[e.eventType] || '📋'}</span>
+          <span className="text-xs font-bold px-2 py-0.5 rounded flex-shrink-0"
+                style={{ background: EVENT_COLORS[e.eventType] + '22', color: EVENT_COLORS[e.eventType] || 'var(--text)', minWidth: 60, textAlign: 'center' }}>
+            {e.eventType === 'JOIN' ? 'Rejoint' :
+             e.eventType === 'LEAVE' ? 'Quitté' :
+             e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
+          </span>
+          <div className="flex-1 text-sm">
+            <span className="font-medium" style={{ color: 'var(--text)' }}>{e.playerName}</span>
+            <span className="mx-1" style={{ color: 'var(--text-muted)' }}>→</span>
+            <span style={{ color: 'var(--text-muted)' }}>{cleanJobName(e.jobName)}</span>
           </div>
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {timeAgo(e.timestamp)}
+          <div className="text-xs text-right flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+            <div>{fmtDatetime(e.timestamp)}</div>
+            <div style={{ color: 'var(--text-muted)', opacity: 0.6 }}>{timeAgo(e.timestamp)}</div>
           </div>
         </div>
         ))}
