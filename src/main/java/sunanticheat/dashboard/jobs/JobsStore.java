@@ -116,14 +116,34 @@ public final class JobsStore {
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
-    /** Historique paginé (events + payments groupés ?), ici juste events. */
+    /** Historique paginé des événements JOIN/LEAVE/LEVEL_UP avec filtres optionnels. */
     public synchronized List<Map<String, Object>> history(int limit, int offset) {
+        return history(limit, offset, null, null);
+    }
+
+    public synchronized List<Map<String, Object>> history(int limit, int offset,
+                                                           String playerFilter, String jobFilter) {
         List<Map<String, Object>> out = new ArrayList<>();
-        try (PreparedStatement ps = db.conn().prepareStatement(
-                "SELECT ts, player_uuid, player_name, job_name, event_type, level "
-              + "FROM jobs_events ORDER BY ts DESC LIMIT ? OFFSET ?")) {
-            ps.setInt(1, Math.max(1, limit));
-            ps.setInt(2, Math.max(0, offset));
+        StringBuilder sql = new StringBuilder(
+            "SELECT ts, player_uuid, player_name, job_name, event_type, level FROM jobs_events WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+        if (playerFilter != null && !playerFilter.isBlank()) {
+            sql.append(" AND LOWER(player_name) LIKE ?");
+            params.add("%" + playerFilter.toLowerCase() + "%");
+        }
+        if (jobFilter != null && !jobFilter.isBlank()) {
+            sql.append(" AND LOWER(job_name) LIKE ?");
+            params.add("%" + jobFilter.toLowerCase() + "%");
+        }
+        sql.append(" ORDER BY ts DESC LIMIT ? OFFSET ?");
+        params.add(Math.max(1, limit));
+        params.add(Math.max(0, offset));
+        try (PreparedStatement ps = db.conn().prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                Object v = params.get(i);
+                if (v instanceof Integer) ps.setInt(i + 1, (Integer) v);
+                else ps.setString(i + 1, (String) v);
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> m = new LinkedHashMap<>();
@@ -139,6 +159,65 @@ public final class JobsStore {
         } catch (SQLException e) {
             logger.log(Level.WARNING, "[Jobs] history erreur", e);
         }
+        return out;
+    }
+
+    /** Historique paginé des paiements avec filtres optionnels. */
+    public synchronized Map<String, Object> paymentsHistory(int limit, int offset,
+                                                             String playerFilter, String jobFilter) {
+        List<Map<String, Object>> entries = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(
+            "SELECT ts, player_uuid, player_name, job_name, amount, exp, action_type FROM jobs_payments WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+        if (playerFilter != null && !playerFilter.isBlank()) {
+            sql.append(" AND LOWER(player_name) LIKE ?");
+            params.add("%" + playerFilter.toLowerCase() + "%");
+        }
+        if (jobFilter != null && !jobFilter.isBlank()) {
+            sql.append(" AND LOWER(job_name) LIKE ?");
+            params.add("%" + jobFilter.toLowerCase() + "%");
+        }
+        // count total
+        int total = 0;
+        String countSql = sql.toString().replace(
+            "SELECT ts, player_uuid, player_name, job_name, amount, exp, action_type",
+            "SELECT COUNT(*)");
+        try (PreparedStatement ps = db.conn().prepareStatement(countSql)) {
+            for (int i = 0; i < params.size(); i++) ps.setString(i + 1, (String) params.get(i));
+            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) total = rs.getInt(1); }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] paymentsHistory count erreur", e);
+        }
+        sql.append(" ORDER BY ts DESC LIMIT ? OFFSET ?");
+        params.add(Math.max(1, limit));
+        params.add(Math.max(0, offset));
+        try (PreparedStatement ps = db.conn().prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                Object v = params.get(i);
+                if (v instanceof Integer) ps.setInt(i + 1, (Integer) v);
+                else ps.setString(i + 1, (String) v);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("timestamp", rs.getLong("ts"));
+                    m.put("playerUuid", rs.getString("player_uuid"));
+                    m.put("playerName", rs.getString("player_name"));
+                    m.put("jobName", rs.getString("job_name"));
+                    m.put("amount", round(rs.getDouble("amount")));
+                    m.put("exp", round(rs.getDouble("exp")));
+                    m.put("actionType", rs.getString("action_type"));
+                    entries.add(m);
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[Jobs] paymentsHistory erreur", e);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("entries", entries);
+        out.put("total", total);
+        out.put("limit", limit);
+        out.put("offset", offset);
         return out;
     }
 

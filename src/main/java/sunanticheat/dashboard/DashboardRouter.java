@@ -176,6 +176,7 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/jobs/overview")  && GET(method))    { jobsHandler.overview(ex, jwt, users); return; }
         if (eq(path, "/api/jobs/active")    && GET(method))    { jobsHandler.active(ex, jwt, users); return; }
         if (eq(path, "/api/jobs/history")   && GET(method))    { jobsHandler.history(ex, jwt, users); return; }
+        if (eq(path, "/api/jobs/payments")  && GET(method))    { jobsHandler.payments(ex, jwt, users); return; }
         if (path.startsWith("/api/jobs/player/") && GET(method)) {
             jobsHandler.player(ex, jwt, users, path.substring("/api/jobs/player/".length())); return;
         }

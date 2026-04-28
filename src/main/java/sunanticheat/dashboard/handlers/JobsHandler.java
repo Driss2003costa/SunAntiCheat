@@ -56,17 +56,30 @@ public final class JobsHandler {
         HttpHelper.json(ex, 200, out);
     }
 
-    /** GET /api/jobs/history?limit=&offset= — historique JOIN/LEAVE/LEVEL_UP. */
+    /** GET /api/jobs/history?limit=&offset=&player=&job= — historique JOIN/LEAVE/LEVEL_UP. */
     public void history(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        int limit = Math.max(1, Math.min(500, HttpHelper.queryInt(ex, "limit", 100)));
+        int limit  = Math.max(1, Math.min(500, HttpHelper.queryInt(ex, "limit", 100)));
         int offset = Math.max(0, HttpHelper.queryInt(ex, "offset", 0));
+        String player = HttpHelper.queryParam(ex, "player");
+        String job    = HttpHelper.queryParam(ex, "job");
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("entries", store.history(limit, offset));
+        out.put("entries", store.history(limit, offset, player, job));
         out.put("limit", limit);
         out.put("offset", offset);
         HttpHelper.json(ex, 200, out);
+    }
+
+    /** GET /api/jobs/payments?limit=&offset=&player=&job= — historique des paiements. */
+    public void payments(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        int limit  = Math.max(1, Math.min(500, HttpHelper.queryInt(ex, "limit", 100)));
+        int offset = Math.max(0, HttpHelper.queryInt(ex, "offset", 0));
+        String player = HttpHelper.queryParam(ex, "player");
+        String job    = HttpHelper.queryParam(ex, "job");
+        HttpHelper.json(ex, 200, store.paymentsHistory(limit, offset, player, job));
     }
 
     /** GET /api/jobs/player/{name} — détails d'un joueur (gains par job). */

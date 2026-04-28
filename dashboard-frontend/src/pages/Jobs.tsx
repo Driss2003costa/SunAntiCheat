@@ -85,6 +85,7 @@ export default function Jobs() {
   const [overview, setOverview] = useState<any>(null)
   const [active, setActive] = useState<any>(null)
   const [history, setHistory] = useState<any>(null)
+  const [historyFilter, setHistoryFilter] = useState({ player: '', job: '' })
   const [loading, setLoading] = useState(false)
 
   const refresh = async () => {
@@ -97,6 +98,13 @@ export default function Jobs() {
       } else if (tab === 'history') {
         setHistory(await api.jobsHistory(200, 0))
       }
+    } catch {} finally { setLoading(false) }
+  }
+
+  const refreshHistory = async (filter: { player: string; job: string }) => {
+    setLoading(true)
+    try {
+      setHistory(await api.jobsHistory(200, 0, filter.player, filter.job))
     } catch {} finally { setLoading(false) }
   }
 
@@ -174,7 +182,9 @@ export default function Jobs() {
 
       {tab === 'overview' && <OverviewTab data={overview} days={days}/>}
       {tab === 'active'   && <ActiveTab data={active} />}
-      {tab === 'history'  && <HistoryTab data={history} onRefresh={refresh} />}
+      {tab === 'history'  && <HistoryTab data={history} onRefresh={refresh}
+                                          filter={historyFilter}
+                                          onFilterChange={f => { setHistoryFilter(f); refreshHistory(f) }} />}
       {tab === 'catalog'  && <CatalogTab data={overview} />}
     </div>
   )
@@ -336,94 +346,177 @@ function ActiveTab({ data }: { data: any }) {
 }
 
 // ── History ────────────────────────────────────────────────────────────────────
-function HistoryTab({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+type HistorySubTab = 'events' | 'payments'
+
+function HistoryTab({ data, onRefresh, filter, onFilterChange }: {
+  data: any
+  onRefresh: () => void
+  filter: { player: string; job: string }
+  onFilterChange: (f: { player: string; job: string }) => void
+}) {
+  const [subTab, setSubTab] = useState<HistorySubTab>('events')
+  const [payments, setPayments] = useState<any>(null)
+  const [payLoading, setPayLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
+  const loadPayments = async (f = filter) => {
+    setPayLoading(true)
+    try { setPayments(await api.jobsPayments(200, 0, f.player, f.job)) }
+    catch {} finally { setPayLoading(false) }
+  }
+
+  useEffect(() => { if (subTab === 'payments' && !payments) loadPayments() }, [subTab])
+
+  const applyFilter = (f: { player: string; job: string }) => {
+    onFilterChange(f)
+    if (subTab === 'payments') loadPayments(f)
+  }
+
   const clearAll = async () => {
-    if (!confirm('Vider TOUT l\'historique des events Jobs (JOIN/LEAVE/LEVEL_UP) ?\n\nCette action est irréversible.')) return
+    if (!confirm('Vider TOUT l\'historique des events Jobs ?\nCette action est irréversible.')) return
     setBusy(true)
-    try {
-      const res = await api.jobsClearHistory('all')
-      alert(`✓ ${res.deleted} event(s) supprimé(s)`)
-      onRefresh()
-    } catch (e: any) {
-      alert('Erreur : ' + e.message)
-    } finally { setBusy(false) }
+    try { const r = await api.jobsClearHistory('all'); alert(`✓ ${r.deleted} entrée(s) supprimée(s)`); onRefresh(); setPayments(null) }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(false) }
   }
-
   const dedup = async () => {
-    if (!confirm('Supprimer uniquement les events dupliqués ?\n\nGarde 1 ligne par groupe (player, job, type, ts). Recommandé après le fix anti-doublons.')) return
+    if (!confirm('Supprimer les doublons ?')) return
     setBusy(true)
-    try {
-      const res = await api.jobsClearHistory('duplicates')
-      alert(`✓ ${res.deleted} doublon(s) supprimé(s)`)
-      onRefresh()
-    } catch (e: any) {
-      alert('Erreur : ' + e.message)
-    } finally { setBusy(false) }
-  }
-
-  const Toolbar = (
-    <div className="flex items-center justify-between mb-2 px-1">
-      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        {data?.entries?.length ?? 0} événement{(data?.entries?.length ?? 0) > 1 ? 's' : ''}
-      </div>
-      <div className="flex gap-2">
-        <button onClick={dedup} disabled={busy}
-                className="px-3 py-1.5 rounded text-xs font-medium"
-                style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
-          {busy ? '⏳' : '🧹 Supprimer doublons'}
-        </button>
-        <button onClick={clearAll} disabled={busy}
-                className="px-3 py-1.5 rounded text-xs font-medium"
-                style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
-          {busy ? '⏳' : '🗑 Tout vider'}
-        </button>
-      </div>
-    </div>
-  )
-
-  if (!data) return <Loading/>
-  const entries: any[] = data.entries || []
-
-  if (entries.length === 0) {
-    return <div>
-      {Toolbar}
-      <div className="rounded-xl p-12 text-center"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-        <div className="text-4xl mb-2">📜</div>
-        Aucun événement enregistré
-      </div>
-    </div>
+    try { const r = await api.jobsClearHistory('duplicates'); alert(`✓ ${r.deleted} doublon(s) supprimé(s)`); onRefresh() }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(false) }
   }
 
   return (
-    <div>
-      {Toolbar}
-      <div className="rounded-xl overflow-hidden"
-           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        {entries.map((e, i) => (
-        <div key={i} className="px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02]"
-             style={{ borderBottom: '1px solid var(--border)' }}>
-          <span className="text-xl w-7 text-center flex-shrink-0">{EVENT_ICONS[e.eventType] || '📋'}</span>
-          <span className="text-xs font-bold px-2 py-0.5 rounded flex-shrink-0"
-                style={{ background: EVENT_COLORS[e.eventType] + '22', color: EVENT_COLORS[e.eventType] || 'var(--text)', minWidth: 60, textAlign: 'center' }}>
-            {e.eventType === 'JOIN' ? 'Rejoint' :
-             e.eventType === 'LEAVE' ? 'Quitté' :
-             e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
-          </span>
-          <div className="flex-1 text-sm">
-            <span className="font-medium" style={{ color: 'var(--text)' }}>{e.playerName}</span>
-            <span className="mx-1" style={{ color: 'var(--text-muted)' }}>→</span>
-            <span style={{ color: 'var(--text-muted)' }}>{cleanJobName(e.jobName)}</span>
-          </div>
-          <div className="text-xs text-right flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-            <div>{fmtDatetime(e.timestamp)}</div>
-            <div style={{ color: 'var(--text-muted)', opacity: 0.6 }}>{timeAgo(e.timestamp)}</div>
-          </div>
+    <div className="space-y-3">
+      {/* Filtres */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <input
+          type="text" placeholder="Filtrer par joueur..." value={filter.player}
+          onChange={e => applyFilter({ ...filter, player: e.target.value })}
+          className="px-3 py-1.5 rounded-lg text-sm flex-1 min-w-36"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+        />
+        <input
+          type="text" placeholder="Filtrer par job..." value={filter.job}
+          onChange={e => applyFilter({ ...filter, job: e.target.value })}
+          className="px-3 py-1.5 rounded-lg text-sm flex-1 min-w-36"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+        />
+        {(filter.player || filter.job) && (
+          <button onClick={() => applyFilter({ player: '', job: '' })}
+                  className="px-3 py-1.5 rounded-lg text-xs"
+                  style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+            ✕ Effacer
+          </button>
+        )}
+        <div className="flex gap-2 ml-auto">
+          <button onClick={dedup} disabled={busy} className="px-3 py-1.5 rounded text-xs font-medium"
+                  style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+            {busy ? '⏳' : '🧹 Doublons'}
+          </button>
+          <button onClick={clearAll} disabled={busy} className="px-3 py-1.5 rounded text-xs font-medium"
+                  style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+            {busy ? '⏳' : '🗑 Tout vider'}
+          </button>
         </div>
+      </div>
+
+      {/* Sous-onglets */}
+      <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
+        {([['events', '📜 Événements', data?.entries?.length ?? 0],
+           ['payments', '💰 Paiements', payments?.total ?? '...']] as const).map(([id, label, count]) => (
+          <button key={id} onClick={() => setSubTab(id as HistorySubTab)}
+                  className="px-4 py-2 text-sm font-medium border-b-2 transition flex items-center gap-1.5"
+                  style={{ color: subTab === id ? 'var(--primary)' : 'var(--text-muted)', borderColor: subTab === id ? 'var(--primary)' : 'transparent' }}>
+            {label}
+            <span className="text-xs px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{count}</span>
+          </button>
         ))}
       </div>
+
+      {/* Événements */}
+      {subTab === 'events' && (() => {
+        if (!data) return <Loading/>
+        const entries: any[] = data.entries || []
+        if (entries.length === 0) return (
+          <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            <div className="text-4xl mb-2">📜</div>Aucun événement
+          </div>
+        )
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            {entries.map((e, i) => (
+              <div key={i} className="px-4 py-3 flex items-center gap-3 hover:bg-white/[0.02]"
+                   style={{ borderBottom: '1px solid var(--border)' }}>
+                <span className="text-lg w-6 text-center flex-shrink-0">{EVENT_ICONS[e.eventType] || '📋'}</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded flex-shrink-0"
+                      style={{ background: (EVENT_COLORS[e.eventType] || '#888') + '22', color: EVENT_COLORS[e.eventType] || 'var(--text)', minWidth: 64, textAlign: 'center' }}>
+                  {e.eventType === 'JOIN' ? 'Rejoint' : e.eventType === 'LEAVE' ? 'Quitté' : e.eventType === 'LEVEL_UP' ? `Niv. ${e.level}` : e.eventType}
+                </span>
+                <div className="flex-1 text-sm">
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{e.playerName}</span>
+                  <span className="mx-1.5" style={{ color: 'var(--text-muted)' }}>→</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{cleanJobName(e.jobName)}</span>
+                </div>
+                <div className="text-xs text-right flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  <div>{fmtDatetime(e.timestamp)}</div>
+                  <div style={{ opacity: 0.6 }}>{timeAgo(e.timestamp)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* Paiements */}
+      {subTab === 'payments' && (() => {
+        if (payLoading || !payments) return <Loading/>
+        const entries: any[] = payments.entries || []
+        if (entries.length === 0) return (
+          <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            <div className="text-4xl mb-2">💰</div>Aucun paiement enregistré
+          </div>
+        )
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            {/* Header */}
+            <div className="px-4 py-2 grid text-xs font-semibold uppercase"
+                 style={{ gridTemplateColumns: '1fr 120px 120px 90px 90px 160px', background: 'var(--surface-2)', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+              <span>Joueur → Job</span><span>Action</span><span className="text-right">Argent</span><span className="text-right">Exp</span><span></span><span className="text-right">Date</span>
+            </div>
+            {entries.map((e, i) => (
+              <div key={i} className="px-4 py-2.5 grid items-center gap-2 hover:bg-white/[0.02]"
+                   style={{ gridTemplateColumns: '1fr 120px 120px 90px 90px 160px', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                <div>
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{e.playerName}</span>
+                  <span className="mx-1" style={{ color: 'var(--text-muted)' }}>→</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{cleanJobName(e.jobName)}</span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-xs font-medium truncate"
+                      style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}>
+                  {e.actionType || '—'}
+                </span>
+                <span className="text-right font-mono font-bold" style={{ color: '#10b981' }}>
+                  +{e.amount > 0 ? e.amount.toFixed(2) : '0.00'} $
+                </span>
+                <span className="text-right font-mono text-xs" style={{ color: '#f59e0b' }}>
+                  +{e.exp > 0 ? e.exp.toFixed(1) : '0'} xp
+                </span>
+                <span></span>
+                <div className="text-right" style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                  <div>{fmtDatetime(e.timestamp)}</div>
+                  <div style={{ opacity: 0.6 }}>{timeAgo(e.timestamp)}</div>
+                </div>
+              </div>
+            ))}
+            {payments.total > entries.length && (
+              <div className="px-4 py-3 text-xs text-center" style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }}>
+                Affichage des {entries.length} derniers sur {payments.total} paiements — utilisez le filtre joueur/job pour affiner
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }

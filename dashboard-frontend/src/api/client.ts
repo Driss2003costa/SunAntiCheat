@@ -54,7 +54,14 @@ export const api = {
   // Jobs (Jobs Reborn)
   jobsOverview:  (days = 7) => request<any>(`/api/jobs/overview?days=${days}`),
   jobsActive:    () => request<any>('/api/jobs/active'),
-  jobsHistory:   (limit = 100, offset = 0) => request<any>(`/api/jobs/history?limit=${limit}&offset=${offset}`),
+  jobsHistory:   (limit = 100, offset = 0, player = '', job = '') => {
+    const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), ...(player ? { player } : {}), ...(job ? { job } : {}) }).toString()
+    return request<any>(`/api/jobs/history?${qs}`)
+  },
+  jobsPayments:  (limit = 100, offset = 0, player = '', job = '') => {
+    const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), ...(player ? { player } : {}), ...(job ? { job } : {}) }).toString()
+    return request<any>(`/api/jobs/payments?${qs}`)
+  },
   jobsPlayer:    (name: string, days = 30) =>
     request<any>(`/api/jobs/player/${encodeURIComponent(name)}?days=${days}`),
   jobsClearHistory: (mode: 'all' | 'duplicates' | 'payments') =>
