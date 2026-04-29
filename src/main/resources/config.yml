@@ -345,6 +345,39 @@ first-join:
     - "mvtp spawn %player%"
     - "say Bienvenue %player%"
 
+# ── Honeypot automatique (anti X-Ray) ───────────────────────────────────────
+# Un faux minerai est posé dans chaque nouveau chunk généré (monde normal uniquement).
+# Le bloc est entouré de pierre/deepslate sur les 6 faces : invisible pour les joueurs
+# légitimes, mais détectable par tout mod X-Ray (il apparaît comme un vrai filon).
+#
+# Niveau de certitude selon les faces encore solides au moment du cassage :
+#   6 faces → impossible à atteindre sans phasing/reach hack  — certitude absolue
+#   5 faces → 1 seul bloc creusé directement sur l'ore        — quasi-certitude X-Ray
+#   4 faces → 2 blocs creusés en ligne droite                 — très suspect
+#   ≤ 3    → chemin plus large (strip-mine possible)          — alerte seule
+honeypot:
+  auto-place:
+    enabled: true
+    # Matériau posé — doit ressembler à un vrai minerai pour les mods X-Ray.
+    # DEEPSLATE_DIAMOND_ORE recommandé (zone -60 → 0). Autres options valides :
+    # DIAMOND_ORE, DEEPSLATE_GOLD_ORE, ANCIENT_DEBRIS (Nether non supporté ici)
+    ore-material: DEEPSLATE_DIAMOND_ORE
+    # Plage de Y dans laquelle chercher un emplacement (zone diamant 1.21 : -64 à 16)
+    min-y: -60
+    max-y: -10
+    # Probabilité de placer un piège dans chaque nouveau chunk (0.0 = jamais, 1.0 = toujours)
+    probability-per-chunk: 0.3
+  actions:
+    # Nombre minimum de faces solides pour déclencher la commande console.
+    # 5 = quasi-certitude (recommandé). Mettre 4 pour attraper les creuseurs biais.
+    min-solid-faces-for-action: 5
+    # Commande exécutée par la console si min-solid-faces-for-action est atteint.
+    # %player% = pseudo du joueur. Vide = désactivé.
+    # Exemple : "ban %player% X-Ray détecté automatiquement (honeypot)"
+    run-command: ""
+    # false = le joueur récupère le minerai (plus discret). true = aucun drop.
+    suppress-drops: false
+
 # ── Points de violation ─────────────────────────────────────────────────────
 # Chaque type d'alerte accumule des points par joueur. Quand un seuil est franchi
 # pour la première fois, un embed Discord est envoyé (si discord.webhook-url est défini).

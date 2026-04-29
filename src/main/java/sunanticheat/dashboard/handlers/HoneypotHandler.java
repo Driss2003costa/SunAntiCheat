@@ -87,6 +87,7 @@ public final class HoneypotHandler {
         m.put("createdAt", t.getCreatedAt());
         m.put("lastTriggered", t.getLastTriggered());
         m.put("triggerCount", t.getTriggerCount());
+        m.put("autoPlaced", t.isAutoPlaced());
         return m;
     }
 }

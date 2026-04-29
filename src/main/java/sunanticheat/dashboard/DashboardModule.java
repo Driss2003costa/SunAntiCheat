@@ -49,6 +49,7 @@ import sunanticheat.dashboard.db.Database;
 import sunanticheat.dashboard.db.BlobStorage;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.mobile.PushService;
+import sunanticheat.dashboard.honeypot.HoneypotAutoPlanter;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
 import sunanticheat.dashboard.honeypot.HoneypotStore;
 import sunanticheat.dashboard.shop.ShopEconomyListener;
@@ -397,7 +398,12 @@ public final class DashboardModule {
         }
 
         // Listeners
-        Bukkit.getPluginManager().registerEvents(new HoneypotListener(honeypotStore, this::pushAlertRaw), plugin);
+        Bukkit.getPluginManager().registerEvents(
+                new HoneypotListener(honeypotStore, this::pushAlertRaw, plugin, vpService::record), plugin);
+        Bukkit.getPluginManager().registerEvents(new HoneypotAutoPlanter(plugin, honeypotStore), plugin);
+        if (plugin.getConfig().getBoolean("honeypot.auto-place.enabled", true)) {
+            plugin.getLogger().info("[Dashboard] Honeypot automatique activé (nouveaux chunks, monde normal).");
+        }
         Bukkit.getPluginManager().registerEvents(new ToxicChatListener(plugin, toxicChatStore, this::pushAlertRaw), plugin);
         Bukkit.getPluginManager().registerEvents(new QuestListener(questStore), plugin);
         Bukkit.getPluginManager().registerEvents(crateListener, plugin);

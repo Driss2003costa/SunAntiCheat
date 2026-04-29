@@ -9,15 +9,24 @@ public final class HoneypotTrap {
     private final long createdAt;
     private long lastTriggered;
     private int triggerCount;
+    /** true = posé automatiquement par HoneypotAutoPlanter (false = placement manuel admin). */
+    private boolean autoPlaced;
 
     public HoneypotTrap(String id, String label, String world, int x, int y, int z,
                         String material, long createdAt, long lastTriggered, int triggerCount) {
+        this(id, label, world, x, y, z, material, createdAt, lastTriggered, triggerCount, false);
+    }
+
+    public HoneypotTrap(String id, String label, String world, int x, int y, int z,
+                        String material, long createdAt, long lastTriggered, int triggerCount,
+                        boolean autoPlaced) {
         this.id = id; this.label = label != null ? label : "trap";
         this.world = world; this.x = x; this.y = y; this.z = z;
         this.material = material != null ? material : "DIAMOND_BLOCK";
         this.createdAt = createdAt;
         this.lastTriggered = lastTriggered;
         this.triggerCount = triggerCount;
+        this.autoPlaced = autoPlaced;
     }
 
     public String getId() { return id; }
@@ -28,6 +37,7 @@ public final class HoneypotTrap {
     public long getCreatedAt() { return createdAt; }
     public long getLastTriggered() { return lastTriggered; }
     public int getTriggerCount() { return triggerCount; }
+    public boolean isAutoPlaced() { return autoPlaced; }
 
     public void setLabel(String s) { label = s; }
     public void setLastTriggered(long t) { lastTriggered = t; }

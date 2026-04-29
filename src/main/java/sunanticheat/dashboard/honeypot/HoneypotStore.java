@@ -36,8 +36,12 @@ public final class HoneypotStore {
     }
 
     public HoneypotTrap add(String label, String world, int x, int y, int z, String material) {
+        return add(label, world, x, y, z, material, false);
+    }
+
+    public HoneypotTrap add(String label, String world, int x, int y, int z, String material, boolean autoPlaced) {
         String id = UUID.randomUUID().toString();
-        HoneypotTrap t = new HoneypotTrap(id, label, world, x, y, z, material, System.currentTimeMillis(), 0, 0);
+        HoneypotTrap t = new HoneypotTrap(id, label, world, x, y, z, material, System.currentTimeMillis(), 0, 0, autoPlaced);
         trapsById.put(id, t);
         keyToId.put(t.key(), id);
         save();
@@ -55,7 +59,7 @@ public final class HoneypotStore {
         return id != null ? trapsById.get(id) : null;
     }
 
-    public void recordTrigger(HoneypotTrap trap, String player, String playerUuid) {
+    public void recordTrigger(HoneypotTrap trap, String player, String playerUuid, int solidFaces) {
         trap.setLastTriggered(System.currentTimeMillis());
         trap.incTrigger();
         Map<String, Object> alert = new LinkedHashMap<>();
@@ -66,6 +70,8 @@ public final class HoneypotStore {
         alert.put("playerUuid", playerUuid);
         alert.put("world", trap.getWorld());
         alert.put("x", trap.getX()); alert.put("y", trap.getY()); alert.put("z", trap.getZ());
+        alert.put("solidFaces", solidFaces);
+        alert.put("autoPlaced", trap.isAutoPlaced());
         synchronized (alerts) { alerts.add(alert); if (alerts.size() > 500) alerts.remove(0); }
         save();
     }
