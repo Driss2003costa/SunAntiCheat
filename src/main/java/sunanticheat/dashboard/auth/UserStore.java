@@ -69,6 +69,7 @@ public final class UserStore {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("username", u.username);
             m.put("role", u.role);
+            m.put("customRoleId", u.customRoleId);
             m.put("createdAt", u.createdAt);
             m.put("lastLoginAt", u.lastLoginAt);
             m.put("totpEnabled", u.totpEnabled);
@@ -157,6 +158,22 @@ public final class UserStore {
         if (u.role.equals("ADMIN") && r != DashboardRole.ADMIN && adminCount() <= 1)
             return "Impossible : il doit rester au moins un administrateur.";
         u.role = r.name();
+        save();
+        return null;
+    }
+
+    /**
+     * Assigne (ou retire) un rôle custom à un utilisateur.
+     * Le rôle enum (ADMIN/MOD/VIEWER) reste tel quel — il sert de base de
+     * hiérarchie. Le customRoleId remplace les permissions effectives du
+     * rôle enum lors des checks.
+     *
+     * @param customRoleId id d'un CustomRole, ou null/empty pour retirer
+     */
+    public String setCustomRole(String username, String customRoleId) {
+        StoredUser u = users.get(username.toLowerCase());
+        if (u == null) return "Utilisateur introuvable.";
+        u.customRoleId = (customRoleId != null && !customRoleId.isBlank()) ? customRoleId : null;
         save();
         return null;
     }

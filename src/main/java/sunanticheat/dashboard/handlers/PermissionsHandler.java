@@ -84,4 +84,47 @@ public final class PermissionsHandler {
         store.resetToDefaults();
         HttpHelper.json(ex, 200, store.snapshot());
     }
+
+    // ── Custom roles CRUD ────────────────────────────────────────────────────
+
+    /** GET /api/permissions/custom-roles — liste des rôles custom. */
+    public void listCustomRoles(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        HttpHelper.json(ex, 200, Map.of("customRoles", store.listCustomRoles()));
+    }
+
+    /**
+     * POST /api/permissions/custom-roles — crée OU met à jour un rôle custom.
+     * Body : { id, label, color, description, baseRole, permissions: [] }
+     * ADMIN.
+     */
+    public void upsertCustomRole(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requireAdmin(ex, u)) return;
+
+        sunanticheat.dashboard.auth.CustomRole r;
+        try {
+            r = HttpHelper.GSON.fromJson(HttpHelper.body(ex), sunanticheat.dashboard.auth.CustomRole.class);
+        } catch (Exception e) { HttpHelper.error(ex, 400, "JSON invalide"); return; }
+        if (r == null) { HttpHelper.error(ex, 400, "Body requis"); return; }
+
+        String error = store.upsertCustomRole(r);
+        if (error != null) { HttpHelper.error(ex, 400, error); return; }
+
+        HttpHelper.json(ex, 200, Map.of("success", true, "role", store.getCustomRole(r.id)));
+    }
+
+    /** DELETE /api/permissions/custom-roles/{id} — supprime un rôle custom. ADMIN. */
+    public void deleteCustomRole(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users,
+                                  String id) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requireAdmin(ex, u)) return;
+
+        boolean removed = store.removeCustomRole(id);
+        if (!removed) { HttpHelper.error(ex, 404, "Rôle inexistant"); return; }
+        HttpHelper.json(ex, 200, Map.of("success", true));
+    }
 }

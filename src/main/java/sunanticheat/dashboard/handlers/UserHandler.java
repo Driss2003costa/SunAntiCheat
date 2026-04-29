@@ -67,6 +67,28 @@ public final class UserHandler {
         HttpHelper.json(ex, 200, Map.of("ok", true));
     }
 
+    /**
+     * PATCH /api/users/{username}/custom-role — assigner ou retirer un rôle custom.
+     * Body : { customRoleId: "helper_2024" } ou { customRoleId: null } pour retirer.
+     */
+    @SuppressWarnings("unchecked")
+    public void changeCustomRole(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String target) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.USERS_MANAGE)) return;
+
+        Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+        String customRoleId = body != null && body.get("customRoleId") != null
+                ? String.valueOf(body.get("customRoleId")) : null;
+        if (customRoleId != null && customRoleId.equals("null")) customRoleId = null;
+
+        String err = store.setCustomRole(target, customRoleId);
+        if (err != null) { HttpHelper.error(ex, 400, err); return; }
+
+        refreshUsersMap(users);
+        HttpHelper.json(ex, 200, Map.of("ok", true, "customRoleId", customRoleId == null ? "" : customRoleId));
+    }
+
     /** POST /api/users/{username}/password — reset mot de passe (ADMIN) */
     @SuppressWarnings("unchecked")
     public void resetPassword(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String target) throws IOException {

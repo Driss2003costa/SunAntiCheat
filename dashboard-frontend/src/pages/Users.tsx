@@ -45,14 +45,17 @@ export default function Users() {
   // Form state
   const [form, setForm]           = useState({ username: '', password: '', role: 'MOD' as Role })
   const [newRole, setNewRole]     = useState<Role>('MOD')
+  const [newCustomRoleId, setNewCustomRoleId] = useState<string>('')   // '' = aucun
   const [resetPw, setResetPw]     = useState('')
   const [ownPw, setOwnPw]         = useState({ current: '', next: '', confirm: '' })
   const [saving, setSaving]       = useState(false)
   const [msg, setMsg]             = useState('')
+  const [customRoles, setCustomRoles] = useState<any[]>([])
 
   const load = async () => {
     setLoading(true)
     try { setUsers((await api.usersList()).users) } catch {} finally { setLoading(false) }
+    try { setCustomRoles((await api.customRolesList()).customRoles || []) } catch {}
   }
   useEffect(() => { load() }, [])
 
@@ -78,8 +81,17 @@ export default function Users() {
     if (!editing) return
     setSaving(true)
     try {
-      await api.userChangeRole(editing.username, newRole)
-      flash(`✅ Rôle de "${editing.username}" → ${newRole}`)
+      // 1) Update enum role if changed
+      if (newRole !== editing.role) {
+        await api.userChangeRole(editing.username, newRole)
+      }
+      // 2) Update custom role assignment (always — '' means "remove")
+      const desired = newCustomRoleId || ''
+      const current = editing.customRoleId || ''
+      if (desired !== current) {
+        await api.userChangeCustomRole(editing.username, desired || null)
+      }
+      flash(`✅ Rôle de "${editing.username}" → ${newRole}${newCustomRoleId ? ' + ' + newCustomRoleId : ''}`)
       setEditing(null); load()
     } catch (e: any) { flash(e.message, true) } finally { setSaving(false) }
   }
@@ -197,10 +209,26 @@ export default function Users() {
                     {rm.label}
                   </span>
 
+                  {/* Custom role badge (overlay) */}
+                  {u.customRoleId && (() => {
+                    const cr = customRoles.find(c => c.id === u.customRoleId)
+                    return (
+                      <span className="px-2 py-1 rounded-full text-xs flex items-center gap-1"
+                            title={`Rôle custom : ${cr?.label || u.customRoleId}`}
+                            style={{
+                              background: (cr?.color || '#6366f1') + '20',
+                              color: cr?.color || '#6366f1',
+                              border: `1px solid ${(cr?.color || '#6366f1') + '50'}`,
+                            }}>
+                        🎨 {cr?.label || u.customRoleId}
+                      </span>
+                    )
+                  })()}
+
                   {/* Actions (admin only) */}
                   {isAdmin() && (
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditing(u); setNewRole(u.role); setResetPw('') }}
+                      <button onClick={() => { setEditing(u); setNewRole(u.role); setNewCustomRoleId(u.customRoleId || ''); setResetPw('') }}
                               className="px-3 py-1.5 rounded-lg text-xs hover:bg-white/10 transition"
                               style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                         ✏️ Modifier
@@ -249,12 +277,38 @@ export default function Users() {
         <Modal title={`Modifier — ${editing.username}`} onClose={() => setEditing(null)}>
           <div className="space-y-5">
             <div>
-              <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Changer le rôle</label>
+              <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Rôle de base (hiérarchie)</label>
               <RoleSelect value={newRole} onChange={setNewRole}/>
-              <button onClick={saveRole} disabled={saving || newRole === editing.role}
+
+              <label className="block text-xs mt-3 mb-2" style={{ color: 'var(--text-muted)' }}>
+                Rôle custom (optionnel — surcharge les permissions)
+              </label>
+              {customRoles.length === 0 ? (
+                <div className="text-xs italic px-3 py-2 rounded"
+                     style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
+                  Aucun rôle custom défini.
+                  <a href="/permissions" className="underline ml-1" style={{ color: 'var(--primary)' }}>
+                    Créer un rôle →
+                  </a>
+                </div>
+              ) : (
+                <select value={newCustomRoleId} onChange={e => setNewCustomRoleId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={inp}>
+                  <option value="">— Aucun (utiliser permissions du rôle de base) —</option>
+                  {customRoles.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.label} ({r.permissions.length} perm., base {r.baseRole})
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button onClick={saveRole}
+                      disabled={saving || (newRole === editing.role && (newCustomRoleId || '') === (editing.customRoleId || ''))}
                       className="mt-3 w-full py-2 rounded-lg text-white font-medium disabled:opacity-40"
                       style={{ background: 'var(--primary)' }}>
-                {saving ? 'Sauvegarde...' : 'Changer le rôle'}
+                {saving ? 'Sauvegarde...' : '💾 Enregistrer le rôle'}
               </button>
             </div>
 

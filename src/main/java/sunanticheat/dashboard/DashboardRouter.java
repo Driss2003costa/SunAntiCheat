@@ -477,12 +477,19 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/permissions")            && GET(method))    { permsHandler.get(ex, jwt, users); return; }
         if (eq(path, "/api/permissions")            && (PUT(method) || POST(method))) { permsHandler.update(ex, jwt, users); return; }
         if (eq(path, "/api/permissions/reset")      && POST(method))   { permsHandler.reset(ex, jwt, users); return; }
+        if (eq(path, "/api/permissions/custom-roles") && GET(method))  { permsHandler.listCustomRoles(ex, jwt, users); return; }
+        if (eq(path, "/api/permissions/custom-roles") && POST(method)) { permsHandler.upsertCustomRole(ex, jwt, users); return; }
+        if (path.startsWith("/api/permissions/custom-roles/") && DELETE(method)) {
+            permsHandler.deleteCustomRole(ex, jwt, users,
+                    path.substring("/api/permissions/custom-roles/".length())); return;
+        }
 
         // ── Users / Accounts ──────────────────────────────────────────────────
         if (eq(path, "/api/users")                  && GET(method))    { userHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/users")                  && POST(method))   { userHandler.create(ex, jwt, users); return; }
         if (eq(path, "/api/users/me/password")       && POST(method))  { userHandler.changeOwnPassword(ex, jwt, users); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/role")   && PATCH(method))  { userHandler.changeRole(ex, jwt, users, id(path, "/api/users/", "/role")); return; }
+        if (path.startsWith("/api/users/") && path.endsWith("/custom-role") && PATCH(method)) { userHandler.changeCustomRole(ex, jwt, users, id(path, "/api/users/", "/custom-role")); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/password") && POST(method)) { userHandler.resetPassword(ex, jwt, users, id(path, "/api/users/", "/password")); return; }
         if (path.startsWith("/api/users/")           && DELETE(method)) { userHandler.delete(ex, jwt, users, id(path, "/api/users/")); return; }
 

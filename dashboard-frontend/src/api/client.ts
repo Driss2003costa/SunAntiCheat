@@ -239,6 +239,8 @@ export const api = {
     request<any>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
   userChangeRole:     (username: string, role: string) =>
     request<any>(`/api/users/${encodeURIComponent(username)}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  userChangeCustomRole: (username: string, customRoleId: string | null) =>
+    request<any>(`/api/users/${encodeURIComponent(username)}/custom-role`, { method: 'PATCH', body: JSON.stringify({ customRoleId }) }),
   userResetPassword:  (username: string, newPassword: string) =>
     request<any>(`/api/users/${encodeURIComponent(username)}/password`, { method: 'POST', body: JSON.stringify({ newPassword }) }),
   userDelete:         (username: string) =>
@@ -254,6 +256,16 @@ export const api = {
   permsUpdate:     (role: string, permissions: string[]) =>
     request<any>('/api/permissions', { method: 'PUT', body: JSON.stringify({ role, permissions }) }),
   permsReset:      () => request<any>('/api/permissions/reset', { method: 'POST' }),
+
+  // Custom roles
+  customRolesList: () => request<{ customRoles: Array<{
+    id: string; label: string; color: string; description: string;
+    baseRole: string; permissions: string[];
+  }> }>('/api/permissions/custom-roles'),
+  customRoleSave:  (role: any) =>
+    request<any>('/api/permissions/custom-roles', { method: 'POST', body: JSON.stringify(role) }),
+  customRoleDelete: (id: string) =>
+    request<any>(`/api/permissions/custom-roles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   // AI Assistant
   aiStatus:        () => request<{
