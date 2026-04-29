@@ -86,7 +86,7 @@ export default function SanctionsScreen({ navigation }: any) {
         refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load() }} tintColor={C.primary} />}
         ListEmptyComponent={
           <View style={s.empty}>
-            <Ionicons name="checkmark-shield-outline" size={40} color={C.success} />
+            <Ionicons name="shield-checkmark-outline" size={40} color={C.success} />
             <Text style={s.emptyTxt}>Aucune sanction</Text>
           </View>}
         renderItem={({ item: sc }) => {

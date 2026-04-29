@@ -126,12 +126,6 @@ export default function App() {
               border:     C.border,
               notification: C.danger,
             },
-            fonts: {
-              regular: { fontFamily: 'System', fontWeight: 'normal' as any },
-              medium:  { fontFamily: 'System', fontWeight: '500' as any },
-              bold:    { fontFamily: 'System', fontWeight: '700' as any },
-              heavy:   { fontFamily: 'System', fontWeight: '900' as any },
-            },
           }}>
           <StatusBar style="light" />
           <RootNavigator />
