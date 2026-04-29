@@ -345,6 +345,36 @@ first-join:
     - "mvtp spawn %player%"
     - "say Bienvenue %player%"
 
+# ── Points de violation ─────────────────────────────────────────────────────
+# Chaque type d'alerte accumule des points par joueur. Quand un seuil est franchi
+# pour la première fois, un embed Discord est envoyé (si discord.webhook-url est défini).
+violation-points:
+  enabled: true
+  # Webhook Discord dédié aux alertes points (peut être le même que discord.webhook-url)
+  webhook-url: ""
+  # Points attribués par type de check (0 = ignoré)
+  points:
+    xray: 10
+    killaura: 5
+    freecam: 7
+    inventory-anomaly: 8
+    alt-ban: 15
+    jobs-farm: 4
+  # Seuils déclencheurs (ordonnés par points croissants)
+  thresholds:
+    - points: 20
+      label: "Suspect"
+      color: 16776960    # Jaune
+      discord: true
+    - points: 50
+      label: "Dangereux"
+      color: 16744448    # Orange
+      discord: true
+    - points: 100
+      label: "Critique"
+      color: 16711680    # Rouge
+      discord: true
+
 # ── VIP / Subscriptions (Stripe + PayPal) ──────────────────────────────────
 # Configurez les clés API pour activer les paiements depuis le dashboard.
 # Sans ces clés, le système VIP fonctionne en mode "gift admin" uniquement.

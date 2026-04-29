@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.handlers.AltAccountHandler;
+import sunanticheat.dashboard.handlers.ViolationPointsHandler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -51,6 +52,7 @@ public final class DashboardRouter implements HttpHandler {
     private final GamesHandler gamesHandler;
     private final PlayerLogHandler playerLogHandler;
     private final AltAccountHandler altAccountHandler;
+    private final ViolationPointsHandler vpHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -87,7 +89,8 @@ public final class DashboardRouter implements HttpHandler {
                            SanctionsHandler sanctionsHandler,
                            GamesHandler gamesHandler,
                            PlayerLogHandler playerLogHandler,
-                           AltAccountHandler altAccountHandler) {
+                           AltAccountHandler altAccountHandler,
+                           ViolationPointsHandler vpHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -124,6 +127,7 @@ public final class DashboardRouter implements HttpHandler {
         this.gamesHandler = gamesHandler;
         this.playerLogHandler = playerLogHandler;
         this.altAccountHandler = altAccountHandler;
+        this.vpHandler = vpHandler;
     }
 
     @Override
@@ -208,6 +212,18 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/games/arenas") && GET(method)) { gamesHandler.arenas(ex, jwt, users); return; }
 
         // ── Player profile (agrégation) ──────────────────────────────────────
+        // ── Violation Points ──────────────────────────────────────────────────
+        if (eq(path, "/api/violations/top") && GET(method)) {
+            vpHandler.top(ex, jwt, users); return;
+        }
+        if (path.matches("/api/violations/[^/]+/reset") && POST(method)) {
+            String uuid = path.substring("/api/violations/".length(), path.length() - "/reset".length());
+            vpHandler.reset(ex, jwt, users, uuid); return;
+        }
+        if (path.startsWith("/api/players/") && path.endsWith("/violations") && GET(method)) {
+            vpHandler.playerViolations(ex, jwt, users, id(path, "/api/players/", "/violations")); return;
+        }
+
         if (path.startsWith("/api/players/") && path.endsWith("/alts") && GET(method)) {
             altAccountHandler.alts(ex, jwt, users, id(path, "/api/players/", "/alts")); return;
         }

@@ -16,8 +16,9 @@ const TABS = [
   { id: 'alerts',    label: 'Alertes',    icon: '🚨' },
   { id: 'economy',   label: 'Économie',   icon: '💰' },
   { id: 'gameplay',  label: 'Gameplay',   icon: '🎮' },
-  { id: 'alts',      label: 'Alts',       icon: '🕵️' },
-  { id: 'notes',     label: 'Notes',      icon: '📝' },
+  { id: 'alts',       label: 'Alts',       icon: '🕵️' },
+  { id: 'violations', label: 'Violations', icon: '⚠️' },
+  { id: 'notes',      label: 'Notes',      icon: '📝' },
 ] as const
 
 function avatarColor(name: string) {
@@ -87,6 +88,7 @@ export default function PlayerProfile() {
   const lp = profile.luckperms || {}
   const notes = profile.notes || []
   const alts  = profile.alts  || []
+  const vp    = profile.violationPoints || { total: 0, events: [] }
 
   return (
     <div className="p-6 space-y-4 max-w-6xl">
@@ -132,6 +134,7 @@ export default function PlayerProfile() {
         <div className="text-right space-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
           <div>⚖ <b style={{ color: 'var(--text)' }}>{sanctions.length}</b> sanctions</div>
           <div>🚨 <b style={{ color: 'var(--text)' }}>{alerts.length}</b> alertes</div>
+          <div>⚠️ <b style={{ color: vp.total >= 100 ? '#ef4444' : vp.total >= 50 ? '#f97316' : vp.total >= 20 ? '#f59e0b' : 'var(--text)' }}>{vp.total}</b> pts violation</div>
           <div>📦 <b style={{ color: 'var(--text)' }}>{crates.length}</b> crates ouvertes</div>
           <div>👑 <b style={{ color: 'var(--text)' }}>{vip.active.length}</b> VIP actif</div>
         </div>
@@ -211,6 +214,23 @@ export default function PlayerProfile() {
                 {daily.canClaim ? '✓ Peut réclamer' : '⏱ Déjà réclamé'}
               </div>
             )}
+          </div>
+
+          {/* Points de violation */}
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <h3 className="font-semibold mb-3" style={{ color: 'var(--text)' }}>⚠️ Points de violation</h3>
+            <div className="text-3xl font-bold" style={{ color: vp.total >= 100 ? '#ef4444' : vp.total >= 50 ? '#f97316' : vp.total >= 20 ? '#f59e0b' : '#10b981' }}>
+              {vp.total}
+              <span className="text-sm font-normal ml-1" style={{ color: 'var(--text-muted)' }}>pts</span>
+            </div>
+            {vp.total >= 100 && <div className="text-xs mt-1 font-bold" style={{ color: '#ef4444' }}>Critique</div>}
+            {vp.total >= 50 && vp.total < 100 && <div className="text-xs mt-1 font-bold" style={{ color: '#f97316' }}>Dangereux</div>}
+            {vp.total >= 20 && vp.total < 50 && <div className="text-xs mt-1 font-bold" style={{ color: '#f59e0b' }}>Suspect</div>}
+            {vp.total > 0 && vp.total < 20 && <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Sous le seuil</div>}
+            {vp.total === 0 && <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Aucun point</div>}
+            <div className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+              {vp.events?.length || 0} événements enregistrés
+            </div>
           </div>
 
           {/* Économie */}
@@ -366,6 +386,73 @@ export default function PlayerProfile() {
                     <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       Vu la 1re fois {fmtDate(a.firstSeen)} · Dernière connexion {fmtDate(a.lastSeen)}
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'violations' && (
+        <div className="space-y-3">
+          <div className="rounded-xl p-4 flex items-center gap-4"
+               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="text-5xl font-bold"
+                 style={{ color: vp.total >= 100 ? '#ef4444' : vp.total >= 50 ? '#f97316' : vp.total >= 20 ? '#f59e0b' : '#10b981' }}>
+              {vp.total}
+            </div>
+            <div>
+              <div className="font-semibold" style={{ color: 'var(--text)' }}>Points de violation totaux</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                {vp.total >= 100 && <span style={{ color: '#ef4444' }}>● Critique</span>}
+                {vp.total >= 50 && vp.total < 100 && <span style={{ color: '#f97316' }}>● Dangereux</span>}
+                {vp.total >= 20 && vp.total < 50 && <span style={{ color: '#f59e0b' }}>● Suspect</span>}
+                {vp.total < 20 && <span style={{ color: '#10b981' }}>● Propre</span>}
+              </div>
+            </div>
+            {canEdit && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Réinitialiser les points de violation ?')) return
+                  try {
+                    await fetch(`/api/violations/${id.uuid}/reset`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('jwt')}` } })
+                    refresh()
+                  } catch (e: any) { alert('Erreur : ' + e.message) }
+                }}
+                className="ml-auto px-3 py-1.5 rounded text-sm"
+                style={{ background: '#ef444420', color: '#ef4444', border: '1px solid #ef444440' }}>
+                Réinitialiser
+              </button>
+            )}
+          </div>
+
+          <h3 className="font-semibold text-sm" style={{ color: 'var(--text-muted)' }}>
+            Historique des événements ({vp.events?.length || 0})
+          </h3>
+
+          {(!vp.events || vp.events.length === 0) ? (
+            <div className="rounded-xl p-8 text-center"
+                 style={{ background: 'var(--surface)', color: 'var(--text-muted)' }}>
+              ✓ Aucun événement de violation enregistré
+            </div>
+          ) : (
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {vp.events.map((ev: any, i: number) => (
+                <div key={i} className="rounded-lg p-3 flex items-center justify-between text-sm"
+                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 rounded text-xs font-mono font-bold"
+                          style={{ background: 'var(--surface-2)', color: '#f59e0b' }}>
+                      {ev.checkType}
+                    </span>
+                    <span style={{ color: 'var(--text)' }}>+{ev.ptsAdded} pts</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      → total {ev.totalAfter}
+                    </span>
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {fmtDate(ev.ts)}
                   </div>
                 </div>
               ))}

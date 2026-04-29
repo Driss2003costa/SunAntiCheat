@@ -68,6 +68,9 @@ public class SunAntiCheat extends JavaPlugin {
     private SanctionHistoryStorage sanctionHistoryStorageRef;
     private ReportStorage reportStorageRef;
     private SanctionService sanctionService;
+    private sunanticheat.alerts.StaffAlertService staffAlertServiceRef;
+
+    public sunanticheat.alerts.StaffAlertService getStaffAlertService() { return staffAlertServiceRef; }
     /** Scan MV-Inv spawn (armes WM) — ex. commande {@code /sunguard mvinvscan}. */
     public MultiverseInventoriesSpawnWeaponFileScanner getMultiverseInventoriesSpawnWeaponFileScanner() {
         return multiverseInventoriesSpawnWeaponFileScanner;
@@ -111,6 +114,7 @@ public class SunAntiCheat extends JavaPlugin {
         reloadDiscordWebhookFromConfig();
         sunanticheat.alerts.ViolationLogService violationLogService = new sunanticheat.alerts.ViolationLogService(this);
         StaffAlertService staffAlertService = new StaffAlertService(this, violationLogService);
+        this.staffAlertServiceRef = staffAlertService;
         weaponMechanicsMainWorldGuard = new WeaponMechanicsMainWorldGuard(this, violationLogService);
         weaponMechanicsMainWorldGuard.start();
         multiverseInventoriesSpawnWeaponFileScanner = new MultiverseInventoriesSpawnWeaponFileScanner(this);

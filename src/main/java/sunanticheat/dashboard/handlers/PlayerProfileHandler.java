@@ -22,6 +22,7 @@ import sunanticheat.dashboard.vip.VipSubscription;
 import sunanticheat.dashboard.alts.AltAccountStore;
 import sunanticheat.dashboard.sanctions.SanctionStore;
 import sunanticheat.dashboard.sanctions.SanctionType;
+import sunanticheat.dashboard.violations.ViolationPointsService;
 import sunanticheat.report.ReportEntry;
 import sunanticheat.report.ReportStorage;
 import sunanticheat.sanction.SanctionHistoryEntry;
@@ -65,6 +66,7 @@ public final class PlayerProfileHandler {
     private Map<String, List<Map<String, Object>>> notesCache;
     private AltAccountStore altAccountStore;
     private SanctionStore sanctionStoreForAlts;
+    private ViolationPointsService violationPointsService;
 
     public PlayerProfileHandler(SunAntiCheat plugin,
                                  SanctionHistoryStorage sanctionHistory,
@@ -91,8 +93,12 @@ public final class PlayerProfileHandler {
     }
 
     public void setAltAccountStore(AltAccountStore store, SanctionStore sanctionStore) {
-        this.altAccountStore    = store;
+        this.altAccountStore      = store;
         this.sanctionStoreForAlts = sanctionStore;
+    }
+
+    public void setViolationPointsService(ViolationPointsService service) {
+        this.violationPointsService = service;
     }
 
     @SuppressWarnings("unchecked")
@@ -144,6 +150,8 @@ public final class PlayerProfileHandler {
         result.put("notes", getNotes(playerName));
         // Alts (comptes liés par IP)
         result.put("alts", buildAlts(playerName));
+        // Violation points
+        result.put("violationPoints", buildViolationPoints(playerName));
 
         HttpHelper.json(ex, 200, result);
     }
@@ -345,6 +353,25 @@ public final class PlayerProfileHandler {
             }
         } catch (Throwable t) {}
         return Map.of("available", false);
+    }
+
+    private Map<String, Object> buildViolationPoints(String name) {
+        if (violationPointsService == null) return Map.of("available", false);
+        try {
+            OfflinePlayer off = Bukkit.getOfflinePlayer(name);
+            if (off.getUniqueId() == null) return Map.of("available", false, "total", 0);
+            String uuid = off.getUniqueId().toString();
+            int total = violationPointsService.getPoints(uuid);
+            List<Map<String, Object>> events = violationPointsService.store().eventsForPlayer(uuid, 10);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("available", true);
+            m.put("total",  total);
+            m.put("events", events);
+            return m;
+        } catch (Throwable t) {
+            plugin.getLogger().warning("[Profile] violationPoints: " + t.getMessage());
+            return Map.of("available", false);
+        }
     }
 
     private List<Map<String, Object>> buildAlts(String name) {

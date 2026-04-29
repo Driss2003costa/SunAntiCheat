@@ -12,6 +12,7 @@ import sunanticheat.Permissions;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Envoie aux staff (permission sunguard.alerts) des messages cliquables : [TP] [Sanctions].
@@ -25,6 +26,12 @@ public class StaffAlertService {
     private final Map<UUID, Long> lastFreecamAlert     = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastKillAuraAlert    = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastInventoryAlert   = new ConcurrentHashMap<>();
+    /** Optionnel : notifie le système de points de violation à chaque alerte. args = [checkType, uuid, name]. */
+    private volatile Consumer<String[]> violationConsumer;
+
+    public void setViolationConsumer(Consumer<String[]> consumer) {
+        this.violationConsumer = consumer;
+    }
 
     public StaffAlertService(JavaPlugin plugin, ViolationLogService violationLog) {
         this.plugin = plugin;
@@ -62,6 +69,7 @@ public class StaffAlertService {
         broadcastToStaff(msg);
         if (violationLog != null) violationLog.log("X-Ray", name, detail);
         runAlertCommand("alerts.xray.run-command", name);
+        notify(violationConsumer, "xray", target);
     }
 
     /** Alerte Freecam : joueur suspect. Respecte le cooldown. */
@@ -83,6 +91,7 @@ public class StaffAlertService {
         broadcastToStaff(msg);
         if (violationLog != null) violationLog.log("Freecam", name, detail);
         runAlertCommand("alerts.freecam.run-command", name);
+        notify(violationConsumer, "freecam", target);
     }
 
     /** Alerte Kill Aura : joueur suspect (portée, angle, CPS, etc.). Respecte le cooldown. */
@@ -104,6 +113,7 @@ public class StaffAlertService {
         broadcastToStaff(msg);
         if (violationLog != null) violationLog.log("Kill Aura", name, detail);
         runAlertCommand("alerts.killaura.run-command", name);
+        notify(violationConsumer, "killaura", target);
     }
 
     /** Alerte anomalie d'inventaire : enchantement hors limite ou combinaison illégale. */
@@ -126,6 +136,7 @@ public class StaffAlertService {
         broadcastToStaff(msg);
         if (violationLog != null) violationLog.log("InventoryAnomaly", name, detail);
         runAlertCommand("alerts.inventory-anomaly.run-command", name);
+        notify(violationConsumer, "inventory-anomaly", target);
     }
 
     private void runAlertCommand(String configPath, String playerName) {
@@ -141,5 +152,10 @@ public class StaffAlertService {
                 p.sendMessage(message);
             }
         }
+    }
+
+    private static void notify(Consumer<String[]> consumer, String checkType, Player target) {
+        if (consumer == null) return;
+        consumer.accept(new String[]{ checkType, target.getUniqueId().toString(), target.getName() });
     }
 }

@@ -17,6 +17,9 @@ import sunanticheat.dashboard.jobs.JobsStore;
 import sunanticheat.dashboard.alts.AltAccountStore;
 import sunanticheat.dashboard.alts.AltConnectionListener;
 import sunanticheat.dashboard.handlers.AltAccountHandler;
+import sunanticheat.dashboard.handlers.ViolationPointsHandler;
+import sunanticheat.dashboard.violations.ViolationPointsService;
+import sunanticheat.dashboard.violations.ViolationPointsStore;
 import sunanticheat.dashboard.sanctions.KickScreenFormatter;
 import sunanticheat.dashboard.sanctions.SanctionListeners;
 import sunanticheat.dashboard.sanctions.SanctionService;
@@ -281,10 +284,21 @@ public final class DashboardModule {
         new VanillaBansImporter(sanctionStore, blobs, plugin.getLogger()).importIfNeeded();
         plugin.getLogger().info("[Dashboard] Système de sanctions modernes activé.");
 
+        // ── Violation Points ──────────────────────────────────────────────────
+        ViolationPointsStore vpStore   = new ViolationPointsStore(database, plugin.getLogger());
+        ViolationPointsService vpService = new ViolationPointsService(plugin, vpStore,
+                new sunanticheat.discord.DiscordWebhook(plugin,
+                        cfg.getString("discord.webhook-url", "")));
+        // Wire le consumer dans StaffAlertService (disponible maintenant via getter)
+        if (plugin.getStaffAlertService() != null) {
+            plugin.getStaffAlertService().setViolationConsumer(vpService::record);
+        }
+        plugin.getLogger().info("[Dashboard] Système de points de violation activé.");
+
         // ── Alt-account detection ─────────────────────────────────────────────
         AltAccountStore altAccountStore = new AltAccountStore(database, plugin.getLogger());
         Bukkit.getPluginManager().registerEvents(
-                new AltConnectionListener(plugin, altAccountStore, sanctionStore), plugin);
+                new AltConnectionListener(plugin, altAccountStore, sanctionStore, vpService::record), plugin);
         plugin.getLogger().info("[Dashboard] Détection d'alts (IP linking) activée.");
 
         // ── Auto-update depuis GitHub Releases ───────────────────────────────
@@ -369,6 +383,8 @@ public final class DashboardModule {
         }
 
         AltAccountHandler altAccountHandler = new AltAccountHandler(altAccountStore, sanctionStore);
+        ViolationPointsHandler vpHandler = new ViolationPointsHandler(vpService);
+        profileHandler.setViolationPointsService(vpService);
 
         // Shop Manager (EconomyShopGUI sync)
         ShopHandler shopHandler = new ShopHandler(plugin, shopStore, shopSyncService);
@@ -433,7 +449,7 @@ public final class DashboardModule {
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
                 auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler,
-                playerLogHandler, altAccountHandler);
+                playerLogHandler, altAccountHandler, vpHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

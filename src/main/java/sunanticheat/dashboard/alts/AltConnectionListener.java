@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Enregistre chaque connexion dans AltAccountStore et alerte le staff si l'IP
@@ -31,11 +32,15 @@ public final class AltConnectionListener implements Listener {
     private final SanctionStore sanctionStore;
     private final Map<String, Long> lastAlertByIp = new ConcurrentHashMap<>();
     private static final long ALERT_COOLDOWN_MS = 5 * 60_000L;
+    /** Consumer optionnel pour le système de points de violation. args = [checkType, uuid, name]. */
+    private volatile Consumer<String[]> violationConsumer;
 
-    public AltConnectionListener(JavaPlugin plugin, AltAccountStore altStore, SanctionStore sanctionStore) {
+    public AltConnectionListener(JavaPlugin plugin, AltAccountStore altStore,
+                                  SanctionStore sanctionStore, Consumer<String[]> violationConsumer) {
         this.plugin = plugin;
         this.altStore = altStore;
         this.sanctionStore = sanctionStore;
+        this.violationConsumer = violationConsumer;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -82,5 +87,8 @@ public final class AltConnectionListener implements Listener {
                 if (p.hasPermission(Permissions.ALERTS)) p.sendMessage(msg);
             }
         });
+        if (violationConsumer != null) {
+            violationConsumer.accept(new String[]{ "alt-ban", uuid, name });
+        }
     }
 }
