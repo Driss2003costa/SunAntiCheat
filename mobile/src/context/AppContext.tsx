@@ -72,10 +72,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const setAuth = async (jwt: string, user: { username: string; role: string }) => {
-    await AsyncStorage.setItem(KEY_JWT, jwt)
-    await AsyncStorage.setItem(KEY_USER, JSON.stringify(user))
     apiConfigure(state.serverUrl, state.wsPort, jwt)
     setState(s => ({ ...s, jwt, user }))
+    try {
+      await AsyncStorage.setItem(KEY_JWT, jwt)
+      await AsyncStorage.setItem(KEY_USER, JSON.stringify(user))
+    } catch {}
   }
 
   const logout = async () => {

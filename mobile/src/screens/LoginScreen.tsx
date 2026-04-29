@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { login, me } from '../api/client'
+import { login } from '../api/client'
 import { useApp } from '../context/AppContext'
 import { C } from '../theme'
 
@@ -17,22 +17,7 @@ export default function LoginScreen() {
   const [showTotp, setShowTotp] = useState(false)
   const [showPw, setShowPw]     = useState(false)
   const [loading, setLoading]   = useState(false)
-  const [checking, setChecking] = useState(true)
   const [error, setError]       = useState('')
-
-  // Auto-login if JWT is still valid
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const user = await me()
-        await setAuth('__existing__', user)
-      } catch {
-        // JWT expired or missing — show login form
-      } finally {
-        setChecking(false)
-      }
-    })()
-  }, [])
 
   const doLogin = async () => {
     if (!username.trim() || !password) { setError('Identifiants requis'); return }
@@ -53,15 +38,6 @@ export default function LoginScreen() {
     } finally {
       setLoading(false)
     }
-  }
-
-  if (checking) {
-    return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color={C.primary} />
-        <Text style={s.checkingTxt}>Vérification de la session…</Text>
-      </View>
-    )
   }
 
   const host = (() => {
@@ -167,7 +143,6 @@ export default function LoginScreen() {
 const s = StyleSheet.create({
   safe:       { flex: 1, backgroundColor: C.bg },
   center:     { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  checkingTxt: { color: C.muted, fontSize: 14 },
 
   serverBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
