@@ -10,6 +10,7 @@ import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.auth.Permission;
+import sunanticheat.dashboard.pve.PveManager;
 import sunanticheat.dashboard.sanctions.SanctionCategory;
 import sunanticheat.dashboard.sanctions.SanctionEntry;
 import sunanticheat.dashboard.sanctions.SanctionService;
@@ -26,15 +27,16 @@ public final class ServerHandler {
     private final JavaPlugin plugin;
     private final List<String> allowedCommands;
     private final long startedAt = System.currentTimeMillis();
-    private SanctionService sanctionService;   // injecté tardivement (cycle de dépendances)
+    private SanctionService sanctionService;
+    private PveManager pveManager;
 
     public ServerHandler(JavaPlugin plugin, List<String> allowedCommands) {
         this.plugin = plugin;
         this.allowedCommands = allowedCommands;
     }
 
-    /** Permet à DashboardModule de wirer le service après création. */
     public void setSanctionService(SanctionService s) { this.sanctionService = s; }
+    public void setPveManager(PveManager p) { this.pveManager = p; }
 
     /** GET /api/server/status */
     public void status(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
@@ -107,6 +109,7 @@ public final class ServerHandler {
                         "seed", w.getSeed(),
                         "time", w.getTime(),
                         "pvp", w.getPVP(),
+                        "pve", pveManager == null || pveManager.isEnabled(w.getName()),
                         "difficulty", w.getDifficulty().name()
                 ));
             }
@@ -269,6 +272,20 @@ public final class ServerHandler {
                 "reason", reason,
                 "permanent", durationMs == 0
         ));
+    }
+
+    /** POST /api/server/worlds/{name}/pve — toggle PvE d'un monde (MOD+) */
+    public void togglePve(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String worldName) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.WORLD_PVP)) return;
+
+        World w = Bukkit.getWorld(worldName);
+        if (w == null) { HttpHelper.error(ex, 404, "Monde introuvable"); return; }
+
+        boolean newState = (pveManager != null) ? pveManager.toggle(worldName) : true;
+        plugin.getLogger().info("[Dashboard] PvE " + worldName + " → " + newState + " (par " + u.username() + ")");
+        HttpHelper.json(ex, 200, Map.of("world", worldName, "pve", newState));
     }
 
     /** POST /api/server/worlds/{name}/pvp — toggle PvP d'un monde (MOD+) */

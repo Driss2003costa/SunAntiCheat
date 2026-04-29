@@ -326,9 +326,10 @@ public final class DashboardModule {
                 transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
         profileHandler.setAltAccountStore(altAccountStore, sanctionStore);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
-        // L'ancien bouton Ban/Kick du dashboard /players délègue désormais au SanctionService
-        // → écran stylisé + entrée DB + audit auto + listener login pour bloquer reconnexion.
         serverHandler.setSanctionService(sanctionService);
+        sunanticheat.dashboard.pve.PveManager pveManager = new sunanticheat.dashboard.pve.PveManager();
+        serverHandler.setPveManager(pveManager);
+        Bukkit.getPluginManager().registerEvents(pveManager, plugin);
         SecurityHandler securityHandler = new SecurityHandler(plugin, sanctionHistory, reportStorage, alertStore);
         EconomyHandler  economyHandler  = new EconomyHandler(plugin, economy, transactionStore);
         AnalyticsHandler analyticsHandler = new AnalyticsHandler(snapshotStore);

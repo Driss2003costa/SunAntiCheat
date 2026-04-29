@@ -133,7 +133,10 @@ export const registerPush = (token: string, deviceName: string, username: string
 
 // ── World PvP ─────────────────────────────────────────────────────────────────
 export const togglePvp = (world: string) =>
-  req(`/api/server/worlds/${world}/pvp`, { method: 'POST' })
+  req<{ world: string; pvp: boolean }>(`/api/server/worlds/${world}/pvp`, { method: 'POST' })
+
+export const togglePve = (world: string) =>
+  req<{ world: string; pve: boolean }>(`/api/server/worlds/${world}/pve`, { method: 'POST' })
 
 // ── Panic ─────────────────────────────────────────────────────────────────────
 export const panicStatus = () =>

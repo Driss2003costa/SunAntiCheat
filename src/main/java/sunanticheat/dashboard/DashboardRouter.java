@@ -266,6 +266,10 @@ public final class DashboardRouter implements HttpHandler {
             String wName = path.substring("/api/server/worlds/".length(), path.length() - "/pvp".length());
             serverHandler.togglePvp(ex, jwt, users, wName); return;
         }
+        if (path.startsWith("/api/server/worlds/") && path.endsWith("/pve") && POST(method)) {
+            String wName = path.substring("/api/server/worlds/".length(), path.length() - "/pve".length());
+            serverHandler.togglePve(ex, jwt, users, wName); return;
+        }
 
         // ── Security ──────────────────────────────────────────────────────────
         if (eq(path, "/api/security/config")           && GET(method))   { securityHandler.getConfig(ex, jwt, users); return; }

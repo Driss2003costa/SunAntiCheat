@@ -8,8 +8,9 @@ import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { useNavigation } from '@react-navigation/native'
 import {
-  serverStatus, serverPlayers, securityAlerts,
+  serverStatus, securityAlerts, serverWorlds,
   panicStatus, panicActivate, panicDeactivate,
+  togglePvp, togglePve,
 } from '../api/client'
 import { WsClient } from '../api/ws'
 import { useApp } from '../context/AppContext'
@@ -20,23 +21,26 @@ interface Stat { tps: number; playersOnline: number; maxPlayers: number; ram: nu
 export default function HomeScreen() {
   const { jwt, serverUrl, user } = useApp()
   const nav = useNavigation<any>()
-  const [stat, setStat]     = useState<Stat | null>(null)
-  const [alerts, setAlerts] = useState<any[]>([])
-  const [panic, setPanic]   = useState<{ active: boolean; reason?: string } | null>(null)
+  const [stat, setStat]       = useState<Stat | null>(null)
+  const [alerts, setAlerts]   = useState<any[]>([])
+  const [panic, setPanic]     = useState<{ active: boolean; reason?: string } | null>(null)
+  const [worlds, setWorlds]   = useState<any[]>([])
   const [refresh, setRefresh] = useState(false)
   const [loading, setLoading] = useState(true)
   const wsRef = useRef<WsClient | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const [status, al, pk] = await Promise.all([
+      const [status, al, pk, wds] = await Promise.all([
         serverStatus(),
         securityAlerts(5),
         panicStatus().catch(() => null),
+        serverWorlds().catch(() => []),
       ])
       setStat(status)
       setAlerts(al)
       setPanic(pk)
+      setWorlds(Array.isArray(wds) ? wds : [])
     } catch {}
     setLoading(false)
     setRefresh(false)
@@ -47,7 +51,7 @@ export default function HomeScreen() {
     const t = setInterval(load, 15_000)
 
     // WebSocket stats channel
-    if (jwt && jwt !== '__existing__') {
+    if (jwt) {
       const ws = new WsClient(jwt)
       wsRef.current = ws
       ws.connect()
@@ -155,6 +159,41 @@ export default function HomeScreen() {
               name={panic.active ? 'close-circle' : 'power'}
               size={22} color={panic.active ? '#fff' : C.danger} />
           </TouchableOpacity>
+        )}
+
+        {/* Worlds PvP / PvE */}
+        {worlds.length > 0 && (
+          <View style={s.card}>
+            <Text style={s.cardLabel}>MONDES</Text>
+            {worlds.map((w: any) => (
+              <View key={w.name} style={s.worldRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.worldName}>{w.name}</Text>
+                  <Text style={s.worldSub}>{w.players} joueur{w.players !== 1 ? 's' : ''} · {w.difficulty}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.toggleBtn, w.pvp ? s.toggleOn : s.toggleOff]}
+                  onPress={async () => {
+                    try {
+                      const r = await togglePvp(w.name)
+                      setWorlds(prev => prev.map(x => x.name === w.name ? { ...x, pvp: r.pvp } : x))
+                    } catch {}
+                  }}>
+                  <Text style={[s.toggleTxt, { color: w.pvp ? '#ef4444' : C.muted }]}>PvP</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.toggleBtn, w.pve ? s.toggleOn : s.toggleOff]}
+                  onPress={async () => {
+                    try {
+                      const r = await togglePve(w.name)
+                      setWorlds(prev => prev.map(x => x.name === w.name ? { ...x, pve: r.pve } : x))
+                    } catch {}
+                  }}>
+                  <Text style={[s.toggleTxt, { color: w.pve ? C.success : C.muted }]}>PvE</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
         )}
 
         {/* Recent alerts */}
@@ -271,6 +310,14 @@ const s = StyleSheet.create({
   panicActive: { backgroundColor: C.danger, borderColor: C.danger },
   panicTitle:  { fontWeight: '700', fontSize: 14, color: C.danger },
   panicSub:    { fontSize: 12, color: C.muted, marginTop: 2 },
+
+  worldRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  worldName:  { fontSize: 13, fontWeight: '700', color: C.text },
+  worldSub:   { fontSize: 11, color: C.muted, marginTop: 1 },
+  toggleBtn:  { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  toggleOn:   { backgroundColor: C.surface2, borderColor: C.border },
+  toggleOff:  { backgroundColor: C.surface2, borderColor: C.border },
+  toggleTxt:  { fontSize: 11, fontWeight: '800' },
 
   alertRow:  {
     flexDirection: 'row', alignItems: 'center', gap: 8,
