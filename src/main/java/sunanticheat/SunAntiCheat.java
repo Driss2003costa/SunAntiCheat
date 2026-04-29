@@ -31,6 +31,7 @@ import sunanticheat.blocklog.BlockLogListeners;
 import sunanticheat.blocklog.BlockLogStore;
 import sunanticheat.connection.ConnectionListeners;
 import sunanticheat.connection.ConnectionLogStorage;
+import sunanticheat.inventory.InventoryAnomalyListener;
 import sunanticheat.pickup.ItemPickupHistoryGui;
 import sunanticheat.pickup.ItemPickupListeners;
 import sunanticheat.pickup.ItemPickupStorage;
@@ -158,6 +159,7 @@ public class SunAntiCheat extends JavaPlugin {
         mainMenuGui.setDebugGui(debugGui);
         ConnectionLogStorage connectionLogStorage = new ConnectionLogStorage(this);
         getServer().getPluginManager().registerEvents(new ConnectionListeners(connectionLogStorage), this);
+        getServer().getPluginManager().registerEvents(new InventoryAnomalyListener(this, staffAlertService), this);
         getServer().getPluginManager().registerEvents(new FirstJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new RiskyCommandListener(this), this);
 

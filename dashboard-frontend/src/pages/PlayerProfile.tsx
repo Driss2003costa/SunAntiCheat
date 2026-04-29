@@ -16,6 +16,7 @@ const TABS = [
   { id: 'alerts',    label: 'Alertes',    icon: '🚨' },
   { id: 'economy',   label: 'Économie',   icon: '💰' },
   { id: 'gameplay',  label: 'Gameplay',   icon: '🎮' },
+  { id: 'alts',      label: 'Alts',       icon: '🕵️' },
   { id: 'notes',     label: 'Notes',      icon: '📝' },
 ] as const
 
@@ -85,6 +86,7 @@ export default function PlayerProfile() {
   const daily = profile.dailyRewards || {}
   const lp = profile.luckperms || {}
   const notes = profile.notes || []
+  const alts  = profile.alts  || []
 
   return (
     <div className="p-6 space-y-4 max-w-6xl">
@@ -322,6 +324,53 @@ export default function PlayerProfile() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === 'alts' && (
+        <div className="space-y-3">
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Comptes ayant utilisé la même adresse IP que ce joueur. Les comptes marqués 🔨 sont actuellement bannis.
+          </p>
+          {alts.length === 0 ? (
+            <div className="rounded-xl p-8 text-center"
+                 style={{ background: 'var(--surface)', color: 'var(--text-muted)' }}>
+              ✓ Aucun compte lié détecté
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {alts.map((a: any, i: number) => (
+                <div key={i}
+                     className="rounded-xl p-3 flex items-center gap-3"
+                     style={{
+                       background: 'var(--surface)',
+                       borderLeft: a.banned ? '3px solid #ef4444' : '3px solid var(--border)',
+                     }}>
+                  <div className="text-xl">{a.banned ? '🔨' : '👤'}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/players/${a.name}`)}
+                        className="font-bold hover:underline"
+                        style={{ color: a.banned ? '#ef4444' : 'var(--primary)' }}>
+                        {a.name}
+                      </button>
+                      {a.banned && (
+                        <span className="px-1.5 py-0.5 rounded text-xs font-bold"
+                              style={{ background: '#ef444430', color: '#ef4444' }}>BANNI</span>
+                      )}
+                    </div>
+                    <div className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                      IP : {a.ip} · UUID : {a.uuid}
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Vu la 1re fois {fmtDate(a.firstSeen)} · Dernière connexion {fmtDate(a.lastSeen)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

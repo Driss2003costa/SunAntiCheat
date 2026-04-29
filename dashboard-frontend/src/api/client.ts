@@ -50,6 +50,8 @@ export const api = {
     request<any>(`/api/players/${encodeURIComponent(name)}/notes`, { method: 'POST', body: JSON.stringify({ text }) }),
   playerNoteDelete: (name: string, noteId: string) =>
     request<any>(`/api/players/${encodeURIComponent(name)}/notes/${noteId}`, { method: 'DELETE' }),
+  playerAlts: (name: string) =>
+    request<{ playerName: string; uuid: string; alts: any[] }>(`/api/players/${encodeURIComponent(name)}/alts`),
 
   // Player activity log
   playerLogCategories: (name: string, days = 30) =>

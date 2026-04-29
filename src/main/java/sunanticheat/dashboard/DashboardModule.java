@@ -14,6 +14,9 @@ import sunanticheat.dashboard.games.GameArenaScanner;
 import sunanticheat.dashboard.jobs.JobsLiveService;
 import sunanticheat.dashboard.jobs.JobsRecorder;
 import sunanticheat.dashboard.jobs.JobsStore;
+import sunanticheat.dashboard.alts.AltAccountStore;
+import sunanticheat.dashboard.alts.AltConnectionListener;
+import sunanticheat.dashboard.handlers.AltAccountHandler;
 import sunanticheat.dashboard.sanctions.KickScreenFormatter;
 import sunanticheat.dashboard.sanctions.SanctionListeners;
 import sunanticheat.dashboard.sanctions.SanctionService;
@@ -278,6 +281,12 @@ public final class DashboardModule {
         new VanillaBansImporter(sanctionStore, blobs, plugin.getLogger()).importIfNeeded();
         plugin.getLogger().info("[Dashboard] Système de sanctions modernes activé.");
 
+        // ── Alt-account detection ─────────────────────────────────────────────
+        AltAccountStore altAccountStore = new AltAccountStore(database, plugin.getLogger());
+        Bukkit.getPluginManager().registerEvents(
+                new AltConnectionListener(plugin, altAccountStore, sanctionStore), plugin);
+        plugin.getLogger().info("[Dashboard] Détection d'alts (IP linking) activée.");
+
         // ── Auto-update depuis GitHub Releases ───────────────────────────────
         if (cfg.getBoolean("dashboard.auto-update.enabled", true)) {
             String repo = cfg.getString("dashboard.auto-update.repo", "Driss2003costa/SunAntiCheat");
@@ -300,6 +309,7 @@ public final class DashboardModule {
         PlayerProfileHandler profileHandler = new PlayerProfileHandler(
                 plugin, sanctionHistory, reportStorage, alertStore,
                 transactionStore, shopStore, crateStore, vipStore, dailyRewardStore, blobs);
+        profileHandler.setAltAccountStore(altAccountStore, sanctionStore);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
         // L'ancien bouton Ban/Kick du dashboard /players délègue désormais au SanctionService
         // → écran stylisé + entrée DB + audit auto + listener login pour bloquer reconnexion.
@@ -357,6 +367,8 @@ public final class DashboardModule {
         if (!stripeConfigured && !paypalConfigured) {
             plugin.getLogger().info("[Dashboard] VIP : aucune passerelle de paiement configurée (vip.stripe.* / vip.paypal.* dans config.yml).");
         }
+
+        AltAccountHandler altAccountHandler = new AltAccountHandler(altAccountStore, sanctionStore);
 
         // Shop Manager (EconomyShopGUI sync)
         ShopHandler shopHandler = new ShopHandler(plugin, shopStore, shopSyncService);
@@ -421,7 +433,7 @@ public final class DashboardModule {
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
                 auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler,
-                playerLogHandler);
+                playerLogHandler, altAccountHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

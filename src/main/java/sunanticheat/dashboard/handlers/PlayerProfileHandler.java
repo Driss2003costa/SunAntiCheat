@@ -19,6 +19,9 @@ import sunanticheat.dashboard.shop.ShopStore;
 import sunanticheat.dashboard.shop.ShopTransaction;
 import sunanticheat.dashboard.vip.VipStore;
 import sunanticheat.dashboard.vip.VipSubscription;
+import sunanticheat.dashboard.alts.AltAccountStore;
+import sunanticheat.dashboard.sanctions.SanctionStore;
+import sunanticheat.dashboard.sanctions.SanctionType;
 import sunanticheat.report.ReportEntry;
 import sunanticheat.report.ReportStorage;
 import sunanticheat.sanction.SanctionHistoryEntry;
@@ -60,6 +63,8 @@ public final class PlayerProfileHandler {
     private final sunanticheat.dashboard.db.Persistence notesStorage;
     private final com.google.gson.Gson gson = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
     private Map<String, List<Map<String, Object>>> notesCache;
+    private AltAccountStore altAccountStore;
+    private SanctionStore sanctionStoreForAlts;
 
     public PlayerProfileHandler(SunAntiCheat plugin,
                                  SanctionHistoryStorage sanctionHistory,
@@ -83,6 +88,11 @@ public final class PlayerProfileHandler {
         File legacy = new File(new File(plugin.getDataFolder(), "dashboard"), "player_notes.json");
         this.notesStorage = new sunanticheat.dashboard.db.Persistence(blobs, "player_notes", legacy);
         loadNotes();
+    }
+
+    public void setAltAccountStore(AltAccountStore store, SanctionStore sanctionStore) {
+        this.altAccountStore    = store;
+        this.sanctionStoreForAlts = sanctionStore;
     }
 
     @SuppressWarnings("unchecked")
@@ -132,6 +142,8 @@ public final class PlayerProfileHandler {
         result.put("luckperms", buildLuckPerms(playerName));
         // Notes
         result.put("notes", getNotes(playerName));
+        // Alts (comptes liés par IP)
+        result.put("alts", buildAlts(playerName));
 
         HttpHelper.json(ex, 200, result);
     }
@@ -333,6 +345,33 @@ public final class PlayerProfileHandler {
             }
         } catch (Throwable t) {}
         return Map.of("available", false);
+    }
+
+    private List<Map<String, Object>> buildAlts(String name) {
+        if (altAccountStore == null) return List.of();
+        try {
+            OfflinePlayer off = Bukkit.getOfflinePlayer(name);
+            if (off.getUniqueId() == null) return List.of();
+            String uuid = off.getUniqueId().toString();
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (AltAccountStore.AltEntry e : altAccountStore.getAltsForPlayer(uuid)) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("name",      e.name());
+                m.put("uuid",      e.uuid());
+                m.put("ip",        e.ip());
+                m.put("firstSeen", e.firstSeen());
+                m.put("lastSeen",  e.lastSeen());
+                if (sanctionStoreForAlts != null) {
+                    m.put("banned", sanctionStoreForAlts.activeSanction(
+                            e.uuid(), e.name(), null, SanctionType.BAN) != null);
+                }
+                out.add(m);
+            }
+            return out;
+        } catch (Throwable t) {
+            plugin.getLogger().warning("[Profile] alts: " + t.getMessage());
+            return List.of();
+        }
     }
 
     private List<Map<String, Object>> getNotes(String name) {

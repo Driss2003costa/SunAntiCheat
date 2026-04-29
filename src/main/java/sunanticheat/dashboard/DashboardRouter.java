@@ -3,6 +3,7 @@ package sunanticheat.dashboard;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import sunanticheat.dashboard.handlers.*;
+import sunanticheat.dashboard.handlers.AltAccountHandler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -49,6 +50,7 @@ public final class DashboardRouter implements HttpHandler {
     private final SanctionsHandler sanctionsHandler;
     private final GamesHandler gamesHandler;
     private final PlayerLogHandler playerLogHandler;
+    private final AltAccountHandler altAccountHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -84,7 +86,8 @@ public final class DashboardRouter implements HttpHandler {
                            JobsHandler jobsHandler,
                            SanctionsHandler sanctionsHandler,
                            GamesHandler gamesHandler,
-                           PlayerLogHandler playerLogHandler) {
+                           PlayerLogHandler playerLogHandler,
+                           AltAccountHandler altAccountHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -120,6 +123,7 @@ public final class DashboardRouter implements HttpHandler {
         this.sanctionsHandler = sanctionsHandler;
         this.gamesHandler = gamesHandler;
         this.playerLogHandler = playerLogHandler;
+        this.altAccountHandler = altAccountHandler;
     }
 
     @Override
@@ -204,6 +208,9 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/games/arenas") && GET(method)) { gamesHandler.arenas(ex, jwt, users); return; }
 
         // ── Player profile (agrégation) ──────────────────────────────────────
+        if (path.startsWith("/api/players/") && path.endsWith("/alts") && GET(method)) {
+            altAccountHandler.alts(ex, jwt, users, id(path, "/api/players/", "/alts")); return;
+        }
         if (path.startsWith("/api/players/") && path.endsWith("/profile") && GET(method)) {
             profileHandler.profile(ex, jwt, users, id(path, "/api/players/", "/profile")); return;
         }

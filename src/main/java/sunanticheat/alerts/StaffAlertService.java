@@ -21,9 +21,10 @@ public class StaffAlertService {
 
     private final JavaPlugin plugin;
     private final ViolationLogService violationLog;
-    private final Map<UUID, Long> lastXRayAlert = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastFreecamAlert = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastKillAuraAlert = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastXRayAlert        = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastFreecamAlert     = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastKillAuraAlert    = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastInventoryAlert   = new ConcurrentHashMap<>();
 
     public StaffAlertService(JavaPlugin plugin, ViolationLogService violationLog) {
         this.plugin = plugin;
@@ -103,6 +104,28 @@ public class StaffAlertService {
         broadcastToStaff(msg);
         if (violationLog != null) violationLog.log("Kill Aura", name, detail);
         runAlertCommand("alerts.killaura.run-command", name);
+    }
+
+    /** Alerte anomalie d'inventaire : enchantement hors limite ou combinaison illégale. */
+    public void alertInventoryAnomaly(Player target, String detail) {
+        if (!plugin.getConfig().getBoolean("alerts.inventory-anomaly.enabled", true)) return;
+        long now = System.currentTimeMillis();
+        long cooldownMs = Math.max(60_000, plugin.getConfig().getLong("alerts.inventory-anomaly.cooldown-minutes", 5) * 60_000L);
+        if (now - lastInventoryAlert.getOrDefault(target.getUniqueId(), 0L) < cooldownMs) return;
+        lastInventoryAlert.put(target.getUniqueId(), now);
+        String name = target.getName();
+        Component msg = Component.text("[SunGuard] ")
+                .color(NamedTextColor.DARK_GRAY)
+                .append(Component.text("Inventaire illégal: ").color(NamedTextColor.DARK_RED))
+                .append(Component.text(name).color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD))
+                .append(Component.text(" — " + detail).color(NamedTextColor.GRAY))
+                .append(Component.text(" [TP]").color(NamedTextColor.GREEN).decorate(TextDecoration.BOLD)
+                        .clickEvent(ClickEvent.runCommand("/tp " + name)))
+                .append(Component.text(" [Sanctions]").color(NamedTextColor.YELLOW).decorate(TextDecoration.BOLD)
+                        .clickEvent(ClickEvent.runCommand("/sunguard sanction " + name)));
+        broadcastToStaff(msg);
+        if (violationLog != null) violationLog.log("InventoryAnomaly", name, detail);
+        runAlertCommand("alerts.inventory-anomaly.run-command", name);
     }
 
     private void runAlertCommand(String configPath, String playerName) {
