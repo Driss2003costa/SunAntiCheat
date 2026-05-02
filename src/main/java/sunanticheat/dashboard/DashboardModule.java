@@ -48,6 +48,9 @@ import sunanticheat.dashboard.auth.PermissionStore;
 import sunanticheat.dashboard.db.Database;
 import sunanticheat.dashboard.db.BlobStorage;
 import sunanticheat.dashboard.handlers.*;
+import sunanticheat.dashboard.portal.PlayerAccountStore;
+import sunanticheat.dashboard.portal.PlayerJwtUtil;
+import sunanticheat.dashboard.portal.RegisterPinService;
 import sunanticheat.dashboard.mobile.PushService;
 import sunanticheat.dashboard.honeypot.HoneypotAutoPlanter;
 import sunanticheat.dashboard.honeypot.HoneypotListener;
@@ -447,6 +450,16 @@ public final class DashboardModule {
         // ── Console capture ───────────────────────────────────────────────────
         consoleCapture = ConsoleLogCapture.install(wsServer::broadcastConsole);
 
+        // ── Portail public (inscription joueurs) ──────────────────────────────
+        String portalJwtSecret = cfg.getString("portal.player-jwt-secret",
+                "changez-moi-portal-secret-aleatoire-32chars!");
+        PlayerAccountStore playerAccountStore = new PlayerAccountStore(database, plugin.getLogger());
+        RegisterPinService registerPinService = new RegisterPinService(playerAccountStore, plugin.getLogger());
+        PlayerJwtUtil playerJwtUtil = new PlayerJwtUtil(portalJwtSecret);
+        PublicRegisterHandler publicRegisterHandler = new PublicRegisterHandler(
+                playerAccountStore, registerPinService, playerJwtUtil, plugin, plugin.getLogger());
+        PublicPlayerHandler publicPlayerHandler = new PublicPlayerHandler(playerAccountStore, playerJwtUtil);
+
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
@@ -456,14 +469,21 @@ public final class DashboardModule {
                 crateHandler, dailyRewardHandler, announcementHandler, luckPermsHandler,
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
                 auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler,
-                playerLogHandler, altAccountHandler, vpHandler);
+                playerLogHandler, altAccountHandler, vpHandler,
+                publicRegisterHandler, publicPlayerHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
         extractDashboardFiles(dashboardDir, plugin.getLogger());
 
+        // Portail public React
+        File portalDir = new File(plugin.getDataFolder(), "portal");
+        portalDir.mkdirs();
+        extractPortalFiles(portalDir, plugin.getLogger());
+
         httpServer = HttpServer.create(new InetSocketAddress(httpPort), 100);
         httpServer.createContext("/api/", router);
+        httpServer.createContext("/portal", new PortalFileHandler(portalDir));
         httpServer.createContext("/", new StaticFileHandler(dashboardDir));
         httpServer.setExecutor(Executors.newFixedThreadPool(8, r -> {
             Thread t = new Thread(r, "dashboard-http");
@@ -474,8 +494,8 @@ public final class DashboardModule {
 
         plugin.getLogger().info("[Dashboard] HTTP démarré sur le port " + httpPort);
         plugin.getLogger().info("[Dashboard] WebSocket démarré sur le port " + wsPort);
-        plugin.getLogger().info("[Dashboard] Fichiers React : plugins/SunAntiCheat/dashboard/");
-        plugin.getLogger().info("[Dashboard] Accès : http://localhost:" + httpPort);
+        plugin.getLogger().info("[Dashboard] Admin    : http://localhost:" + httpPort);
+        plugin.getLogger().info("[Dashboard] Portail  : http://localhost:" + httpPort + "/portal");
     }
 
     public void stop() {
@@ -613,6 +633,60 @@ public final class DashboardModule {
             }
         } catch (Exception e) {
             logger.warning("[Dashboard] Erreur extraction React : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Extrait les fichiers du build React du portail (portal-dist/) depuis le JAR
+     * vers plugins/SunAntiCheat/portal/.
+     */
+    private void extractPortalFiles(File portalDir, Logger logger) {
+        String currentVersion = plugin.getDescription().getVersion();
+        File versionMarker = new File(portalDir, ".version");
+
+        if (versionMarker.exists()) {
+            try {
+                String extracted = new String(java.nio.file.Files.readAllBytes(versionMarker.toPath())).trim();
+                if (currentVersion.equals(extracted)) return;
+                logger.info("[Portal] Nouvelle version (" + extracted + " → " + currentVersion + "), réextraction...");
+            } catch (Exception ignored) {}
+        }
+
+        try {
+            java.lang.reflect.Method getFile = org.bukkit.plugin.java.JavaPlugin.class.getDeclaredMethod("getFile");
+            getFile.setAccessible(true);
+            File jarFile = (File) getFile.invoke(plugin);
+            if (jarFile == null || !jarFile.isFile()) {
+                logger.warning("[Portal] Impossible de localiser le JAR.");
+                return;
+            }
+            String prefix = "portal-dist/";
+            try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarFile)) {
+                var entries = jar.entries();
+                int count = 0;
+                while (entries.hasMoreElements()) {
+                    java.util.jar.JarEntry entry = entries.nextElement();
+                    String name = entry.getName();
+                    if (!name.startsWith(prefix) || name.equals(prefix)) continue;
+                    String relative = name.substring(prefix.length());
+                    File dest = new File(portalDir, relative);
+                    if (entry.isDirectory()) { dest.mkdirs(); continue; }
+                    dest.getParentFile().mkdirs();
+                    try (InputStream in = jar.getInputStream(entry);
+                         OutputStream out = new FileOutputStream(dest)) {
+                        in.transferTo(out);
+                    }
+                    count++;
+                }
+                if (count > 0) {
+                    logger.info("[Portal] " + count + " fichiers React extraits dans " + portalDir);
+                    java.nio.file.Files.writeString(versionMarker.toPath(), currentVersion);
+                } else {
+                    logger.warning("[Portal] Aucun fichier React dans portal-dist/ du JAR.");
+                }
+            }
+        } catch (Exception e) {
+            logger.warning("[Portal] Erreur extraction portal : " + e.getMessage());
         }
     }
 

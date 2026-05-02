@@ -53,6 +53,8 @@ public final class DashboardRouter implements HttpHandler {
     private final PlayerLogHandler playerLogHandler;
     private final AltAccountHandler altAccountHandler;
     private final ViolationPointsHandler vpHandler;
+    private final PublicRegisterHandler publicRegisterHandler;
+    private final PublicPlayerHandler publicPlayerHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -90,7 +92,9 @@ public final class DashboardRouter implements HttpHandler {
                            GamesHandler gamesHandler,
                            PlayerLogHandler playerLogHandler,
                            AltAccountHandler altAccountHandler,
-                           ViolationPointsHandler vpHandler) {
+                           ViolationPointsHandler vpHandler,
+                           PublicRegisterHandler publicRegisterHandler,
+                           PublicPlayerHandler publicPlayerHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -128,6 +132,8 @@ public final class DashboardRouter implements HttpHandler {
         this.playerLogHandler = playerLogHandler;
         this.altAccountHandler = altAccountHandler;
         this.vpHandler = vpHandler;
+        this.publicRegisterHandler = publicRegisterHandler;
+        this.publicPlayerHandler   = publicPlayerHandler;
     }
 
     @Override
@@ -488,6 +494,12 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/vip/transactions")       && GET(method))    { vipHandler.listTransactions(ex, jwt, users); return; }
         if (eq(path, "/api/vip/stats")              && GET(method))    { vipHandler.stats(ex, jwt, users); return; }
         if (eq(path, "/api/vip/gateways/status")    && GET(method))    { vipHandler.gatewaysStatus(ex, jwt, users); return; }
+
+        // ── Portail public — inscription / login / profil joueur ─────────────
+        if (eq(path, "/api/public/register/request") && POST(method)) { publicRegisterHandler.request(ex); return; }
+        if (eq(path, "/api/public/register/verify")  && POST(method)) { publicRegisterHandler.verify(ex);  return; }
+        if (eq(path, "/api/public/register/login")   && POST(method)) { publicRegisterHandler.login(ex);   return; }
+        if (eq(path, "/api/public/player/me")        && GET(method))  { publicPlayerHandler.me(ex);        return; }
 
         // ── VIP routes PUBLIQUES (sans auth — webhooks + page d'achat) ───────
         if (eq(path, "/api/public/vip/plans")           && GET(method))   { vipPublicHandler.listPublicPlans(ex); return; }

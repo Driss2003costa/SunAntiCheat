@@ -1,5 +1,10 @@
 # SunAntiCheat - Configuration
 
+# ── Portail public (inscription joueurs via le site web) ─────────────────────
+portal:
+  # Clé secrète pour les JWT joueurs (DOIT être différente de dashboard.jwt-secret)
+  player-jwt-secret: "changez-moi-portal-secret-aleatoire-32chars!!"
+
 # Anti X-Ray (détection renforcée)
 xray:
   # Nombre minimum de blocs minés avant d'afficher un indice fiable (évite faux positifs sur petits échantillons).
