@@ -51,6 +51,20 @@ export type DailyClaimResult = {
   deliveredNow: boolean; message: string
 }
 
+export type CustomJob = {
+  id: string; name: string; description?: string | null; icon?: string | null
+  max_level: number; actions?: string[]
+}
+export type PlayerJobProgress = {
+  job_id: string; xp: number; level: number; total_earned: number
+  job_name: string; max_level: number; xp_to_next: number
+}
+export type VipPlan = {
+  id: string; displayName: string; description?: string | null
+  icon?: string | null; color?: string | null
+  priceEur: number; durationDays: number; perks?: string[]; order?: number
+}
+
 export const api = {
   requestPin: (username: string) =>
     post<RegisterRequestResult>(`${BASE}/register/request`, { username }),
@@ -72,6 +86,15 @@ export const api = {
 
   dailyStatus: (token: string) =>
     get<DailyStatus>(`${BASE}/player/me/daily/status`, token),
+
+  customJobsList: () =>
+    get<CustomJob[]>('/api/custom-jobs/list'),
+
+  customJobsPlayer: (uuid: string) =>
+    get<PlayerJobProgress[]>(`/api/custom-jobs/player/${uuid}`),
+
+  vipPlans: () =>
+    get<VipPlan[]>(`${BASE}/vip/plans`),
 
   dailyClaim: async (token: string): Promise<DailyClaimResult> => {
     const res = await fetch(`${BASE}/player/me/daily/claim`, {

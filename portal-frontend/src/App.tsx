@@ -5,6 +5,11 @@ import Profile from './pages/Profile'
 import ForgotPassword from './pages/ForgotPassword'
 import PublicProfile from './pages/PublicProfile'
 import Leaderboard from './pages/Leaderboard'
+import Home from './pages/Home'
+import Inventory from './pages/Inventory'
+import Minigames from './pages/Minigames'
+import Career from './pages/Career'
+import Shop from './pages/Shop'
 
 export default function App() {
   return (
@@ -16,6 +21,11 @@ export default function App() {
         <Route path="/forgot"            element={<ForgotPassword />} />
         <Route path="/player/:username"  element={<PublicProfile />} />
         <Route path="/leaderboard"       element={<Leaderboard />} />
+        <Route path="/home"              element={<Home />} />
+        <Route path="/inventory"         element={<Inventory />} />
+        <Route path="/minigames"         element={<Minigames />} />
+        <Route path="/career"            element={<Career />} />
+        <Route path="/shop"              element={<Shop />} />
         <Route path="*"                  element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
