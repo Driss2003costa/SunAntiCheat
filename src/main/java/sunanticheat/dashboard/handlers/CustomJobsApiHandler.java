@@ -4,8 +4,11 @@ import com.sun.net.httpserver.HttpExchange;
 import org.bukkit.plugin.Plugin;
 import sunanticheat.SunAntiCheat;
 import sunanticheat.dashboard.HttpHelper;
+import sunanticheat.dashboard.JwtUtil;
+import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.jobs.CustomJob;
 import sunanticheat.jobs.CustomJobModule;
+import sunanticheat.jobs.dynamics.WorldDynamicsService;
 
 import java.io.IOException;
 import java.util.*;
@@ -13,9 +16,13 @@ import java.util.*;
 public final class CustomJobsApiHandler {
 
     private final Plugin plugin;
+    private final JwtUtil jwt;
+    private final Map<String, DashboardUser> users;
 
-    public CustomJobsApiHandler(Plugin plugin) {
+    public CustomJobsApiHandler(Plugin plugin, JwtUtil jwt, Map<String, DashboardUser> users) {
         this.plugin = plugin;
+        this.jwt    = jwt;
+        this.users  = users;
     }
 
     /** GET /api/custom-jobs/list */
@@ -197,6 +204,125 @@ public final class CustomJobsApiHandler {
             resp.put("hot_chunks", hot);
         }
         HttpHelper.json(ex, 200, resp);
+    }
+
+    // ── Admin controls (JWT required) ─────────────────────────────────────────
+
+    /**
+     * PATCH /api/custom-jobs/admin/dynamics/toggle
+     * Body : { "system": "seasons|weather|time|heatmap|events|bulletin|global", "enabled": true/false }
+     */
+    public void adminToggle(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getDynamics() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String system  = (String) body.get("system");
+            Boolean enabled = (Boolean) body.get("enabled");
+            if (system == null || enabled == null) {
+                HttpHelper.error(ex, 400, "Missing 'system' or 'enabled'"); return;
+            }
+            module.getDynamics().setSubsystemEnabled(system, enabled);
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("system",   system);
+            resp.put("enabled",  enabled);
+            resp.put("states",   module.getDynamics().subsystemStates());
+            HttpHelper.json(ex, 200, resp);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/custom-jobs/admin/dynamics/event/trigger
+     * Body : { "id": "golden_vein" }
+     */
+    public void adminTriggerEvent(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getDynamics() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String id = (String) body.get("id");
+            if (id == null) { HttpHelper.error(ex, 400, "Missing 'id'"); return; }
+            boolean ok = module.getDynamics().events().trigger(id);
+            HttpHelper.json(ex, ok ? 200 : 404,
+                    Map.of("triggered", ok, "id", id,
+                           "active_events", module.getDynamics().events().active().stream()
+                               .map(e -> Map.of("id", e.id(), "target_job", String.valueOf(e.targetJob()),
+                                                "ends_at", e.endsAt())).toList()));
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/custom-jobs/admin/dynamics/bulletin/refresh
+     * Force un nouveau tirage du bulletin du jour.
+     */
+    public void adminRefreshBulletin(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getDynamics() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        module.getDynamics().forceBulletinRefresh();
+        var bul = module.getDynamics().bulletin();
+        HttpHelper.json(ex, 200, Map.of(
+                "job_id",       String.valueOf(bul.currentJobId()),
+                "multiplier",   bul.currentMult(),
+                "refreshed_at", bul.refreshedAt()
+        ));
+    }
+
+    /**
+     * DELETE /api/custom-jobs/admin/heatmap
+     * Vide toutes les données heatmap (mémoire + DB).
+     */
+    public void adminClearHeatmap(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getDynamics() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        module.getDynamics().clearHeatmap();
+        HttpHelper.json(ex, 200, Map.of("cleared", true));
+    }
+
+    /**
+     * POST /api/custom-jobs/admin/dynamics/reload
+     * Recharge dynamics.yml + remet tous les overrides à zéro.
+     */
+    public void adminReloadDynamics(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getDynamics() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        module.getDynamics().clearOverrides();
+        module.getDynamics().reload();
+        HttpHelper.json(ex, 200, module.getDynamics().snapshot());
     }
 
     private static String extractUuid(String path, String prefix, String suffix) {

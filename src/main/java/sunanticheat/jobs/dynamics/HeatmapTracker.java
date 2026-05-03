@@ -160,6 +160,14 @@ public final class HeatmapTracker {
         return list;
     }
 
+    /** Efface toutes les données heatmap (mémoire + DB). Admin/debug. */
+    public void clearAll() {
+        memory.clear();
+        try (PreparedStatement ps = db.conn().prepareStatement("DELETE FROM custom_job_heatmap")) {
+            ps.executeUpdate();
+        } catch (SQLException e) { logger.warning("[Jobs/Heatmap] clearAll: " + e.getMessage()); }
+    }
+
     /** Top des chunks les plus exploités pour un métier (admin/debug). */
     public List<Map<String, Object>> topChunks(String jobId, int limit) {
         List<Map<String, Object>> list = new ArrayList<>();

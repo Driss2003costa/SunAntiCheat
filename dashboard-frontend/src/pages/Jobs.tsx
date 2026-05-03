@@ -12,13 +12,15 @@ import { api } from '../api/client'
  *  - Catalogue : liste de tous les jobs (config Jobs Reborn) avec stats
  */
 
-type Tab = 'overview' | 'active' | 'history' | 'catalog'
+type Tab = 'overview' | 'active' | 'history' | 'catalog' | 'custom-jobs' | 'dynamics'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Vue générale', icon: '📊' },
-  { id: 'active',   label: 'Joueurs actifs',  icon: '👥' },
-  { id: 'history',  label: 'Historique',  icon: '📜' },
-  { id: 'catalog',  label: 'Catalogue',   icon: '💼' },
+const TABS: { id: Tab; label: string; icon: string; section?: string }[] = [
+  { id: 'overview',    label: 'Vue générale',   icon: '📊' },
+  { id: 'active',      label: 'Joueurs actifs', icon: '👥' },
+  { id: 'history',     label: 'Historique',     icon: '📜' },
+  { id: 'catalog',     label: 'Catalogue',      icon: '💼' },
+  { id: 'custom-jobs', label: 'Métiers Custom', icon: '⚒️',  section: 'Custom' },
+  { id: 'dynamics',    label: 'Dynamiques',     icon: '🌍',  section: 'Custom' },
 ]
 
 const PERIOD_OPTIONS = [
@@ -168,25 +170,32 @@ export default function Jobs() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-                  className="px-4 py-2 text-sm font-medium border-b-2 transition"
-                  style={{
-                    color: tab === t.id ? 'var(--primary)' : 'var(--text-muted)',
-                    borderColor: tab === t.id ? 'var(--primary)' : 'transparent',
-                  }}>
-            {t.icon} {t.label}
-          </button>
+      <div className="flex gap-1 border-b items-center" style={{ borderColor: 'var(--border)' }}>
+        {TABS.map((t, i) => (
+          <>
+            {i > 0 && TABS[i].section && !TABS[i-1].section && (
+              <div key={`sep-${i}`} className="h-5 w-px mx-1" style={{ background: 'var(--border)' }} />
+            )}
+            <button key={t.id} onClick={() => setTab(t.id)}
+                    className="px-4 py-2 text-sm font-medium border-b-2 transition"
+                    style={{
+                      color: tab === t.id ? 'var(--primary)' : 'var(--text-muted)',
+                      borderColor: tab === t.id ? 'var(--primary)' : 'transparent',
+                    }}>
+              {t.icon} {t.label}
+            </button>
+          </>
         ))}
       </div>
 
-      {tab === 'overview' && <OverviewTab data={overview} days={days}/>}
-      {tab === 'active'   && <ActiveTab data={active} />}
-      {tab === 'history'  && <HistoryTab data={history} onRefresh={refresh}
-                                          filter={historyFilter}
-                                          onFilterChange={f => { setHistoryFilter(f); refreshHistory(f) }} />}
-      {tab === 'catalog'  && <CatalogTab data={overview} days={days} />}
+      {tab === 'overview'    && <OverviewTab data={overview} days={days}/>}
+      {tab === 'active'      && <ActiveTab data={active} />}
+      {tab === 'history'     && <HistoryTab data={history} onRefresh={refresh}
+                                            filter={historyFilter}
+                                            onFilterChange={f => { setHistoryFilter(f); refreshHistory(f) }} />}
+      {tab === 'catalog'     && <CatalogTab data={overview} days={days} />}
+      {tab === 'custom-jobs' && <CustomJobsTab />}
+      {tab === 'dynamics'    && <DynamicsTab />}
     </div>
   )
 }
@@ -726,6 +735,327 @@ function Stat({ label, value, color }: { label: string; value: string; color: st
     <div>
       <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
       <div className="font-bold" style={{ color }}>{value}</div>
+    </div>
+  )
+}
+
+// ── Custom Jobs Tab ───────────────────────────────────────────────────────────
+function CustomJobsTab() {
+  const [jobs, setJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [openJob, setOpenJob] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.customJobsList().then(setJobs).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <Loading/>
+
+  if (jobs.length === 0) return (
+    <div className="rounded-xl p-12 text-center"
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+      <div className="text-4xl mb-2">⚒️</div>
+      Aucun métier custom configuré — vérifier <code>jobs.yml</code>
+    </div>
+  )
+
+  return (
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {jobs.map((j: any) => (
+          <button key={j.id}
+               onClick={() => setOpenJob(j.id)}
+               className="text-left rounded-xl p-4 transition hover:scale-[1.01]"
+               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-base" style={{ color: 'var(--text)' }}>{j.name}</h3>
+              <span className="text-xs px-2 py-0.5 rounded"
+                    style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                Niv max {j.max_level}
+              </span>
+            </div>
+            {j.description && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{j.description}</p>}
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <Stat label="Joueurs" value={String(j.player_count ?? 0)} color="#3b82f6"/>
+              <Stat label="Niv. moy." value={(j.avg_level ?? 0).toFixed(1)} color="#f59e0b"/>
+              <Stat label="Total versé" value={fmtMoney(j.total_paid ?? 0)} color="#10b981"/>
+            </div>
+            {j.actions && Object.keys(j.actions).length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {Object.keys(j.actions).map((type: string) => (
+                  <span key={type} className="text-[10px] px-1.5 py-0.5 rounded font-mono"
+                        style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
+                    {type}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-center" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
+              Cliquer pour le classement →
+            </p>
+          </button>
+        ))}
+      </div>
+      {openJob && <CustomJobLeaderboardModal jobId={openJob} jobs={jobs} onClose={() => setOpenJob(null)} />}
+    </>
+  )
+}
+
+function CustomJobLeaderboardModal({ jobId, jobs, onClose }: { jobId: string; jobs: any[]; onClose: () => void }) {
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const job = jobs.find(j => j.id === jobId)
+
+  useEffect(() => {
+    api.customJobsLeaderboard(jobId).then(setRows).catch(() => {}).finally(() => setLoading(false))
+  }, [jobId])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+         onClick={onClose}>
+      <div className="w-full max-w-xl max-h-[80vh] overflow-y-auto rounded-2xl p-6 space-y-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+           onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
+            ⚒️ {job?.name ?? jobId} — Classement
+          </h2>
+          <button onClick={onClose} className="text-2xl" style={{ color: 'var(--text-muted)' }}>×</button>
+        </div>
+        {loading ? <Loading/> : rows.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>Aucun joueur dans ce métier.</p>
+        ) : (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            {rows.map((r: any, i: number) => (
+              <div key={r.uuid} className="px-4 py-2.5 flex items-center gap-3 text-sm"
+                   style={{ borderBottom: '1px solid var(--border)', background: i === 0 ? 'rgba(245,158,11,0.07)' : undefined }}>
+                <span className="w-6 text-right font-bold"
+                      style={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7f32' : 'var(--text-muted)' }}>
+                  {i + 1}
+                </span>
+                <span className="flex-1 font-medium" style={{ color: 'var(--text)' }}>{r.uuid}</span>
+                <span style={{ color: '#f59e0b' }}>Niv. {r.level}</span>
+                <span className="font-bold" style={{ color: '#10b981' }}>{fmtMoney(r.total_earned)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Dynamics Tab ──────────────────────────────────────────────────────────────
+const SUBSYSTEM_LABELS: Record<string, { label: string; icon: string; desc: string }> = {
+  global:   { label: 'Global',          icon: '🌍', desc: 'Active/désactive tout le système de dynamiques' },
+  seasons:  { label: 'Saisons',         icon: '🍂', desc: 'Multiplicateurs par saison (hiver, été…)' },
+  weather:  { label: 'Météo',           icon: '🌧', desc: 'Bonus/malus selon la météo en jeu' },
+  time:     { label: 'Cycle jour/nuit', icon: '🌙', desc: 'Bonus la nuit (Chasseur ×3, etc.)' },
+  heatmap:  { label: 'Heatmap',         icon: '🔥', desc: 'Malus anti-surexploitation par chunk' },
+  events:   { label: 'Évènements',      icon: '⚡', desc: 'Évènements aléatoires (Filon Doré, etc.)' },
+  bulletin: { label: 'Bulletin',        icon: '📰', desc: 'Demande forte du jour (+20-80%)' },
+}
+
+function DynamicsTab() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    api.customJobsDynamics().then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const toggle = async (system: string, enabled: boolean) => {
+    setBusy(system)
+    try {
+      const res = await api.customJobsAdminToggle(system, enabled)
+      setData((prev: any) => prev ? { ...prev, enabled: res.states?.global ?? prev.enabled, subsystems: res.states ?? prev.subsystems } : prev)
+    } catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const triggerEvent = async (id: string) => {
+    if (!confirm(`Déclencher l'évènement "${id}" maintenant ?`)) return
+    setBusy('event-' + id)
+    try { await api.customJobsAdminTriggerEvent(id); load() }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const refreshBulletin = async () => {
+    if (!confirm('Forcer un nouveau bulletin du jour ? Le job en cours changera.')) return
+    setBusy('bulletin')
+    try { const res = await api.customJobsAdminRefreshBulletin(); setData((p: any) => p ? { ...p, bulletin: res } : p) }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const clearHeatmap = async () => {
+    if (!confirm('Vider TOUTE la heatmap ? Les malus de surexploitation seront réinitialisés.')) return
+    setBusy('heatmap-clear')
+    try { await api.customJobsAdminClearHeatmap(); alert('✓ Heatmap vidée.') }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const reloadConfig = async () => {
+    setBusy('reload')
+    try { const res = await api.customJobsAdminReloadDynamics(); setData(res); alert('✓ dynamics.yml rechargé + overrides réinitialisés.') }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  if (loading) return <Loading/>
+  if (!data) return (
+    <div className="rounded-xl p-12 text-center"
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+      <div className="text-4xl mb-2">🔧</div>
+      Module Custom Jobs non disponible
+    </div>
+  )
+
+  const subsystems: Record<string, boolean> = data.subsystems ?? {}
+
+  return (
+    <div className="space-y-5">
+
+      {/* Action bar */}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={reloadConfig} disabled={busy === 'reload'}
+                className="px-3 py-2 rounded-lg text-sm font-medium transition"
+                style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+          {busy === 'reload' ? '⏳' : '↺ Recharger dynamics.yml'}
+        </button>
+        <button onClick={clearHeatmap} disabled={busy === 'heatmap-clear'}
+                className="px-3 py-2 rounded-lg text-sm font-medium transition"
+                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+          {busy === 'heatmap-clear' ? '⏳' : '🗑 Vider heatmap'}
+        </button>
+        <button onClick={load} className="px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+          ↻ Refresh
+        </button>
+      </div>
+
+      {/* Subsystem toggles */}
+      <div className="rounded-xl overflow-hidden"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 font-semibold text-sm border-b"
+             style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          ⚙️ Sous-systèmes — overrides en mémoire (réinitialisés au reload)
+        </div>
+        {Object.entries(SUBSYSTEM_LABELS).map(([key, meta]) => {
+          const enabled = subsystems[key] ?? true
+          const isBusy  = busy === key
+          return (
+            <div key={key} className="px-5 py-3 flex items-center gap-4"
+                 style={{ borderBottom: '1px solid var(--border)' }}>
+              <span className="text-xl w-6 text-center">{meta.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{meta.label}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{meta.desc}</p>
+              </div>
+              <button
+                disabled={isBusy}
+                onClick={() => toggle(key, !enabled)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition"
+                style={{
+                  background: enabled ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.1)',
+                  color: enabled ? '#10b981' : '#ef4444',
+                  border: `1px solid ${enabled ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)'}`,
+                  minWidth: 90,
+                }}>
+                {isBusy ? '⏳' : enabled ? '✓ Actif' : '✗ Inactif'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Current state : season + bulletin */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="font-bold mb-2 text-sm" style={{ color: 'var(--text)' }}>🍂 Saison courante</h3>
+          {data.season ? (
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{data.season.icon}</span>
+              <div>
+                <p className="font-bold" style={{ color: 'var(--text)' }}>{data.season.label}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{data.season.key}</p>
+              </div>
+            </div>
+          ) : <p style={{ color: 'var(--text-muted)' }}>—</p>}
+        </div>
+
+        <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-sm" style={{ color: 'var(--text)' }}>📰 Bulletin du jour</h3>
+            <button onClick={refreshBulletin} disabled={busy === 'bulletin'}
+                    className="text-xs px-2 py-1 rounded"
+                    style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+              {busy === 'bulletin' ? '⏳' : '↺ Nouveau tirage'}
+            </button>
+          </div>
+          {data.bulletin?.job_id ? (
+            <div>
+              <p className="font-bold" style={{ color: '#f59e0b' }}>
+                {data.bulletin.job_id}
+                <span className="font-mono ml-2" style={{ color: '#10b981' }}>×{(data.bulletin.multiplier ?? 1).toFixed(1)}</span>
+              </p>
+              {data.bulletin.refreshed_at > 0 && (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Rafraîchi {timeAgo(data.bulletin.refreshed_at)}
+                </p>
+              )}
+            </div>
+          ) : <p style={{ color: 'var(--text-muted)' }}>—</p>}
+        </div>
+      </div>
+
+      {/* Active events */}
+      <div className="rounded-xl overflow-hidden"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 font-semibold text-sm border-b flex items-center justify-between"
+             style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          <span>⚡ Évènements actifs ({(data.active_events ?? []).length})</span>
+          <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>Force-trigger ci-dessous</span>
+        </div>
+        {(data.active_events ?? []).length === 0 ? (
+          <p className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>Aucun évènement en cours.</p>
+        ) : (data.active_events as any[]).map((ev: any) => (
+          <div key={ev.id} className="px-5 py-3 flex items-center gap-4"
+               style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="flex-1">
+              <p className="font-bold text-sm" style={{ color: '#f59e0b' }}>{ev.id}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Job cible : {ev.target_job ?? 'global'} · Expire {timeAgo(ev.ends_at)}
+              </p>
+            </div>
+            <div className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>
+              <div>+{ev.reward_xp} XP</div>
+              <div style={{ color: '#10b981' }}>+{ev.reward_money} $</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Trigger buttons */}
+      {data.event_templates !== undefined && (
+        <div className="rounded-xl p-4 space-y-2"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="font-bold text-sm mb-3" style={{ color: 'var(--text)' }}>⚡ Force-trigger un évènement</h3>
+          <div className="flex flex-wrap gap-2">
+            {['golden_vein','forest_blessing','fishing_frenzy','monster_invasion','golden_harvest'].map(id => (
+              <button key={id} onClick={() => triggerEvent(id)} disabled={busy === 'event-' + id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
+                {busy === 'event-' + id ? '⏳' : id.replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Si un évènement du même job est déjà actif, le trigger sera ignoré.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

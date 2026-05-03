@@ -36,6 +36,18 @@ public final class WorldDynamicsService {
     private BukkitTask flushTask;
     private BukkitTask bulletinTask;
 
+    /** In-memory overrides : clé = subsystem name, true = forcé actif, false = forcé inactif. */
+    private final java.util.concurrent.ConcurrentHashMap<String, Boolean> subsystemOverrides
+            = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static final String SYS_GLOBAL   = "global";
+    public static final String SYS_SEASONS  = "seasons";
+    public static final String SYS_WEATHER  = "weather";
+    public static final String SYS_TIME     = "time";
+    public static final String SYS_HEATMAP  = "heatmap";
+    public static final String SYS_EVENTS   = "events";
+    public static final String SYS_BULLETIN = "bulletin";
+
     public WorldDynamicsService(JavaPlugin plugin, Database db,
                                   CustomJobConfig jobsCfg, Logger logger) {
         this.plugin = plugin; this.logger = logger;
@@ -74,6 +86,47 @@ public final class WorldDynamicsService {
         bulletin.tickRefresh(true);
     }
 
+    // ── Admin toggles ─────────────────────────────────────────────────────────
+
+    /** Force-active ou force-désactive un sous-système (en mémoire uniquement). */
+    public void setSubsystemEnabled(String key, boolean enabled) {
+        subsystemOverrides.put(key.toLowerCase(), enabled);
+    }
+
+    /** Réinitialise les overrides (reprise des valeurs YAML). */
+    public void clearOverrides() { subsystemOverrides.clear(); }
+
+    public boolean isSubsystemEnabled(String key) {
+        Boolean override = subsystemOverrides.get(key.toLowerCase());
+        if (override != null) return override;
+        return switch (key.toLowerCase()) {
+            case SYS_GLOBAL   -> cfg.enabled();
+            case SYS_SEASONS  -> cfg.seasonsEnabled();
+            case SYS_WEATHER  -> cfg.weatherEnabled();
+            case SYS_TIME     -> cfg.timeEnabled();
+            case SYS_HEATMAP  -> cfg.heatmapEnabled();
+            case SYS_EVENTS   -> cfg.eventsEnabled();
+            case SYS_BULLETIN -> cfg.bulletinEnabled();
+            default -> true;
+        };
+    }
+
+    public Map<String, Object> subsystemStates() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        for (String key : List.of(SYS_GLOBAL, SYS_SEASONS, SYS_WEATHER, SYS_TIME, SYS_HEATMAP, SYS_EVENTS, SYS_BULLETIN)) {
+            m.put(key, isSubsystemEnabled(key));
+        }
+        return m;
+    }
+
+    /** Vide la heatmap en mémoire + en DB. */
+    public void clearHeatmap() { heatmap.clearAll(); }
+
+    /** Force un refresh du bulletin (tire un nouveau job du jour + broadcast). */
+    public void forceBulletinRefresh() {
+        bulletin.forceRefresh(true);
+    }
+
     /**
      * Calcule le multiplicateur final à appliquer à une action métier.
      * Combine saison, météo, jour/nuit, heatmap, bulletin.
@@ -81,17 +134,17 @@ public final class WorldDynamicsService {
      */
     public MultiplierBreakdown computeMultiplier(Player player, String jobId, String actionType) {
         MultiplierBreakdown b = new MultiplierBreakdown();
-        if (!cfg.enabled()) return b;
+        if (!isSubsystemEnabled(SYS_GLOBAL)) return b;
 
         // Season
-        if (cfg.seasonsEnabled()) {
+        if (isSubsystemEnabled(SYS_SEASONS)) {
             Season s = Season.current();
             double mult = cfg.seasonMultiplier(s, jobId);
             if (mult != 1.0) b.add(s.icon + " " + s.label, mult);
         }
 
         // Weather
-        if (cfg.weatherEnabled() && player != null) {
+        if (isSubsystemEnabled(SYS_WEATHER) && player != null) {
             World w = player.getWorld();
             String state = w.isThundering() ? "storm" : w.hasStorm() ? "rain" : "clear";
             double mult = cfg.weatherMultiplier(state, jobId);
@@ -106,7 +159,7 @@ public final class WorldDynamicsService {
         }
 
         // Day / night
-        if (cfg.timeEnabled() && player != null) {
+        if (isSubsystemEnabled(SYS_TIME) && player != null) {
             long t = player.getWorld().getTime();
             String period = (t >= 13000 && t < 23000) ? "night" : "day";
             double mult = cfg.timeMultiplier(period, jobId);
@@ -114,7 +167,7 @@ public final class WorldDynamicsService {
         }
 
         // Heatmap
-        if (cfg.heatmapEnabled() && player != null) {
+        if (isSubsystemEnabled(SYS_HEATMAP) && player != null) {
             Location loc = player.getLocation();
             int cx = loc.getBlockX() >> 4;
             int cz = loc.getBlockZ() >> 4;
@@ -125,7 +178,7 @@ public final class WorldDynamicsService {
         }
 
         // Daily bulletin
-        if (cfg.bulletinEnabled()) {
+        if (isSubsystemEnabled(SYS_BULLETIN)) {
             double mult = bulletin.multiplierFor(jobId);
             if (mult != 1.0) b.add("📰 Demande du jour", mult);
         }
@@ -137,7 +190,7 @@ public final class WorldDynamicsService {
      * doit être consommée. Retourne null si aucun évènement actif pour ce job.
      */
     public WorldEventManager.ActiveEvent claimEventReward(Player player, String jobId) {
-        if (!cfg.eventsEnabled()) return null;
+        if (!isSubsystemEnabled(SYS_EVENTS)) return null;
         return events.claimIfPresent(player, jobId);
     }
 
@@ -145,7 +198,8 @@ public final class WorldDynamicsService {
 
     public Map<String, Object> snapshot() {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("enabled", cfg.enabled());
+        m.put("enabled",    isSubsystemEnabled(SYS_GLOBAL));
+        m.put("subsystems", subsystemStates());
 
         Map<String, Object> season = new LinkedHashMap<>();
         Season s = Season.current();

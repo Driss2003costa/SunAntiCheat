@@ -71,6 +71,12 @@ public final class DailyBulletin {
         return currentJobId.equalsIgnoreCase(jobId) ? currentMult : 1.0;
     }
 
+    /** Force le tirage d'un nouveau bulletin immédiatement. */
+    public synchronized void forceRefresh(boolean broadcast) {
+        currentDay = LocalDate.MIN;
+        tickRefresh(broadcast);
+    }
+
     public String  currentJobId()  { return currentJobId; }
     public double  currentMult()   { return currentMult; }
     public long    refreshedAt()   { return refreshedAt; }

@@ -479,7 +479,7 @@ public final class DashboardModule {
         PublicDailyHandler publicDailyHandler = new PublicDailyHandler(
                 dailyRewardStore, playerJwtUtil, plugin, dailyRewardListener);
         PublicLeaderboardHandler publicLeaderboardHandler = new PublicLeaderboardHandler(plugin);
-        CustomJobsApiHandler customJobsApiHandler = new CustomJobsApiHandler(plugin);
+        CustomJobsApiHandler customJobsApiHandler = new CustomJobsApiHandler(plugin, jwtUtil, users);
 
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
