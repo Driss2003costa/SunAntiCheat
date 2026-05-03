@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -36,17 +37,21 @@ public final class DailyRewardStore {
     private final Persistence configStorage;
     private final Persistence claimsStorage;
     private final Persistence stateStorage;
+    private final Persistence pendingStorage;
 
     private DailyRewardConfig config;
     private final List<DailyRewardClaim> claims = new ArrayList<>();
     private final Map<String, PlayerState> state = new HashMap<>();
+    /** Rewards claimed via the web portal for players who were offline at claim time. */
+    private final Map<String, DailyRewardDay> pendingWebClaims = new ConcurrentHashMap<>();
 
     public DailyRewardStore(File dataFolder, Logger logger, BlobStorage blobs) {
         this.logger = logger;
         File dir = new File(dataFolder, "dashboard");
-        this.configStorage = new Persistence(blobs, "daily_config", new File(dir, "daily_config.json"));
-        this.claimsStorage = new Persistence(blobs, "daily_claims", new File(dir, "daily_claims.json"));
-        this.stateStorage  = new Persistence(blobs, "daily_state",  new File(dir, "daily_state.json"));
+        this.configStorage  = new Persistence(blobs, "daily_config",   new File(dir, "daily_config.json"));
+        this.claimsStorage  = new Persistence(blobs, "daily_claims",   new File(dir, "daily_claims.json"));
+        this.stateStorage   = new Persistence(blobs, "daily_state",    new File(dir, "daily_state.json"));
+        this.pendingStorage = new Persistence(blobs, "daily_pending",  new File(dir, "daily_pending.json"));
         load();
     }
 
@@ -193,6 +198,26 @@ public final class DailyRewardStore {
         return out;
     }
 
+    // ── Pending web claims ────────────────────────────────────────────────────
+
+    public void addPendingWebClaim(String playerUuid, DailyRewardDay reward) {
+        if (playerUuid == null || reward == null) return;
+        pendingWebClaims.put(playerUuid, reward);
+        persistPending();
+    }
+
+    /** Returns and removes the pending web claim for this player, or null if none. */
+    public DailyRewardDay consumePendingWebClaim(String playerUuid) {
+        if (playerUuid == null) return null;
+        DailyRewardDay reward = pendingWebClaims.remove(playerUuid);
+        if (reward != null) persistPending();
+        return reward;
+    }
+
+    public boolean hasPendingWebClaim(String playerUuid) {
+        return playerUuid != null && pendingWebClaims.containsKey(playerUuid);
+    }
+
     public synchronized void resetPlayerStreak(String playerUuid) {
         if (playerUuid == null) return;
         state.remove(playerUuid);
@@ -213,6 +238,15 @@ public final class DailyRewardStore {
             stateStorage.write(GSON.toJson(state));
         } catch (Exception e) {
             logger.warning("[Dashboard/DailyReward] save fail: " + e.getMessage());
+        }
+        persistPending();
+    }
+
+    private void persistPending() {
+        try {
+            pendingStorage.write(GSON.toJson(pendingWebClaims));
+        } catch (Exception e) {
+            logger.warning("[Dashboard/DailyReward] pending save fail: " + e.getMessage());
         }
     }
 
@@ -236,6 +270,11 @@ public final class DailyRewardStore {
                 Type t = new TypeToken<Map<String, PlayerState>>(){}.getType();
                 Map<String, PlayerState> m = GSON.fromJson(s, t);
                 if (m != null) state.putAll(m);
+            }
+            if ((s = pendingStorage.read()) != null && !s.isBlank()) {
+                Type t = new TypeToken<Map<String, DailyRewardDay>>(){}.getType();
+                Map<String, DailyRewardDay> m = GSON.fromJson(s, t);
+                if (m != null) pendingWebClaims.putAll(m);
             }
         } catch (Exception e) {
             logger.warning("[Dashboard/DailyReward] load fail: " + e.getMessage());

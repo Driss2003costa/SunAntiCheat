@@ -476,6 +476,9 @@ public final class DashboardModule {
         publicProfileHandler.setDailyRewardStore(dailyRewardStore);
         publicProfileHandler.setVipStore(vipStore);
         publicProfileHandler.setQuestStore(questStore);
+        PublicDailyHandler publicDailyHandler = new PublicDailyHandler(
+                dailyRewardStore, playerJwtUtil, plugin, dailyRewardListener);
+        PublicLeaderboardHandler publicLeaderboardHandler = new PublicLeaderboardHandler(plugin);
         CustomJobsApiHandler customJobsApiHandler = new CustomJobsApiHandler(plugin);
 
         // ── HTTP Server ───────────────────────────────────────────────────────
@@ -488,7 +491,8 @@ public final class DashboardModule {
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
                 auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler,
                 playerLogHandler, altAccountHandler, vpHandler,
-                publicRegisterHandler, publicPlayerHandler, publicProfileHandler, customJobsApiHandler,
+                publicRegisterHandler, publicPlayerHandler, publicProfileHandler,
+                publicDailyHandler, publicLeaderboardHandler, customJobsApiHandler,
                 geoIpHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");

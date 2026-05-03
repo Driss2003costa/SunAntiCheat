@@ -37,6 +37,20 @@ export type PlayerProfile = {
   active_sanctions?: ActiveSanction[]
 }
 
+export type DailyConfigDay = {
+  day: number; displayName: string | null; icon: string | null; color: string | null
+  bonusCoins: number; itemsLabel: string
+}
+export type DailyStatus = {
+  canClaim: boolean; streak: number; nextDay: number; cooldownMs: number
+  config?: { enabled: boolean; cycleDays: number; resetOnMiss: boolean; days: DailyConfigDay[] }
+}
+export type DailyClaimResult = {
+  ok: boolean; day: number; displayName: string | null; icon: string | null
+  color: string | null; bonusCoins: number; itemsLabel: string
+  deliveredNow: boolean; message: string
+}
+
 export const api = {
   requestPin: (username: string) =>
     post<RegisterRequestResult>(`${BASE}/register/request`, { username }),
@@ -55,6 +69,20 @@ export const api = {
 
   me: (token: string) =>
     get<PlayerProfile>(`${BASE}/player/me`, token),
+
+  dailyStatus: (token: string) =>
+    get<DailyStatus>(`${BASE}/player/me/daily/status`, token),
+
+  dailyClaim: async (token: string): Promise<DailyClaimResult> => {
+    const res = await fetch(`${BASE}/player/me/daily/claim`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    const data = await res.json()
+    if (!res.ok) throw { status: res.status, ...data }
+    return data as DailyClaimResult
+  },
 }
 
 export function saveToken(token: string) { localStorage.setItem('portal_token', token) }

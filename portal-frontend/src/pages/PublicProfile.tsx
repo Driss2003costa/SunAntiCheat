@@ -300,6 +300,8 @@ export default function PublicProfile() {
                   {copied ? '✓ Copié !' : '🔗 Partager'}
                 </button>
                 <span className="text-gray-700">·</span>
+                <Link to="/leaderboard" className="text-xs text-brand-400 hover:text-brand-300">🏆 Classement</Link>
+                <span className="text-gray-700">·</span>
                 <Link to="/login" className="text-xs text-brand-400 hover:text-brand-300">Connexion</Link>
                 <span className="text-gray-700">·</span>
                 <Link to="/" className="text-xs text-brand-400 hover:text-brand-300">Inscription</Link>
