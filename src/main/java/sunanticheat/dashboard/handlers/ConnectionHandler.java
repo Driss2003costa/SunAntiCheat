@@ -46,6 +46,8 @@ public final class ConnectionHandler {
                     : (System.currentTimeMillis() - s.getJoinTime()) / 1000;
             m.put("durationSeconds", Math.max(0, duration));
             m.put("online", s.getLeaveTime() == 0);
+            m.put("countryCode", s.getCountryCode());
+            m.put("country", s.getCountry());
             sessionList.add(m);
         }
 

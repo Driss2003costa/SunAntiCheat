@@ -57,6 +57,7 @@ public final class DashboardRouter implements HttpHandler {
     private final PublicPlayerHandler publicPlayerHandler;
     private final PublicProfileHandler publicProfileHandler;
     private final CustomJobsApiHandler customJobsApiHandler;
+    private final GeoIpHandler geoIpHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -98,7 +99,8 @@ public final class DashboardRouter implements HttpHandler {
                            PublicRegisterHandler publicRegisterHandler,
                            PublicPlayerHandler publicPlayerHandler,
                            PublicProfileHandler publicProfileHandler,
-                           CustomJobsApiHandler customJobsApiHandler) {
+                           CustomJobsApiHandler customJobsApiHandler,
+                           GeoIpHandler geoIpHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -140,6 +142,7 @@ public final class DashboardRouter implements HttpHandler {
         this.publicPlayerHandler    = publicPlayerHandler;
         this.publicProfileHandler   = publicProfileHandler;
         this.customJobsApiHandler   = customJobsApiHandler;
+        this.geoIpHandler           = geoIpHandler;
     }
 
     @Override
@@ -544,6 +547,9 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/users/") && path.endsWith("/custom-role") && PATCH(method)) { userHandler.changeCustomRole(ex, jwt, users, id(path, "/api/users/", "/custom-role")); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/password") && POST(method)) { userHandler.resetPassword(ex, jwt, users, id(path, "/api/users/", "/password")); return; }
         if (path.startsWith("/api/users/")           && DELETE(method)) { userHandler.delete(ex, jwt, users, id(path, "/api/users/")); return; }
+
+        // ── GeoIP ─────────────────────────────────────────────────────────────
+        if (eq(path, "/api/geoip/lookup") && GET(method)) { geoIpHandler.lookup(ex, jwt, users); return; }
 
         HttpHelper.error(ex, 404, "Route introuvable: " + method + " " + path);
     }

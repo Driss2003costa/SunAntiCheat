@@ -31,6 +31,7 @@ import sunanticheat.blocklog.BlockLogListeners;
 import sunanticheat.blocklog.BlockLogStore;
 import sunanticheat.connection.ConnectionListeners;
 import sunanticheat.connection.ConnectionLogStorage;
+import sunanticheat.connection.GeoIpCache;
 import sunanticheat.inventory.InventoryAnomalyListener;
 import sunanticheat.pickup.ItemPickupHistoryGui;
 import sunanticheat.pickup.ItemPickupListeners;
@@ -71,6 +72,7 @@ public class SunAntiCheat extends JavaPlugin {
     private sunanticheat.alerts.StaffAlertService staffAlertServiceRef;
     private KillAuraTracker killAuraTrackerRef;
     private sunanticheat.connection.ConnectionLogStorage connectionLogStorageRef;
+    private GeoIpCache geoIpCache;
     private sunanticheat.jobs.CustomJobModule customJobModule;
 
     public sunanticheat.alerts.StaffAlertService getStaffAlertService() { return staffAlertServiceRef; }
@@ -103,6 +105,7 @@ public class SunAntiCheat extends JavaPlugin {
     public SanctionService getSanctionService() { return sanctionService; }
     public KillAuraTracker getKillAuraTracker()   { return killAuraTrackerRef; }
     public sunanticheat.connection.ConnectionLogStorage getConnectionLogStorage() { return connectionLogStorageRef; }
+    public GeoIpCache getGeoIpCache() { return geoIpCache; }
     public ReportStorage getReportStorage()        { return reportStorageRef; }
     public PlaytimeTracker getPlaytimeTracker()    { return playtimeTracker; }
     public sunanticheat.jobs.CustomJobModule getCustomJobModule() { return customJobModule; }
@@ -170,7 +173,8 @@ public class SunAntiCheat extends JavaPlugin {
         mainMenuGui.setDebugGui(debugGui);
         ConnectionLogStorage connectionLogStorage = new ConnectionLogStorage(this);
         this.connectionLogStorageRef = connectionLogStorage;
-        getServer().getPluginManager().registerEvents(new ConnectionListeners(connectionLogStorage), this);
+        geoIpCache = new GeoIpCache(getLogger());
+        getServer().getPluginManager().registerEvents(new ConnectionListeners(connectionLogStorage, geoIpCache), this);
         getServer().getPluginManager().registerEvents(new InventoryAnomalyListener(this, staffAlertService), this);
         getServer().getPluginManager().registerEvents(new FirstJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new RiskyCommandListener(this), this);
