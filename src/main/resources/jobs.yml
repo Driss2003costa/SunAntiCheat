@@ -1,0 +1,102 @@
+jobs:
+  woodcutter:
+    name: "Bûcheron"
+    description: "Coupe du bois pour gagner de l'argent"
+    icon: OAK_LOG
+    max-level: 10
+    base-xp-per-level: 500
+    level-multiplier: 1.2
+    anti-farm-cooldown: 30
+    actions:
+      break:
+        OAK_LOG:      { xp: 5,  money: 1.0 }
+        SPRUCE_LOG:   { xp: 5,  money: 1.0 }
+        BIRCH_LOG:    { xp: 5,  money: 1.0 }
+        JUNGLE_LOG:   { xp: 6,  money: 1.2 }
+        ACACIA_LOG:   { xp: 6,  money: 1.2 }
+        DARK_OAK_LOG: { xp: 7,  money: 1.5 }
+        CHERRY_LOG:   { xp: 8,  money: 1.8 }
+        MANGROVE_LOG: { xp: 8,  money: 1.8 }
+
+  miner:
+    name: "Mineur"
+    description: "Mine des ressources précieuses dans les profondeurs"
+    icon: DIAMOND_PICKAXE
+    max-level: 10
+    base-xp-per-level: 600
+    level-multiplier: 1.25
+    anti-farm-cooldown: 30
+    actions:
+      break:
+        COAL_ORE:         { xp: 3,  money: 0.5 }
+        DEEPSLATE_COAL_ORE: { xp: 4, money: 0.7 }
+        IRON_ORE:         { xp: 6,  money: 1.5 }
+        DEEPSLATE_IRON_ORE: { xp: 7, money: 1.8 }
+        GOLD_ORE:         { xp: 8,  money: 2.5 }
+        DEEPSLATE_GOLD_ORE: { xp: 10, money: 3.0 }
+        DIAMOND_ORE:      { xp: 20, money: 10.0 }
+        DEEPSLATE_DIAMOND_ORE: { xp: 25, money: 12.0 }
+        EMERALD_ORE:      { xp: 25, money: 15.0 }
+        ANCIENT_DEBRIS:   { xp: 50, money: 30.0 }
+
+  farmer:
+    name: "Fermier"
+    description: "Cultive la terre et récolte des ressources alimentaires"
+    icon: WHEAT
+    max-level: 10
+    base-xp-per-level: 400
+    level-multiplier: 1.15
+    anti-farm-cooldown: 30
+    actions:
+      break:
+        WHEAT:       { xp: 3, money: 0.3 }
+        CARROTS:     { xp: 3, money: 0.3 }
+        POTATOES:    { xp: 3, money: 0.3 }
+        BEETROOTS:   { xp: 3, money: 0.3 }
+        SUGAR_CANE:  { xp: 2, money: 0.2 }
+        PUMPKIN:     { xp: 5, money: 0.8 }
+        MELON:       { xp: 4, money: 0.6 }
+        NETHER_WART: { xp: 5, money: 1.0 }
+        COCOA:       { xp: 4, money: 0.5 }
+      craft:
+        BREAD:       { xp: 2, money: 0.2 }
+        CAKE:        { xp: 5, money: 1.0 }
+        COOKIE:      { xp: 1, money: 0.1 }
+
+  hunter:
+    name: "Chasseur"
+    description: "Chasse les monstres pour des récompenses"
+    icon: BOW
+    max-level: 10
+    base-xp-per-level: 700
+    level-multiplier: 1.2
+    anti-farm-cooldown: 10
+    actions:
+      kill:
+        ZOMBIE:           { xp: 5,  money: 0.5 }
+        SKELETON:         { xp: 5,  money: 0.5 }
+        SPIDER:           { xp: 4,  money: 0.4 }
+        CREEPER:          { xp: 8,  money: 1.0 }
+        ENDERMAN:         { xp: 12, money: 2.0 }
+        BLAZE:            { xp: 15, money: 3.0 }
+        WITHER_SKELETON:  { xp: 20, money: 5.0 }
+        GUARDIAN:         { xp: 15, money: 3.0 }
+        ELDER_GUARDIAN:   { xp: 50, money: 20.0 }
+        EVOKER:           { xp: 30, money: 10.0 }
+        RAVAGER:          { xp: 40, money: 15.0 }
+
+  fisherman:
+    name: "Pêcheur"
+    description: "Pêche dans les rivières et les océans"
+    icon: FISHING_ROD
+    max-level: 10
+    base-xp-per-level: 350
+    level-multiplier: 1.1
+    anti-farm-cooldown: 5
+    actions:
+      fish:
+        COD:       { xp: 5, money: 0.8 }
+        SALMON:    { xp: 6, money: 1.0 }
+        TROPICAL_FISH: { xp: 8, money: 1.5 }
+        PUFFERFISH: { xp: 10, money: 2.0 }
+        FISH:      { xp: 5, money: 0.8 }

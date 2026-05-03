@@ -55,6 +55,8 @@ public final class DashboardRouter implements HttpHandler {
     private final ViolationPointsHandler vpHandler;
     private final PublicRegisterHandler publicRegisterHandler;
     private final PublicPlayerHandler publicPlayerHandler;
+    private final PublicProfileHandler publicProfileHandler;
+    private final CustomJobsApiHandler customJobsApiHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -94,7 +96,9 @@ public final class DashboardRouter implements HttpHandler {
                            AltAccountHandler altAccountHandler,
                            ViolationPointsHandler vpHandler,
                            PublicRegisterHandler publicRegisterHandler,
-                           PublicPlayerHandler publicPlayerHandler) {
+                           PublicPlayerHandler publicPlayerHandler,
+                           PublicProfileHandler publicProfileHandler,
+                           CustomJobsApiHandler customJobsApiHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -132,8 +136,10 @@ public final class DashboardRouter implements HttpHandler {
         this.playerLogHandler = playerLogHandler;
         this.altAccountHandler = altAccountHandler;
         this.vpHandler = vpHandler;
-        this.publicRegisterHandler = publicRegisterHandler;
-        this.publicPlayerHandler   = publicPlayerHandler;
+        this.publicRegisterHandler  = publicRegisterHandler;
+        this.publicPlayerHandler    = publicPlayerHandler;
+        this.publicProfileHandler   = publicProfileHandler;
+        this.customJobsApiHandler   = customJobsApiHandler;
     }
 
     @Override
@@ -499,7 +505,14 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/register/request") && POST(method)) { publicRegisterHandler.request(ex); return; }
         if (eq(path, "/api/public/register/verify")  && POST(method)) { publicRegisterHandler.verify(ex);  return; }
         if (eq(path, "/api/public/register/login")   && POST(method)) { publicRegisterHandler.login(ex);   return; }
+        if (eq(path, "/api/public/register/forgot")  && POST(method)) { publicRegisterHandler.forgot(ex);  return; }
+        if (eq(path, "/api/public/register/reset")   && POST(method)) { publicRegisterHandler.reset(ex);   return; }
         if (eq(path, "/api/public/player/me")        && GET(method))  { publicPlayerHandler.me(ex);        return; }
+        if (path.startsWith("/api/public/profile/")         && GET(method))  { publicProfileHandler.profile(ex);          return; }
+        if (eq(path, "/api/custom-jobs/list")               && GET(method))  { customJobsApiHandler.list(ex);              return; }
+        if (path.startsWith("/api/custom-jobs/leaderboard/") && GET(method)) { customJobsApiHandler.leaderboard(ex);       return; }
+        if (path.startsWith("/api/custom-jobs/history/")     && GET(method)) { customJobsApiHandler.history(ex);           return; }
+        if (path.startsWith("/api/custom-jobs/player/")      && GET(method)) { customJobsApiHandler.playerJobs(ex);        return; }
 
         // ── VIP routes PUBLIQUES (sans auth — webhooks + page d'achat) ───────
         if (eq(path, "/api/public/vip/plans")           && GET(method))   { vipPublicHandler.listPublicPlans(ex); return; }

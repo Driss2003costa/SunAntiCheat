@@ -23,9 +23,18 @@ async function get<T>(url: string, token?: string): Promise<T> {
 export type RegisterRequestResult = { uuid: string; username: string; expires_in: number }
 export type RegisterVerifyResult  = { token: string; uuid: string; username: string; role: string }
 export type LoginResult           = { token: string; uuid: string; username: string; role: string }
-export type PlayerProfile         = {
+export type ForgotResult          = { uuid?: string; expires_in?: number; message: string }
+export type ResetResult           = { token: string; uuid: string; username: string; role: string }
+export type ActiveSanction = {
+  id: string; type: string; reason: string; issued_by: string
+  issued_at: number; expires_at: number | null
+}
+export type PlayerProfile = {
   uuid: string; username: string; email: string | null
   created_at: number; last_login: number | null; role: string; online: boolean
+  playtime_seconds?: number; playtime_formatted?: string
+  balance?: number
+  active_sanctions?: ActiveSanction[]
 }
 
 export const api = {
@@ -37,6 +46,12 @@ export const api = {
 
   login: (username: string, password: string) =>
     post<LoginResult>(`${BASE}/register/login`, { username, password }),
+
+  forgotPassword: (username: string) =>
+    post<ForgotResult>(`${BASE}/register/forgot`, { username }),
+
+  resetPassword: (uuid: string, pin: string, password: string) =>
+    post<ResetResult>(`${BASE}/register/reset`, { uuid, pin, password }),
 
   me: (token: string) =>
     get<PlayerProfile>(`${BASE}/player/me`, token),

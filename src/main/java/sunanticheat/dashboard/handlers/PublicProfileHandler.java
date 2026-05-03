@@ -6,7 +6,6 @@ import org.bukkit.plugin.Plugin;
 import sunanticheat.SunAntiCheat;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.portal.PlayerAccountStore;
-import sunanticheat.dashboard.portal.PlayerJwtUtil;
 import sunanticheat.dashboard.sanctions.SanctionEntry;
 
 import java.io.IOException;
@@ -15,62 +14,55 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public final class PublicPlayerHandler {
+public final class PublicProfileHandler {
 
     private final PlayerAccountStore accountStore;
-    private final PlayerJwtUtil playerJwt;
     private final Plugin plugin;
 
-    public PublicPlayerHandler(PlayerAccountStore accountStore, PlayerJwtUtil playerJwt, Plugin plugin) {
+    public PublicProfileHandler(PlayerAccountStore accountStore, Plugin plugin) {
         this.accountStore = accountStore;
-        this.playerJwt    = playerJwt;
         this.plugin       = plugin;
     }
 
-    /** GET /api/public/player/me */
-    public void me(HttpExchange ex) throws IOException {
-        String header = ex.getRequestHeaders().getFirst("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
-            HttpHelper.error(ex, 401, "Non authentifié"); return;
+    /** GET /api/public/profile/:username */
+    public void profile(HttpExchange ex) throws IOException {
+        String path = ex.getRequestURI().getPath();
+        // extract last path segment as username
+        String username = path.substring(path.lastIndexOf('/') + 1);
+
+        if (username.isBlank() || !username.matches("[a-zA-Z0-9_]{3,16}")) {
+            HttpHelper.error(ex, 400, "Pseudo invalide"); return;
         }
 
-        String uuid, username;
-        try {
-            var claims = playerJwt.validate(header.substring(7));
-            uuid     = claims.getSubject();
-            username = claims.get("username", String.class);
-        } catch (Exception e) {
-            HttpHelper.error(ex, 401, "Token invalide ou expiré"); return;
+        Map<String, Object> account = accountStore.getByUsername(username);
+        if (account == null) {
+            HttpHelper.json(ex, 404, Map.of("error", "not_found",
+                    "message", "Aucun portail joueur pour ce pseudo.")); return;
         }
 
-        Map<String, Object> account = accountStore.getByUuid(uuid);
-        if (account == null) { HttpHelper.error(ex, 404, "Compte introuvable"); return; }
+        String uuid = (String) account.get("uuid");
+        String exactName = (String) account.get("username");
 
         boolean online = Bukkit.getOnlinePlayers().stream()
                 .anyMatch(p -> p.getUniqueId().toString().equals(uuid));
 
-        Map<String, Object> result = new LinkedHashMap<>(account);
-        result.put("online", online);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("uuid",      uuid);
+        result.put("username",  exactName);
+        result.put("role",      account.get("role"));
+        result.put("online",    online);
+        result.put("created_at", account.get("created_at"));
 
         // Playtime
         try {
             if (plugin instanceof SunAntiCheat sac && sac.getPlaytimeTracker() != null) {
                 long seconds = sac.getPlaytimeTracker().getTotalPlaytimeSeconds(UUID.fromString(uuid));
-                result.put("playtime_seconds", seconds);
+                result.put("playtime_seconds",   seconds);
                 result.put("playtime_formatted", sunanticheat.playtime.PlaytimeTracker.formatPlaytime(seconds));
             }
         } catch (Throwable ignored) {}
 
-        // Vault balance
-        try {
-            if (plugin instanceof SunAntiCheat sac && sac.getEconomy() != null) {
-                org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(UUID.fromString(uuid));
-                double balance = sac.getEconomy().getBalance(op);
-                result.put("balance", balance);
-            }
-        } catch (Throwable ignored) {}
-
-        // Active sanctions
+        // Active bans/mutes only (public — no internal sanctions details)
         try {
             if (plugin instanceof SunAntiCheat sac
                     && sac.getDashboardModule() != null
@@ -80,15 +72,13 @@ public final class PublicPlayerHandler {
                         .list(null, null, null, Boolean.TRUE, 100, 0)
                         .stream()
                         .filter(s -> uuid.equals(s.targetUuid))
+                        .filter(s -> "BAN".equals(s.type) || "MUTE".equals(s.type))
                         .toList();
 
                 result.put("active_sanctions", sanctions.stream().map(s -> {
                     Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id",        s.id);
                     m.put("type",      s.type);
                     m.put("reason",    s.reason);
-                    m.put("issued_by", s.issuedBy);
-                    m.put("issued_at", s.issuedAt);
                     m.put("expires_at", s.expiresAt);
                     return m;
                 }).toList());

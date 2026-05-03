@@ -172,6 +172,108 @@ public final class PublicRegisterHandler {
         ));
     }
 
+    /** POST /api/public/register/forgot */
+    public void forgot(HttpExchange ex) throws IOException {
+        String ip = ip(ex);
+        if (!pinService.tryRequest(ip)) {
+            HttpHelper.error(ex, 429, "Trop de tentatives. Réessaie dans 10 minutes.");
+            return;
+        }
+
+        Map<String, String> body = parseBody(ex);
+        String username = body == null ? null : body.get("username");
+
+        if (username == null || username.isBlank()) {
+            HttpHelper.error(ex, 400, "username requis");
+            return;
+        }
+
+        Map<String, Object> account = accountStore.getByUsername(username);
+        if (account == null) {
+            // Do not reveal whether the account exists
+            HttpHelper.json(ex, 200, Map.of("message", "Si un compte existe, un code a été envoyé en jeu."));
+            return;
+        }
+
+        String uuid = (String) account.get("uuid");
+        String exactName = (String) account.get("username");
+
+        Player player = null;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.getUniqueId().toString().equals(uuid)) { player = p; break; }
+        }
+
+        if (player == null) {
+            HttpHelper.json(ex, 400, Map.of("error", "player_offline",
+                    "message", "Tu dois être connecté sur le serveur pour réinitialiser ton mot de passe."));
+            return;
+        }
+
+        final Player fp = player;
+        final String pin = pinService.generatePin(uuid, exactName);
+
+        Bukkit.getScheduler().runTask(plugin, () ->
+            fp.sendMessage(net.kyori.adventure.text.Component.text(
+                "§8[§6SunAntiCheat§8] §7Portail : ton code de récupération est §e§l" + pin
+                + " §7(valable 5 minutes)")));
+
+        logger.info("[Portal] PIN récupération envoyé à " + exactName + " — IP " + ip);
+
+        HttpHelper.json(ex, 200, Map.of(
+            "uuid",       uuid,
+            "expires_in", 300,
+            "message",    "Code envoyé en jeu."
+        ));
+    }
+
+    /** POST /api/public/register/reset */
+    public void reset(HttpExchange ex) throws IOException {
+        Map<String, String> body = parseBody(ex);
+        if (body == null) { HttpHelper.error(ex, 400, "Corps JSON requis"); return; }
+
+        String uuid     = body.get("uuid");
+        String pin      = body.get("pin");
+        String password = body.get("password");
+
+        if (uuid == null || pin == null || password == null) {
+            HttpHelper.error(ex, 400, "uuid, pin et password sont requis");
+            return;
+        }
+
+        if (password.length() < 8) {
+            HttpHelper.error(ex, 400, "Le mot de passe doit faire au moins 8 caractères");
+            return;
+        }
+
+        if (!accountStore.isRegistered(uuid)) {
+            HttpHelper.json(ex, 404, Map.of("error", "not_found", "message", "Compte introuvable."));
+            return;
+        }
+
+        VerifyResult result = pinService.verifyPin(uuid, pin);
+        switch (result) {
+            case VerifyResult.Expired()     -> { HttpHelper.json(ex, 400, Map.of("error", "pin_expired",  "message", "Code expiré. Redemande un nouveau code.")); return; }
+            case VerifyResult.MaxAttempts() -> { HttpHelper.json(ex, 400, Map.of("error", "max_attempts", "message", "Trop de tentatives incorrectes.")); return; }
+            case VerifyResult.Invalid(int left) -> {
+                HttpHelper.json(ex, 401, Map.of("error", "invalid_pin", "attempts_left", left,
+                        "message", "Code incorrect. " + left + " tentative(s) restante(s).")); return;
+            }
+            case VerifyResult.Ok(String username) -> {
+                String hash = BCrypt.withDefaults().hashToString(12, password.toCharArray());
+                accountStore.updatePassword(uuid, hash);
+                String token = playerJwt.generate(uuid, username, "PLAYER");
+                logger.info("[Portal] Mot de passe réinitialisé : " + username + " (" + uuid + ")");
+                HttpHelper.json(ex, 200, Map.of(
+                    "token",    token,
+                    "uuid",     uuid,
+                    "username", username,
+                    "role",     "PLAYER",
+                    "message",  "Mot de passe réinitialisé avec succès."
+                ));
+            }
+        }
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")

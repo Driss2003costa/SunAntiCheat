@@ -7,6 +7,10 @@ author: Sun
 softdepend: [PlaceholderAPI, Vault, WeaponMechanics, Multiverse-Inventories, EconomyShopGUI, EconomyShopGUI-Premium, ItemsAdder, LuckPerms, Jobs]
 
 commands:
+  job:
+    description: "Système de métiers custom — rejoindre, quitter, voir ses stats"
+    usage: "/job [list|join <id>|leave <id>|info [id]|top <id>]"
+    aliases: [metier, jobs]
   crate:
     description: "Gestion des lootboxes (place/preview/givekey/list)"
     usage: "/crate <place|preview|givekey|list> [...]"

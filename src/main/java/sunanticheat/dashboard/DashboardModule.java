@@ -121,6 +121,12 @@ public final class DashboardModule {
     private Database database;
     private SanctionListeners sanctionListeners;
     private AutoUpdater autoUpdater;
+    private sunanticheat.dashboard.sanctions.SanctionStore sanctionStore;
+
+    public sunanticheat.dashboard.sanctions.SanctionStore getSanctionStore() { return sanctionStore; }
+    public DailyRewardStore getDailyRewardStore() { return dailyRewardStore; }
+    public AlertStore getAlertStore()             { return alertStore; }
+    public Database getDatabase()                 { return database; }
     private PlayerLogService playerLogService;
 
     public DashboardModule(SunAntiCheat plugin) {
@@ -276,7 +282,8 @@ public final class DashboardModule {
         }
 
         // ── Sanctions modernes (kick/ban/mute/warn DB-backed + stylized) ─────
-        SanctionStore sanctionStore = new SanctionStore(database, blobs, plugin.getLogger());
+        this.sanctionStore = new SanctionStore(database, blobs, plugin.getLogger());
+        SanctionStore sanctionStore = this.sanctionStore;
         String appealUrl = cfg.getString("dashboard.sanctions.appeal-url", "");
         String serverName = cfg.getString("dashboard.sanctions.server-name", "Serveur");
         KickScreenFormatter formatter = new KickScreenFormatter(serverName, appealUrl);
@@ -458,7 +465,9 @@ public final class DashboardModule {
         PlayerJwtUtil playerJwtUtil = new PlayerJwtUtil(portalJwtSecret);
         PublicRegisterHandler publicRegisterHandler = new PublicRegisterHandler(
                 playerAccountStore, registerPinService, playerJwtUtil, plugin, plugin.getLogger());
-        PublicPlayerHandler publicPlayerHandler = new PublicPlayerHandler(playerAccountStore, playerJwtUtil);
+        PublicPlayerHandler publicPlayerHandler = new PublicPlayerHandler(playerAccountStore, playerJwtUtil, plugin);
+        PublicProfileHandler publicProfileHandler = new PublicProfileHandler(playerAccountStore, plugin);
+        CustomJobsApiHandler customJobsApiHandler = new CustomJobsApiHandler(plugin);
 
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
@@ -470,7 +479,7 @@ public final class DashboardModule {
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
                 auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler,
                 playerLogHandler, altAccountHandler, vpHandler,
-                publicRegisterHandler, publicPlayerHandler);
+                publicRegisterHandler, publicPlayerHandler, publicProfileHandler, customJobsApiHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

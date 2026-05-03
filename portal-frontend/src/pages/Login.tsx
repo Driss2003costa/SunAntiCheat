@@ -63,6 +63,9 @@ export default function Login() {
           </button>
 
           <p className="text-center text-sm text-gray-500">
+            <Link to="/forgot" className="text-brand-400 hover:text-brand-300 font-medium">Mot de passe oublié ?</Link>
+          </p>
+          <p className="text-center text-sm text-gray-500">
             Pas encore de compte ?{' '}
             <Link to="/" className="text-brand-400 hover:text-brand-300 font-medium">Inscription</Link>
           </p>

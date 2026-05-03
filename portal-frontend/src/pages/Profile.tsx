@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { api, getToken, clearToken, type PlayerProfile } from '../api/client'
+import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction } from '../api/client'
 
-function fmtDate(ts: number | null) {
+function fmtDate(ts: number | null | undefined) {
   if (!ts) return '—'
   return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
@@ -15,6 +15,20 @@ function roleBadge(role: string) {
     ADMIN:     'bg-red-500/20 text-red-400',
   }
   return map[role] ?? 'bg-gray-700 text-gray-300'
+}
+
+function sanctionBadge(type: string) {
+  const map: Record<string, string> = {
+    BAN:  'bg-red-500/20 text-red-400 border-red-500/30',
+    MUTE: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    WARN: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    KICK: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  }
+  return map[type] ?? 'bg-gray-700 text-gray-300 border-gray-600'
+}
+
+function fmtBalance(balance: number) {
+  return balance.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
 }
 
 export default function Profile() {
@@ -53,11 +67,13 @@ export default function Profile() {
 
   if (!profile) return null
 
+  const sanctions = profile.active_sanctions ?? []
+
   return (
     <div className="min-h-screen bg-gray-950 p-4">
-      {/* Header */}
-      <div className="max-w-lg mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-lg mx-auto space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-2xl">☀️</span>
             <span className="font-bold text-white">SunAntiCheat</span>
@@ -71,7 +87,7 @@ export default function Profile() {
         </div>
 
         {/* Profile card */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden mb-4">
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
           <div className="bg-gradient-to-r from-brand-600/20 to-orange-600/10 px-6 py-5 flex items-center gap-4">
             <img
               src={`https://mc-heads.net/avatar/${profile.username}/64`}
@@ -97,13 +113,75 @@ export default function Profile() {
 
           <div className="divide-y divide-gray-800">
             <Row label="UUID" value={<span className="font-mono text-xs text-gray-400 break-all">{profile.uuid}</span>} />
-            <Row label="Inscrit le"     value={fmtDate(profile.created_at)} />
-            <Row label="Dernière connexion" value={fmtDate(profile.last_login)} />
+            <Row label="Inscrit le"           value={fmtDate(profile.created_at)} />
+            <Row label="Dernière connexion"    value={fmtDate(profile.last_login)} />
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-600">
-          D'autres statistiques arrivent bientôt.
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard
+            label="Temps de jeu"
+            value={profile.playtime_formatted ?? '—'}
+            icon="⏱️"
+          />
+          <StatCard
+            label="Solde"
+            value={profile.balance != null ? fmtBalance(profile.balance) : '—'}
+            icon="💰"
+          />
+        </div>
+
+        {/* Active sanctions */}
+        {sanctions.length > 0 && (
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-800">
+              <h3 className="text-sm font-semibold text-white">Sanctions actives</h3>
+            </div>
+            <div className="divide-y divide-gray-800">
+              {sanctions.map(s => <SanctionRow key={s.id} s={s} />)}
+            </div>
+          </div>
+        )}
+
+        {sanctions.length === 0 && (
+          <p className="text-center text-xs text-gray-600 py-2">
+            Aucune sanction active. Continue comme ça !
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+  return (
+    <div className="bg-gray-900 rounded-2xl border border-gray-800 p-4 flex items-center gap-3">
+      <span className="text-2xl">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+        <p className="text-sm font-semibold text-white truncate">{value}</p>
+      </div>
+    </div>
+  )
+}
+
+function SanctionRow({ s }: { s: ActiveSanction }) {
+  function fmtExpiry(ts: number | null) {
+    if (!ts) return 'Permanent'
+    const d = new Date(ts)
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  return (
+    <div className="px-5 py-3 flex items-start gap-3">
+      <span className={`text-xs font-bold px-2 py-1 rounded border shrink-0 ${sanctionBadge(s.type)}`}>
+        {s.type}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-white truncate">{s.reason || 'Aucune raison'}</p>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Par {s.issued_by} · Expire : {fmtExpiry(s.expires_at)}
         </p>
       </div>
     </div>

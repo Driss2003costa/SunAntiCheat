@@ -69,6 +69,9 @@ public class SunAntiCheat extends JavaPlugin {
     private ReportStorage reportStorageRef;
     private SanctionService sanctionService;
     private sunanticheat.alerts.StaffAlertService staffAlertServiceRef;
+    private KillAuraTracker killAuraTrackerRef;
+    private sunanticheat.connection.ConnectionLogStorage connectionLogStorageRef;
+    private sunanticheat.jobs.CustomJobModule customJobModule;
 
     public sunanticheat.alerts.StaffAlertService getStaffAlertService() { return staffAlertServiceRef; }
     /** Scan MV-Inv spawn (armes WM) — ex. commande {@code /sunguard mvinvscan}. */
@@ -97,9 +100,12 @@ public class SunAntiCheat extends JavaPlugin {
         return dashboardModule;
     }
 
-    public SanctionService getSanctionService() {
-        return sanctionService;
-    }
+    public SanctionService getSanctionService() { return sanctionService; }
+    public KillAuraTracker getKillAuraTracker()   { return killAuraTrackerRef; }
+    public sunanticheat.connection.ConnectionLogStorage getConnectionLogStorage() { return connectionLogStorageRef; }
+    public ReportStorage getReportStorage()        { return reportStorageRef; }
+    public PlaytimeTracker getPlaytimeTracker()    { return playtimeTracker; }
+    public sunanticheat.jobs.CustomJobModule getCustomJobModule() { return customJobModule; }
 
     @Override
     public void onEnable() {
@@ -129,6 +135,7 @@ public class SunAntiCheat extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new FreecamBlockBreakListener(freecamTracker, cancelFreecam, this, staffAlertService), this);
         getServer().getPluginManager().registerEvents(new FreecamInteractListener(freecamTracker, cancelFreecam, this, staffAlertService), this);
         KillAuraTracker killAuraTracker = new KillAuraTracker();
+        this.killAuraTrackerRef = killAuraTracker;
         getServer().getPluginManager().registerEvents(new KillAuraListener(this, killAuraTracker, staffAlertService), this);
         XRayGui xRayGui = new XRayGui(this, xRayTracker);
         FreecamGui freecamGui = new FreecamGui(freecamTracker);
@@ -162,6 +169,7 @@ public class SunAntiCheat extends JavaPlugin {
         mainMenuGui.setPlugin(this);
         mainMenuGui.setDebugGui(debugGui);
         ConnectionLogStorage connectionLogStorage = new ConnectionLogStorage(this);
+        this.connectionLogStorageRef = connectionLogStorage;
         getServer().getPluginManager().registerEvents(new ConnectionListeners(connectionLogStorage), this);
         getServer().getPluginManager().registerEvents(new InventoryAnomalyListener(this, staffAlertService), this);
         getServer().getPluginManager().registerEvents(new FirstJoinListener(this), this);
@@ -244,9 +252,17 @@ public class SunAntiCheat extends JavaPlugin {
             e.printStackTrace();
         }
 
+        // ── Custom Jobs ────────────────────────────────────────────────────────
+        try {
+            customJobModule = new sunanticheat.jobs.CustomJobModule(this, dashboardModule.getDatabase(), economy);
+            getLogger().info("Système de métiers custom initialisé.");
+        } catch (Exception e) {
+            getLogger().warning("[Jobs] Erreur initialisation : " + e.getMessage());
+        }
+
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             Bukkit.getScheduler().runTaskLater(this, () -> {
-                if (new sunanticheat.playtime.SunAntiCheatPlaceholders(this, playtimeTracker, xRayTracker, freecamTracker, clientInfoTracker).register()) {
+                if (new sunanticheat.playtime.SunAntiCheatPlaceholders(this, playtimeTracker, xRayTracker, freecamTracker, clientInfoTracker, killAuraTrackerRef, reportStorageRef, connectionLogStorageRef).register()) {
                     getLogger().info("PlaceholderAPI : expansion SunAntiCheat enregistrée.");
                 } else {
                     getLogger().warning("PlaceholderAPI : échec enregistrement expansion SunAntiCheat.");
@@ -335,6 +351,9 @@ public class SunAntiCheat extends JavaPlugin {
         }
         if (dashboardModule != null) {
             dashboardModule.stop();
+        }
+        if (customJobModule != null) {
+            customJobModule.shutdown();
         }
         getServer().getMessenger().unregisterIncomingPluginChannel(this, ClientInfoListeners.CHANNEL_CLIENT);
         getLogger().info("SunAntiCheat désactivé.");

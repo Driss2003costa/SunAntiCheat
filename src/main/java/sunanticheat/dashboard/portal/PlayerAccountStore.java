@@ -156,6 +156,17 @@ public final class PlayerAccountStore {
         }
     }
 
+    public void updatePassword(String uuid, String passwordHash) {
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "UPDATE player_accounts SET password_hash = ? WHERE uuid = ?")) {
+            ps.setString(1, passwordHash);
+            ps.setString(2, uuid);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            logger.warning("[Portal] DB error updatePassword: " + e.getMessage());
+        }
+    }
+
     public void cleanExpiredPins() {
         try (PreparedStatement ps = db.conn().prepareStatement(
                 "DELETE FROM register_pins WHERE expires_at < ?")) {
