@@ -36,6 +36,8 @@ public final class PlayerAccountStore {
                 expires_at   INTEGER NOT NULL,
                 attempts     INTEGER NOT NULL DEFAULT 0
             )""");
+        db.migrate("portal_accounts", 2,
+            "ALTER TABLE player_accounts ADD COLUMN bio TEXT DEFAULT ''");
     }
 
     public boolean isRegistered(String uuid) {
@@ -156,6 +158,17 @@ public final class PlayerAccountStore {
         }
     }
 
+    public void updateBio(String uuid, String bio) {
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "UPDATE player_accounts SET bio = ? WHERE uuid = ?")) {
+            ps.setString(1, bio != null ? bio : "");
+            ps.setString(2, uuid);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            logger.warning("[Portal] DB error updateBio: " + e.getMessage());
+        }
+    }
+
     public void updatePassword(String uuid, String passwordHash) {
         try (PreparedStatement ps = db.conn().prepareStatement(
                 "UPDATE player_accounts SET password_hash = ? WHERE uuid = ?")) {
@@ -188,6 +201,8 @@ public final class PlayerAccountStore {
         m.put("created_at", rs.getLong("created_at"));
         m.put("last_login", rs.getLong("last_login"));
         m.put("role",       rs.getString("role"));
+        String bio = rs.getString("bio");
+        m.put("bio", bio != null ? bio : "");
         return m;
     }
 }

@@ -127,6 +127,8 @@ public final class DashboardModule {
     public DailyRewardStore getDailyRewardStore() { return dailyRewardStore; }
     public AlertStore getAlertStore()             { return alertStore; }
     public Database getDatabase()                 { return database; }
+    public sunanticheat.dashboard.quests.QuestStore getQuestStore() { return questStore; }
+    public VipStore getVipStore()                 { return vipStore; }
     private PlayerLogService playerLogService;
 
     public DashboardModule(SunAntiCheat plugin) {
@@ -471,6 +473,9 @@ public final class DashboardModule {
                 playerAccountStore, registerPinService, playerJwtUtil, plugin, plugin.getLogger());
         PublicPlayerHandler publicPlayerHandler = new PublicPlayerHandler(playerAccountStore, playerJwtUtil, plugin);
         PublicProfileHandler publicProfileHandler = new PublicProfileHandler(playerAccountStore, plugin);
+        publicProfileHandler.setDailyRewardStore(dailyRewardStore);
+        publicProfileHandler.setVipStore(vipStore);
+        publicProfileHandler.setQuestStore(questStore);
         CustomJobsApiHandler customJobsApiHandler = new CustomJobsApiHandler(plugin);
 
         // ── HTTP Server ───────────────────────────────────────────────────────

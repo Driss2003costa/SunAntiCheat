@@ -510,7 +510,8 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/register/login")   && POST(method)) { publicRegisterHandler.login(ex);   return; }
         if (eq(path, "/api/public/register/forgot")  && POST(method)) { publicRegisterHandler.forgot(ex);  return; }
         if (eq(path, "/api/public/register/reset")   && POST(method)) { publicRegisterHandler.reset(ex);   return; }
-        if (eq(path, "/api/public/player/me")        && GET(method))  { publicPlayerHandler.me(ex);        return; }
+        if (eq(path, "/api/public/player/me")          && GET(method))    { publicPlayerHandler.me(ex);        return; }
+        if (eq(path, "/api/public/player/me/bio")      && PATCH(method))  { publicPlayerHandler.updateBio(ex); return; }
         if (path.startsWith("/api/public/profile/")         && GET(method))  { publicProfileHandler.profile(ex);          return; }
         if (eq(path, "/api/custom-jobs/list")               && GET(method))  { customJobsApiHandler.list(ex);              return; }
         if (path.startsWith("/api/custom-jobs/leaderboard/") && GET(method)) { customJobsApiHandler.leaderboard(ex);       return; }

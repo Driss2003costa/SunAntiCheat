@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@SuppressWarnings("unchecked")
+
 public final class PublicPlayerHandler {
 
     private final PlayerAccountStore accountStore;
@@ -96,5 +98,33 @@ public final class PublicPlayerHandler {
         } catch (Throwable ignored) {}
 
         HttpHelper.json(ex, 200, result);
+    }
+
+    /** PATCH /api/public/player/me/bio  — body : {"bio":"..."} */
+    public void updateBio(HttpExchange ex) throws IOException {
+        String header = ex.getRequestHeaders().getFirst("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            HttpHelper.error(ex, 401, "Non authentifié"); return;
+        }
+        String uuid;
+        try {
+            var claims = playerJwt.validate(header.substring(7));
+            uuid = claims.getSubject();
+        } catch (Exception e) {
+            HttpHelper.error(ex, 401, "Token invalide ou expiré"); return;
+        }
+
+        Map<String, Object> body;
+        try { body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class); }
+        catch (Exception e) { HttpHelper.error(ex, 400, "JSON invalide"); return; }
+
+        if (body == null || body.get("bio") == null) {
+            HttpHelper.error(ex, 400, "Champ 'bio' requis"); return;
+        }
+        String bio = body.get("bio").toString().strip();
+        if (bio.length() > 160) bio = bio.substring(0, 160);
+
+        accountStore.updateBio(uuid, bio);
+        HttpHelper.json(ex, 200, Map.of("ok", true, "bio", bio));
     }
 }
