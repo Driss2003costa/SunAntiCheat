@@ -127,6 +127,8 @@ public final class DashboardModule {
     public DailyRewardStore getDailyRewardStore() { return dailyRewardStore; }
     public AlertStore getAlertStore()             { return alertStore; }
     public Database getDatabase()                 { return database; }
+    public sunanticheat.dashboard.quests.QuestStore getQuestStore() { return questStore; }
+    public VipStore getVipStore()                 { return vipStore; }
     private PlayerLogService playerLogService;
 
     public DashboardModule(SunAntiCheat plugin) {
@@ -398,6 +400,10 @@ public final class DashboardModule {
         ViolationPointsHandler vpHandler = new ViolationPointsHandler(vpService);
         profileHandler.setViolationPointsService(vpService);
 
+        // ── GeoIP ──────────────────────────────────────────────────────────────
+        sunanticheat.dashboard.handlers.GeoIpHandler geoIpHandler =
+                new sunanticheat.dashboard.handlers.GeoIpHandler(plugin.getGeoIpCache());
+
         // Shop Manager (EconomyShopGUI sync)
         ShopHandler shopHandler = new ShopHandler(plugin, shopStore, shopSyncService);
         if (Bukkit.getPluginManager().getPlugin("EconomyShopGUI") != null
@@ -467,6 +473,12 @@ public final class DashboardModule {
                 playerAccountStore, registerPinService, playerJwtUtil, plugin, plugin.getLogger());
         PublicPlayerHandler publicPlayerHandler = new PublicPlayerHandler(playerAccountStore, playerJwtUtil, plugin);
         PublicProfileHandler publicProfileHandler = new PublicProfileHandler(playerAccountStore, plugin);
+        publicProfileHandler.setDailyRewardStore(dailyRewardStore);
+        publicProfileHandler.setVipStore(vipStore);
+        publicProfileHandler.setQuestStore(questStore);
+        PublicDailyHandler publicDailyHandler = new PublicDailyHandler(
+                dailyRewardStore, playerJwtUtil, plugin, dailyRewardListener);
+        PublicLeaderboardHandler publicLeaderboardHandler = new PublicLeaderboardHandler(plugin);
         CustomJobsApiHandler customJobsApiHandler = new CustomJobsApiHandler(plugin);
 
         // ── HTTP Server ───────────────────────────────────────────────────────
@@ -479,7 +491,9 @@ public final class DashboardModule {
                 shopHandler, vipHandler, vipPublicHandler, permsHandler, mobileHandler,
                 auditHandler, profileHandler, jobsHandler, sanctionsHandler, gamesHandler,
                 playerLogHandler, altAccountHandler, vpHandler,
-                publicRegisterHandler, publicPlayerHandler, publicProfileHandler, customJobsApiHandler);
+                publicRegisterHandler, publicPlayerHandler, publicProfileHandler,
+                publicDailyHandler, publicLeaderboardHandler, customJobsApiHandler,
+                geoIpHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

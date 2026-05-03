@@ -37,6 +37,15 @@ public class ConnectionLogStorage {
         save();
     }
 
+    /** Met à jour les données GeoIP de la session en cours d'un joueur. */
+    public void updateGeoIp(UUID uuid, String countryCode, String country) {
+        ConnectionSession session = currentSession.get(uuid);
+        if (session != null) {
+            session.setGeoIp(countryCode, country);
+            save();
+        }
+    }
+
     public void onQuit(UUID uuid) {
         ConnectionSession session = currentSession.remove(uuid);
         if (session != null) {
@@ -62,6 +71,10 @@ public class ConnectionLogStorage {
                 m.put("ip", s.getIp());
                 m.put("join", s.getJoinTime());
                 m.put("leave", s.getLeaveTime());
+                if (s.getCountryCode() != null && !s.getCountryCode().isEmpty())
+                    m.put("countryCode", s.getCountryCode());
+                if (s.getCountry() != null && !s.getCountry().isEmpty())
+                    m.put("country", s.getCountry());
                 arr.add(m);
             }
             cfg.set("players." + key, arr);
@@ -94,7 +107,13 @@ public class ConnectionLogStorage {
                 String ip = String.valueOf(m.get("ip"));
                 long join = ((Number) m.getOrDefault("join", 0L)).longValue();
                 long leave = ((Number) m.getOrDefault("leave", 0L)).longValue();
-                sessions.add(new ConnectionSession(ip, join, leave));
+                ConnectionSession s = new ConnectionSession(ip, join, leave);
+                Object cc = m.get("countryCode");
+                Object cn = m.get("country");
+                if (cc != null || cn != null) {
+                    s.setGeoIp(cc != null ? cc.toString() : "", cn != null ? cn.toString() : "");
+                }
+                sessions.add(s);
             }
             if (!sessions.isEmpty()) byPlayer.put(uuid, sessions);
         }
@@ -104,6 +123,8 @@ public class ConnectionLogStorage {
         private final String ip;
         private final long joinTime;
         private long leaveTime;
+        private String countryCode;
+        private String country;
 
         public ConnectionSession(String ip, long joinTime, long leaveTime) {
             this.ip = ip != null ? ip : "?";
@@ -115,8 +136,15 @@ public class ConnectionLogStorage {
             this.leaveTime = leaveTime;
         }
 
-        public String getIp() { return ip; }
-        public long getJoinTime() { return joinTime; }
-        public long getLeaveTime() { return leaveTime; }
+        public void setGeoIp(String countryCode, String country) {
+            this.countryCode = countryCode;
+            this.country = country;
+        }
+
+        public String getIp()          { return ip; }
+        public long   getJoinTime()    { return joinTime; }
+        public long   getLeaveTime()   { return leaveTime; }
+        public String getCountryCode() { return countryCode != null ? countryCode : ""; }
+        public String getCountry()     { return country != null ? country : ""; }
     }
 }

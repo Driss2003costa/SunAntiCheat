@@ -10,9 +10,8 @@ export default function ForgotPassword() {
   const [step, setStep]         = useState<Step>('username')
   const [username, setUsername] = useState('')
   const [uuid, setUuid]         = useState('')
-  const [pin, setPin]           = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm]   = useState('')
+  const [verifyPin, setVerifyPin] = useState('')   // 6-digit code from Minecraft
+  const [newPin, setNewPin]       = useState('')   // new 6-digit login PIN
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [countdown, setCountdown] = useState(0)
@@ -32,7 +31,7 @@ export default function ForgotPassword() {
       }
     } catch (e: any) {
       if (e.error === 'player_offline') {
-        setError('Tu dois être connecté sur le serveur Minecraft pour réinitialiser ton mot de passe.')
+        setError('Tu dois être connecté sur le serveur Minecraft pour réinitialiser ton PIN.')
       } else {
         setError(e.message || 'Une erreur est survenue.')
       }
@@ -50,11 +49,11 @@ export default function ForgotPassword() {
   }
 
   async function handleReset() {
-    if (pin.length < 6 || password.length < 8) return
-    if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return }
+    if (verifyPin.replace(/\D/g, '').length < 6) { setError('Saisis le code reçu en jeu (6 chiffres).'); return }
+    if (newPin.replace(/\D/g, '').length < 6)    { setError('Crée un nouveau PIN de 6 chiffres.'); return }
     setLoading(true); setError('')
     try {
-      const res = await api.resetPassword(uuid, pin, password)
+      const res = await api.resetPassword(uuid, verifyPin, newPin)
       saveToken(res.token)
       setStep('success')
       setTimeout(() => navigate('/profile', { replace: true }), 2000)
@@ -75,14 +74,14 @@ export default function ForgotPassword() {
         <div className="text-center mb-8">
           <div className="text-4xl mb-2">☀️</div>
           <h1 className="text-2xl font-bold text-white">SunAntiCheat</h1>
-          <p className="text-gray-500 text-sm mt-1">Réinitialisation du mot de passe</p>
+          <p className="text-gray-500 text-sm mt-1">Réinitialisation du PIN</p>
         </div>
 
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 shadow-xl space-y-5">
 
           {step === 'username' && (
             <>
-              <h2 className="text-xl font-bold text-white">Mot de passe oublié ?</h2>
+              <h2 className="text-xl font-bold text-white">PIN oublié ?</h2>
               <p className="text-gray-400 text-sm">
                 Entre ton pseudo Minecraft. Tu dois être connecté sur le serveur pour recevoir le code de récupération.
               </p>
@@ -107,39 +106,32 @@ export default function ForgotPassword() {
 
           {step === 'pin' && (
             <>
-              <h2 className="text-xl font-bold text-white">Entrer le code</h2>
+              <h2 className="text-xl font-bold text-white">Réinitialiser le PIN</h2>
               <p className="text-gray-400 text-sm">
                 Un code à 6 chiffres a été envoyé dans ton chat Minecraft.
                 {countdown > 0 && <span className="text-brand-400"> Expire dans {countdown}s</span>}
               </p>
+
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-3">Code reçu en jeu</label>
-                <OtpInput value={pin} onChange={setPin} />
+                <label className="block text-sm font-medium text-gray-300 mb-3 text-center">Code reçu en jeu</label>
+                <OtpInput value={verifyPin} onChange={setVerifyPin} length={6} />
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Nouveau mot de passe</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder="Minimum 8 caractères"
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
-                />
+                <label className="block text-sm font-medium text-gray-300 mb-3 text-center">
+                  Nouveau PIN <span className="text-gray-500">(6 chiffres)</span>
+                </label>
+                <OtpInput value={newPin} onChange={setNewPin} length={6} />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Confirmer le mot de passe</label>
-                <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleReset()}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
-                />
-              </div>
+
               {error && <p className="text-red-400 text-sm bg-red-400/10 px-3 py-2 rounded-lg">{error}</p>}
-              <button onClick={handleReset}
-                disabled={loading || pin.length < 6 || password.length < 8 || password !== confirm}
+              <button onClick={handleReset} disabled={loading}
                 className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-700 disabled:text-gray-500 rounded-xl font-semibold transition-colors">
-                {loading ? 'Vérification...' : 'Réinitialiser le mot de passe'}
+                {loading ? 'Vérification...' : 'Réinitialiser le PIN'}
               </button>
-              <button onClick={() => { setStep('username'); setError(''); setPin('') }}
+              <button onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setNewPin('') }}
                 className="w-full py-2 text-sm text-gray-500 hover:text-gray-300 transition-colors">
-                Renvoyer un code
+                ← Renvoyer un code
               </button>
             </>
           )}
@@ -147,7 +139,7 @@ export default function ForgotPassword() {
           {step === 'success' && (
             <div className="text-center py-4 space-y-3">
               <div className="text-5xl">✅</div>
-              <h2 className="text-xl font-bold text-white">Mot de passe réinitialisé !</h2>
+              <h2 className="text-xl font-bold text-white">PIN réinitialisé !</h2>
               <p className="text-gray-400 text-sm">Redirection vers ton profil...</p>
             </div>
           )}

@@ -7,17 +7,15 @@ type Step = 'username' | 'pin' | 'success'
 
 export default function Register() {
   const navigate = useNavigate()
-  const [step, setStep]       = useState<Step>('username')
+  const [step, setStep]         = useState<Step>('username')
   const [username, setUsername] = useState('')
-  const [uuid, setUuid]        = useState('')
+  const [uuid, setUuid]         = useState('')
   const [exactName, setExactName] = useState('')
-  const [pin, setPin]          = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm]  = useState('')
+  const [verifyPin, setVerifyPin] = useState('')   // 6-digit code from Minecraft
+  const [loginPin, setLoginPin]   = useState('')   // 4-digit PIN chosen by player
   const [countdown, setCountdown] = useState(0)
-  const [loading, setLoading]  = useState(false)
-  const [error, setError]      = useState('')
-  const [attemptsLeft, setAttemptsLeft] = useState(3)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
 
   useEffect(() => {
     if (getToken()) navigate('/profile', { replace: true })
@@ -39,30 +37,27 @@ export default function Register() {
       setCountdown(res.expires_in)
       setStep('pin')
     } catch (e: any) {
-      if (e.error === 'player_offline')     setError('Tu dois être connecté sur le serveur Minecraft pour t\'inscrire.')
+      if (e.error === 'player_offline')        setError('Tu dois être connecté sur le serveur Minecraft pour t\'inscrire.')
       else if (e.error === 'already_registered') setError('Ce compte est déjà inscrit. Connecte-toi à la place.')
-      else if (e.status === 429)            setError('Trop de tentatives. Réessaie dans 10 minutes.')
-      else                                  setError(e.message || 'Erreur inattendue.')
+      else if (e.status === 429)               setError('Trop de tentatives. Réessaie dans 10 minutes.')
+      else                                     setError(e.message || 'Erreur inattendue.')
     }
     setLoading(false)
   }
 
   async function handleVerify() {
-    if (pin.replace(/\D/g, '').length < 6) { setError('Saisis les 6 chiffres du code.'); return }
-    if (password.length < 8)               { setError('Le mot de passe doit faire au moins 8 caractères.'); return }
-    if (password !== confirm)              { setError('Les mots de passe ne correspondent pas.'); return }
+    if (verifyPin.replace(/\D/g, '').length < 6) { setError('Saisis les 6 chiffres reçus en jeu.'); return }
+    if (loginPin.replace(/\D/g, '').length < 6)  { setError('Crée un code PIN de 6 chiffres.'); return }
     setLoading(true); setError('')
     try {
-      const res = await api.verifyPin(uuid, pin, password)
+      const res = await api.verifyPin(uuid, verifyPin, loginPin)
       saveToken(res.token)
       setStep('success')
     } catch (e: any) {
-      if (e.error === 'pin_expired')     setError('Code expiré. Clique sur "Renvoyer le code".')
+      if (e.error === 'pin_expired')    setError('Code expiré. Clique sur "Renvoyer le code".')
       else if (e.error === 'max_attempts') setError('Trop de tentatives. Recommence depuis le début.')
-      else if (e.error === 'invalid_pin') {
-        setAttemptsLeft(e.attempts_left ?? 0)
-        setError(`Code incorrect. ${e.attempts_left ?? 0} tentative(s) restante(s).`)
-      } else setError(e.message || 'Erreur inattendue.')
+      else if (e.error === 'invalid_pin') setError(`Code incorrect. ${e.attempts_left ?? 0} tentative(s) restante(s).`)
+      else setError(e.message || 'Erreur inattendue.')
     }
     setLoading(false)
   }
@@ -73,7 +68,7 @@ export default function Register() {
     try {
       const res = await api.requestPin(exactName)
       setCountdown(res.expires_in)
-      setPin('')
+      setVerifyPin('')
     } catch (e: any) { setError(e.message || 'Erreur lors du renvoi.') }
     setLoading(false)
   }
@@ -142,7 +137,7 @@ export default function Register() {
       )}
 
       {step === 'pin' && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
             <h2 className="text-xl font-bold text-white mb-1">Vérifie ton compte</h2>
             <p className="text-gray-400 text-sm">
@@ -150,9 +145,10 @@ export default function Register() {
             </p>
           </div>
 
+          {/* Verify code from Minecraft */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-3 text-center">Code reçu en jeu</label>
-            <OtpInput value={pin} onChange={setPin} />
+            <OtpInput value={verifyPin} onChange={setVerifyPin} length={6} />
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-gray-500">
                 {countdown > 0 ? `Expire dans ${countdown}s` : 'Code expiré'}
@@ -164,22 +160,13 @@ export default function Register() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Mot de passe</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="Min. 8 caractères"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Confirmer le mot de passe</label>
-              <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleVerify()}
-                placeholder="Retape ton mot de passe"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-brand-500 focus:outline-none transition-colors"
-              />
-            </div>
+          {/* Create login PIN */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-3 text-center">
+              Crée ton code PIN de connexion <span className="text-gray-500">(6 chiffres)</span>
+            </label>
+            <OtpInput value={loginPin} onChange={setLoginPin} length={6} />
+            <p className="text-center text-xs text-gray-600 mt-2">Tu utiliseras ce PIN pour te connecter au portail</p>
           </div>
 
           {error && <p className="text-red-400 text-sm bg-red-400/10 px-3 py-2 rounded-lg">{error}</p>}
@@ -188,7 +175,7 @@ export default function Register() {
             className="w-full py-3 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-700 disabled:text-gray-500 rounded-xl font-semibold transition-colors">
             {loading ? 'Vérification...' : 'Créer mon compte'}
           </button>
-          <button onClick={() => { setStep('username'); setError(''); setPin('') }}
+          <button onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setLoginPin('') }}
             className="w-full py-2 text-sm text-gray-500 hover:text-gray-300 transition-colors">
             ← Retour
           </button>

@@ -18,7 +18,7 @@ import sunanticheat.dashboard.crates.ItemBuilder;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Listener d'\u00e9v\u00e9nements et gestionnaire de la commande /daily.
+ * Listener d'événements et gestionnaire de la commande /daily.
  */
 public final class DailyRewardListener implements Listener, CommandExecutor {
 
@@ -37,11 +37,20 @@ public final class DailyRewardListener implements Listener, CommandExecutor {
         final Player p = e.getPlayer();
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!p.isOnline()) return;
+
+            // Deliver any reward claimed from the web portal while offline
+            DailyRewardDay pending = store.consumePendingWebClaim(p.getUniqueId().toString());
+            if (pending != null) {
+                deliverReward(p, pending);
+                p.sendMessage("§6[Daily] §eVotre récompense du portail joueur a été livrée !");
+                return;
+            }
+
             DailyRewardConfig cfg = store.getConfig();
             if (cfg == null || !cfg.enabled) return;
             if (!store.canClaim(p.getUniqueId().toString())) return;
-            try { p.sendTitle("\u00a76\u2726 Daily Reward !", "\u00a7e/daily pour r\u00e9clamer", 10, 60, 10); } catch (Throwable ignored) {}
-            p.sendMessage("\u00a76[Daily] \u00a7eVotre r\u00e9compense quotidienne est disponible ! \u00a7a/daily");
+            try { p.sendTitle("§6✦ Daily Reward !", "§e/daily pour réclamer", 10, 60, 10); } catch (Throwable ignored) {}
+            p.sendMessage("§6[Daily] §eVotre récompense quotidienne est disponible ! §a/daily");
         }, 60L);
     }
 
@@ -55,7 +64,7 @@ public final class DailyRewardListener implements Listener, CommandExecutor {
         String uuid = p.getUniqueId().toString();
         DailyRewardConfig cfg = store.getConfig();
         if (cfg == null || !cfg.enabled) {
-            p.sendMessage("\u00a7c\u2717 Le syst\u00e8me de r\u00e9compense quotidienne est d\u00e9sactiv\u00e9.");
+            p.sendMessage("§c✗ Le système de récompense quotidienne est désactivé.");
             return true;
         }
 
@@ -70,13 +79,26 @@ public final class DailyRewardListener implements Listener, CommandExecutor {
                 }
                 long hours = remaining / 3600000L;
                 long minutes = (remaining % 3600000L) / 60000L;
-                p.sendMessage("\u00a7c\u2717 D\u00e9j\u00e0 r\u00e9clam\u00e9 aujourd'hui \u2014 revenez dans "
+                p.sendMessage("§c✗ Déjà réclamé aujourd'hui — revenez dans "
                         + hours + "h" + minutes + "m.");
             } else {
-                p.sendMessage("\u00a7c\u2717 Aucune r\u00e9compense configur\u00e9e pour aujourd'hui.");
+                p.sendMessage("§c✗ Aucune récompense configurée pour aujourd'hui.");
             }
             return true;
         }
+
+        deliverReward(p, reward);
+
+        if (reward.day > 0 && reward.day % 7 == 0) {
+            Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
+                    "&6" + p.getName() + " &eest au &6jour " + reward.day + " &ede connexions !"));
+        }
+        return true;
+    }
+
+    /** Delivers a daily reward to an online player (items, commands, coins, title, sound). */
+    public void deliverReward(Player p, DailyRewardDay reward) {
+        if (reward == null || !p.isOnline()) return;
 
         if (reward.items != null) {
             for (DailyRewardItem di : reward.items) {
@@ -102,15 +124,9 @@ public final class DailyRewardListener implements Listener, CommandExecutor {
             try { economy.depositPlayer(p, reward.bonusCoins); } catch (Throwable ignored) {}
         }
 
-        String title = "\u00a76\u2726 " + (reward.displayName == null ? ("Jour " + reward.day)
+        String title = "§6✦ " + (reward.displayName == null ? ("Jour " + reward.day)
                 : ChatColor.translateAlternateColorCodes('&', reward.displayName));
-        try { p.sendTitle(title, "\u00a7eJour " + reward.day, 10, 60, 10); } catch (Throwable ignored) {}
+        try { p.sendTitle(title, "§eJour " + reward.day, 10, 60, 10); } catch (Throwable ignored) {}
         try { p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f); } catch (Throwable ignored) {}
-
-        if (reward.day > 0 && reward.day % 7 == 0) {
-            Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-                    "&6" + p.getName() + " &eest au &6jour " + reward.day + " &ede connexions !"));
-        }
-        return true;
     }
 }

@@ -56,7 +56,10 @@ public final class DashboardRouter implements HttpHandler {
     private final PublicRegisterHandler publicRegisterHandler;
     private final PublicPlayerHandler publicPlayerHandler;
     private final PublicProfileHandler publicProfileHandler;
+    private final PublicDailyHandler publicDailyHandler;
+    private final PublicLeaderboardHandler publicLeaderboardHandler;
     private final CustomJobsApiHandler customJobsApiHandler;
+    private final GeoIpHandler geoIpHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -98,7 +101,10 @@ public final class DashboardRouter implements HttpHandler {
                            PublicRegisterHandler publicRegisterHandler,
                            PublicPlayerHandler publicPlayerHandler,
                            PublicProfileHandler publicProfileHandler,
-                           CustomJobsApiHandler customJobsApiHandler) {
+                           PublicDailyHandler publicDailyHandler,
+                           PublicLeaderboardHandler publicLeaderboardHandler,
+                           CustomJobsApiHandler customJobsApiHandler,
+                           GeoIpHandler geoIpHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -136,10 +142,13 @@ public final class DashboardRouter implements HttpHandler {
         this.playerLogHandler = playerLogHandler;
         this.altAccountHandler = altAccountHandler;
         this.vpHandler = vpHandler;
-        this.publicRegisterHandler  = publicRegisterHandler;
-        this.publicPlayerHandler    = publicPlayerHandler;
-        this.publicProfileHandler   = publicProfileHandler;
-        this.customJobsApiHandler   = customJobsApiHandler;
+        this.publicRegisterHandler   = publicRegisterHandler;
+        this.publicPlayerHandler     = publicPlayerHandler;
+        this.publicProfileHandler    = publicProfileHandler;
+        this.publicDailyHandler      = publicDailyHandler;
+        this.publicLeaderboardHandler = publicLeaderboardHandler;
+        this.customJobsApiHandler    = customJobsApiHandler;
+        this.geoIpHandler            = geoIpHandler;
     }
 
     @Override
@@ -507,8 +516,12 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/register/login")   && POST(method)) { publicRegisterHandler.login(ex);   return; }
         if (eq(path, "/api/public/register/forgot")  && POST(method)) { publicRegisterHandler.forgot(ex);  return; }
         if (eq(path, "/api/public/register/reset")   && POST(method)) { publicRegisterHandler.reset(ex);   return; }
-        if (eq(path, "/api/public/player/me")        && GET(method))  { publicPlayerHandler.me(ex);        return; }
-        if (path.startsWith("/api/public/profile/")         && GET(method))  { publicProfileHandler.profile(ex);          return; }
+        if (eq(path, "/api/public/player/me")                  && GET(method))   { publicPlayerHandler.me(ex);               return; }
+        if (eq(path, "/api/public/player/me/bio")             && PATCH(method)) { publicPlayerHandler.updateBio(ex);        return; }
+        if (eq(path, "/api/public/player/me/daily/status")   && GET(method))   { publicDailyHandler.status(ex);            return; }
+        if (eq(path, "/api/public/player/me/daily/claim")    && POST(method))  { publicDailyHandler.claim(ex);             return; }
+        if (eq(path, "/api/public/leaderboard")               && GET(method))   { publicLeaderboardHandler.leaderboard(ex); return; }
+        if (path.startsWith("/api/public/profile/")           && GET(method))   { publicProfileHandler.profile(ex);         return; }
         if (eq(path, "/api/custom-jobs/list")               && GET(method))  { customJobsApiHandler.list(ex);              return; }
         if (path.startsWith("/api/custom-jobs/leaderboard/") && GET(method)) { customJobsApiHandler.leaderboard(ex);       return; }
         if (path.startsWith("/api/custom-jobs/history/")     && GET(method)) { customJobsApiHandler.history(ex);           return; }
@@ -544,6 +557,9 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/users/") && path.endsWith("/custom-role") && PATCH(method)) { userHandler.changeCustomRole(ex, jwt, users, id(path, "/api/users/", "/custom-role")); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/password") && POST(method)) { userHandler.resetPassword(ex, jwt, users, id(path, "/api/users/", "/password")); return; }
         if (path.startsWith("/api/users/")           && DELETE(method)) { userHandler.delete(ex, jwt, users, id(path, "/api/users/")); return; }
+
+        // ── GeoIP ─────────────────────────────────────────────────────────────
+        if (eq(path, "/api/geoip/lookup") && GET(method)) { geoIpHandler.lookup(ex, jwt, users); return; }
 
         HttpHelper.error(ex, 404, "Route introuvable: " + method + " " + path);
     }

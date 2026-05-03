@@ -8,7 +8,8 @@ interface Props {
 
 export default function OtpInput({ value, onChange, length = 6 }: Props) {
   const inputs = useRef<(HTMLInputElement | null)[]>([])
-  const digits = value.padEnd(length, '').split('').slice(0, length)
+  // Array.from ensures exactly `length` elements even when value is shorter
+  const digits = Array.from({ length }, (_, i) => value[i] ?? '')
 
   function handleChange(i: number, v: string) {
     const cleaned = v.replace(/\D/g, '').slice(-1)
@@ -18,8 +19,13 @@ export default function OtpInput({ value, onChange, length = 6 }: Props) {
   }
 
   function handleKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) {
-      inputs.current[i - 1]?.focus()
+    if (e.key === 'Backspace') {
+      if (digits[i]) {
+        const next = digits.map((d, idx) => (idx === i ? '' : d)).join('')
+        onChange(next)
+      } else if (i > 0) {
+        inputs.current[i - 1]?.focus()
+      }
     }
     if (e.key === 'ArrowLeft'  && i > 0)          inputs.current[i - 1]?.focus()
     if (e.key === 'ArrowRight' && i < length - 1) inputs.current[i + 1]?.focus()
@@ -27,7 +33,11 @@ export default function OtpInput({ value, onChange, length = 6 }: Props) {
 
   function handlePaste(e: React.ClipboardEvent) {
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length)
-    if (pasted) { onChange(pasted.padEnd(length, '').slice(0, length)); e.preventDefault() }
+    if (pasted) {
+      onChange(pasted)
+      inputs.current[Math.min(pasted.length, length - 1)]?.focus()
+      e.preventDefault()
+    }
   }
 
   return (
