@@ -23,6 +23,9 @@ const TABS: { id: Tab; label: string; icon: string; section?: string }[] = [
   { id: 'dynamics',    label: 'Dynamiques',     icon: '🌍',  section: 'Custom' },
 ]
 
+const REBORN_TABS: Tab[] = ['overview', 'active', 'history', 'catalog']
+const REBORN_PANEL_KEY = 'jobs.reborn.panel.enabled'
+
 const PERIOD_OPTIONS = [
   { days: 1,  label: '24h' },
   { days: 7,  label: '7j' },
@@ -83,7 +86,11 @@ const EVENT_COLORS: Record<string, string> = {
 }
 
 export default function Jobs() {
-  const [tab, setTab] = useState<Tab>('overview')
+  const [rebornEnabled, setRebornEnabled] = useState<boolean>(() => {
+    const v = localStorage.getItem(REBORN_PANEL_KEY)
+    return v === null ? true : v === '1'
+  })
+  const [tab, setTab] = useState<Tab>(rebornEnabled ? 'overview' : 'custom-jobs')
   const [days, setDays] = useState(7)
   const [overview, setOverview] = useState<any>(null)
   const [active, setActive] = useState<any>(null)
@@ -91,7 +98,14 @@ export default function Jobs() {
   const [historyFilter, setHistoryFilter] = useState({ player: '', job: '' })
   const [loading, setLoading] = useState(false)
 
+  const toggleReborn = (next: boolean) => {
+    setRebornEnabled(next)
+    localStorage.setItem(REBORN_PANEL_KEY, next ? '1' : '0')
+    if (!next && REBORN_TABS.includes(tab)) setTab('custom-jobs')
+  }
+
   const refresh = async () => {
+    if (!rebornEnabled && REBORN_TABS.includes(tab)) return
     setLoading(true)
     try {
       if (tab === 'overview' || tab === 'catalog') {
@@ -132,6 +146,7 @@ export default function Jobs() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <RebornSwitch enabled={rebornEnabled} onToggle={toggleReborn} />
           {(tab === 'overview' || tab === 'catalog') && (
             <div className="flex gap-1 rounded p-1" style={{ background: 'var(--surface-2)' }}>
               {PERIOD_OPTIONS.map(p => (
@@ -155,8 +170,29 @@ export default function Jobs() {
         </div>
       </div>
 
+      {/* Bandeau si Jobs Reborn désactivé manuellement */}
+      {!rebornEnabled && (
+        <div className="rounded-xl p-4 flex items-center justify-between gap-3"
+             style={{ background: 'rgba(100,116,139,0.12)', border: '1px solid rgba(100,116,139,0.3)' }}>
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">🚫</div>
+            <div>
+              <div className="font-bold" style={{ color: 'var(--text)' }}>Panel Jobs Reborn désactivé</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Les onglets Vue générale, Joueurs actifs, Historique et Catalogue sont masqués. Les Métiers Custom restent disponibles.
+              </div>
+            </div>
+          </div>
+          <button onClick={() => toggleReborn(true)}
+                  className="px-3 py-2 rounded text-sm font-medium"
+                  style={{ background: 'var(--primary)', color: 'white' }}>
+            Réactiver
+          </button>
+        </div>
+      )}
+
       {/* Bandeau si Jobs Reborn pas installé */}
-      {installed === false && (
+      {rebornEnabled && installed === false && (
         <div className="rounded-xl p-4 flex items-center gap-3"
              style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)' }}>
           <div className="text-2xl">⚠️</div>
@@ -171,9 +207,9 @@ export default function Jobs() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b items-center" style={{ borderColor: 'var(--border)' }}>
-        {TABS.map((t, i) => (
+        {TABS.filter(t => rebornEnabled || !REBORN_TABS.includes(t.id)).map((t, i, arr) => (
           <>
-            {i > 0 && TABS[i].section && !TABS[i-1].section && (
+            {i > 0 && t.section && !arr[i-1].section && (
               <div key={`sep-${i}`} className="h-5 w-px mx-1" style={{ background: 'var(--border)' }} />
             )}
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -188,12 +224,12 @@ export default function Jobs() {
         ))}
       </div>
 
-      {tab === 'overview'    && <OverviewTab data={overview} days={days}/>}
-      {tab === 'active'      && <ActiveTab data={active} />}
-      {tab === 'history'     && <HistoryTab data={history} onRefresh={refresh}
+      {rebornEnabled && tab === 'overview'    && <OverviewTab data={overview} days={days}/>}
+      {rebornEnabled && tab === 'active'      && <ActiveTab data={active} />}
+      {rebornEnabled && tab === 'history'     && <HistoryTab data={history} onRefresh={refresh}
                                             filter={historyFilter}
                                             onFilterChange={f => { setHistoryFilter(f); refreshHistory(f) }} />}
-      {tab === 'catalog'     && <CatalogTab data={overview} days={days} />}
+      {rebornEnabled && tab === 'catalog'     && <CatalogTab data={overview} days={days} />}
       {tab === 'custom-jobs' && <CustomJobsTab />}
       {tab === 'dynamics'    && <DynamicsTab />}
     </div>
@@ -714,6 +750,26 @@ function Loading() {
     <div className="text-3xl animate-pulse">☀️</div>
     Chargement…
   </div>
+}
+
+function RebornSwitch({ enabled, onToggle }: { enabled: boolean; onToggle: (next: boolean) => void }) {
+  return (
+    <button onClick={() => onToggle(!enabled)}
+            title={enabled ? 'Cliquer pour désactiver le panel Jobs Reborn' : 'Cliquer pour réactiver le panel Jobs Reborn'}
+            className="flex items-center gap-2 px-3 py-2 rounded text-xs font-medium transition"
+            style={{
+              background: enabled ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.15)',
+              border: `1px solid ${enabled ? 'rgba(16,185,129,0.4)' : 'rgba(100,116,139,0.4)'}`,
+              color: enabled ? '#10b981' : 'var(--text-muted)',
+            }}>
+      <span className="relative inline-block w-8 h-4 rounded-full transition"
+            style={{ background: enabled ? '#10b981' : '#64748b' }}>
+        <span className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all"
+              style={{ left: enabled ? 'calc(100% - 14px)' : '2px' }}/>
+      </span>
+      Jobs Reborn {enabled ? 'ON' : 'OFF'}
+    </button>
+  )
 }
 
 function Kpi({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
