@@ -157,6 +157,89 @@ public final class CustomJobStore {
         return list;
     }
 
+    /**
+     * Timeline d'XP gagné par jour pour un joueur sur un métier (last N days).
+     * Retourne une liste {day_ts, xp, money, actions}, triée chronologiquement.
+     */
+    public List<Map<String, Object>> playerTimeline(String uuid, String jobId, int days) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        long since = System.currentTimeMillis() - (days * 86_400_000L);
+        // Date(timestamp/1000, 'unixepoch') marche aussi en MySQL via FROM_UNIXTIME ;
+        // pour rester portable on bucketise côté Java.
+        Map<Long, double[]> buckets = new TreeMap<>();
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT timestamp, xp_gained, money_gained FROM custom_job_history " +
+                "WHERE uuid=? AND job_id=? AND timestamp >= ? ORDER BY timestamp ASC")) {
+            ps.setString(1, uuid); ps.setString(2, jobId); ps.setLong(3, since);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    long ts = rs.getLong("timestamp");
+                    long day = (ts / 86_400_000L) * 86_400_000L; // bucket UTC day
+                    double[] b = buckets.computeIfAbsent(day, k -> new double[]{0, 0, 0});
+                    b[0] += rs.getDouble("xp_gained");
+                    b[1] += rs.getDouble("money_gained");
+                    b[2] += 1;
+                }
+            }
+        } catch (SQLException e) { logger.warning("[Jobs] playerTimeline: " + e.getMessage()); }
+
+        for (var e : buckets.entrySet()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("day_ts",  e.getKey());
+            m.put("xp",      e.getValue()[0]);
+            m.put("money",   e.getValue()[1]);
+            m.put("actions", (long) e.getValue()[2]);
+            list.add(m);
+        }
+        return list;
+    }
+
+    /** Top des cibles (matériau/entité) pour un joueur sur un métier. */
+    public List<Map<String, Object>> playerTopTargets(String uuid, String jobId, int limit) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT target, COUNT(*) AS actions, SUM(xp_gained) AS xp, SUM(money_gained) AS money " +
+                "FROM custom_job_history WHERE uuid=? AND job_id=? GROUP BY target ORDER BY actions DESC LIMIT ?")) {
+            ps.setString(1, uuid); ps.setString(2, jobId); ps.setInt(3, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("target",  rs.getString("target"));
+                    m.put("actions", rs.getLong("actions"));
+                    m.put("xp",      rs.getDouble("xp"));
+                    m.put("money",   rs.getDouble("money"));
+                    list.add(m);
+                }
+            }
+        } catch (SQLException e) { logger.warning("[Jobs] playerTopTargets: " + e.getMessage()); }
+        return list;
+    }
+
+    /**
+     * XP/heure moyenne sur les N derniers jours (basé sur l'historique).
+     * Utile pour calculer la projection de progression côté portail.
+     */
+    public double playerXpPerHour(String uuid, String jobId, int days) {
+        long since = System.currentTimeMillis() - (days * 86_400_000L);
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT COALESCE(SUM(xp_gained), 0) AS total_xp, " +
+                "       COALESCE(MAX(timestamp), 0) AS last_ts, " +
+                "       COALESCE(MIN(timestamp), 0) AS first_ts " +
+                "FROM custom_job_history WHERE uuid=? AND job_id=? AND timestamp >= ?")) {
+            ps.setString(1, uuid); ps.setString(2, jobId); ps.setLong(3, since);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    double xp = rs.getDouble("total_xp");
+                    long span = rs.getLong("last_ts") - rs.getLong("first_ts");
+                    if (span <= 0) return 0;
+                    double hours = span / 3_600_000.0;
+                    return hours > 0 ? xp / hours : 0;
+                }
+            }
+        } catch (SQLException e) { logger.warning("[Jobs] playerXpPerHour: " + e.getMessage()); }
+        return 0;
+    }
+
     public List<Map<String, Object>> recentHistory(String jobId, int limit) {
         List<Map<String, Object>> list = new ArrayList<>();
         try (PreparedStatement ps = db.conn().prepareStatement(

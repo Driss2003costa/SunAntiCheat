@@ -65,6 +65,34 @@ export type VipPlan = {
   priceEur: number; durationDays: number; perks?: string[]; order?: number
 }
 
+export type JobDynamicsSnapshot = {
+  enabled: boolean
+  season?: { key: string; label: string; icon: string }
+  bulletin?: { job_id: string | null; multiplier: number; refreshed_at: number }
+  active_events?: Array<{
+    id: string; target_job: string | null
+    reward_xp: number; reward_money: number
+    started_at: number; ends_at: number
+  }>
+}
+
+export type JobTimelinePoint = { day_ts: number; xp: number; money: number; actions: number }
+export type JobTopTarget     = { target: string; actions: number; xp: number; money: number }
+export type JobForecast = {
+  level: number; xp: number; xp_per_hour: number
+  hours_to_next?: number; hours_to_max?: number
+}
+export type JobTimelineResponse = {
+  uuid: string; job_id: string; days: number
+  timeline: JobTimelinePoint[]
+  targets:  JobTopTarget[]
+  xp_per_hour: number
+  forecast?: JobForecast
+}
+
+export type JobHeatmapEntry  = { job_id: string; actions: number; xp: number; money: number }
+export type JobHeatmapResponse = { uuid: string; days: number; by_job: JobHeatmapEntry[] }
+
 export const api = {
   requestPin: (username: string) =>
     post<RegisterRequestResult>(`${BASE}/register/request`, { username }),
@@ -92,6 +120,15 @@ export const api = {
 
   customJobsPlayer: (uuid: string) =>
     get<PlayerJobProgress[]>(`/api/custom-jobs/player/${uuid}`),
+
+  jobDynamics: () =>
+    get<JobDynamicsSnapshot>('/api/custom-jobs/dynamics'),
+
+  jobTimeline: (uuid: string, jobId: string, days = 30) =>
+    get<JobTimelineResponse>(`/api/custom-jobs/player/${uuid}/timeline?job=${encodeURIComponent(jobId)}&days=${days}`),
+
+  jobHeatmap: (uuid: string, days = 7) =>
+    get<JobHeatmapResponse>(`/api/custom-jobs/player/${uuid}/heatmap?days=${days}`),
 
   vipPlans: () =>
     get<VipPlan[]>(`${BASE}/vip/plans`),

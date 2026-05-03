@@ -1,6 +1,6 @@
 {
     "pluginVersion": "2.0.24",
-    "generatedAt": "2026-05-03T20:57:29Z",
+    "generatedAt": "2026-05-03T21:35:11Z",
     "files": [
         {
             "name": "plugin.yml",
@@ -9,6 +9,11 @@
         },
         {
             "name": "config.yml",
+            "configVersion": 0,
+            "userEditable": true
+        },
+        {
+            "name": "dynamics.yml",
             "configVersion": 0,
             "userEditable": true
         },

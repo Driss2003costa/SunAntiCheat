@@ -9,6 +9,7 @@ import Home from './pages/Home'
 import Inventory from './pages/Inventory'
 import Minigames from './pages/Minigames'
 import Career from './pages/Career'
+import CareerJobDetail from './pages/CareerJobDetail'
 import Shop from './pages/Shop'
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/inventory"         element={<Inventory />} />
         <Route path="/minigames"         element={<Minigames />} />
         <Route path="/career"            element={<Career />} />
+        <Route path="/career/job/:jobId" element={<CareerJobDetail />} />
         <Route path="/shop"              element={<Shop />} />
         <Route path="*"                  element={<Navigate to="/" replace />} />
       </Routes>
