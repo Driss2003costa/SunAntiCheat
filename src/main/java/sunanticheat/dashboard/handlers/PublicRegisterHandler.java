@@ -102,8 +102,8 @@ public final class PublicRegisterHandler {
             return;
         }
 
-        if (password.length() < 8) {
-            HttpHelper.error(ex, 400, "Le mot de passe doit faire au moins 8 caractères");
+        if (password.length() < 6) {
+            HttpHelper.error(ex, 400, "Le code PIN doit faire au moins 6 chiffres");
             return;
         }
 
@@ -240,8 +240,8 @@ public final class PublicRegisterHandler {
             return;
         }
 
-        if (password.length() < 8) {
-            HttpHelper.error(ex, 400, "Le mot de passe doit faire au moins 8 caractères");
+        if (password.length() < 6) {
+            HttpHelper.error(ex, 400, "Le code PIN doit faire au moins 6 chiffres");
             return;
         }
 
