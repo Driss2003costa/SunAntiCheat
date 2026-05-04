@@ -543,6 +543,7 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/custom-jobs/admin/dynamics/reload")           && POST(method))   { customJobsApiHandler.adminReloadDynamics(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/heatmap")                   && DELETE(method)) { customJobsApiHandler.adminClearHeatmap(ex);     return; }
         if (path.matches("/api/custom-jobs/admin/job/[^/]+/enabled")     && PATCH(method))  { customJobsApiHandler.adminToggleJob(ex);        return; }
+        if (path.matches("/api/custom-jobs/admin/job/[^/]+/anti-farm")  && PATCH(method))  { customJobsApiHandler.adminToggleAntiFarm(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/slots")                     && GET(method))    { customJobsApiHandler.adminGetSlots(ex);         return; }
         if (eq(path, "/api/custom-jobs/admin/slots")                     && PUT(method))    { customJobsApiHandler.adminPutSlots(ex);         return; }
         // Tickets

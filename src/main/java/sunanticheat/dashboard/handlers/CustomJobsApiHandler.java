@@ -49,6 +49,7 @@ public final class CustomJobsApiHandler {
             m.put("max_level",   job.maxLevel());
             m.put("actions",     job.actions());
             m.put("enabled",     module.getConfig().isJobEnabled(job.id()));
+            m.put("anti_farm",   module.getConfig().isAntiFarmEnabled(job.id()));
 
             List<Map<String, Object>> stats = module.getStore().jobStats(job.id());
             if (!stats.isEmpty()) m.putAll(stats.get(0));
@@ -440,6 +441,36 @@ public final class CustomJobsApiHandler {
             if (enabled == null) { HttpHelper.error(ex, 400, "Missing 'enabled'"); return; }
             module.getConfig().setJobEnabled(jobId, enabled);
             HttpHelper.json(ex, 200, Map.of("id", jobId, "enabled", enabled));
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /**
+     * PATCH /api/custom-jobs/admin/job/:id/anti-farm
+     * Body : { "enabled": true|false }
+     */
+    public void adminToggleAntiFarm(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+
+        String path = ex.getRequestURI().getPath();
+        String tail = path.substring("/api/custom-jobs/admin/job/".length());
+        String jobId = tail.endsWith("/anti-farm") ? tail.substring(0, tail.length() - "/anti-farm".length()) : tail;
+
+        if (module.getConfig().getJob(jobId) == null) {
+            HttpHelper.json(ex, 404, Map.of("error", "job_not_found")); return;
+        }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            Boolean enabled = (Boolean) body.get("enabled");
+            if (enabled == null) { HttpHelper.error(ex, 400, "Missing 'enabled'"); return; }
+            module.getConfig().setAntiFarmEnabled(jobId, enabled);
+            HttpHelper.json(ex, 200, Map.of("id", jobId, "antiFarm", enabled));
         } catch (Exception e) {
             HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
         }

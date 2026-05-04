@@ -175,16 +175,18 @@ public final class CustomJobService {
             JobAction action = targets.get(upperTarget);
             if (action == null) continue;
 
-            // Anti-farm check: pour les blocs on utilise la position, sinon le type
-            String antiFarmSuffix = (loc != null)
-                    ? loc.getWorld().getName() + ":" + loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ()
-                    : upperTarget;
-            String antiFarmKey = uuid + "|" + job.id() + "|" + actionType + "|" + antiFarmSuffix;
-            long now = System.currentTimeMillis();
-            long cooldownMs = job.antiFarmCooldownSeconds() * 1000L;
-            Long last = antiFarmMap.get(antiFarmKey);
-            if (last != null && (now - last) < cooldownMs) continue;
-            antiFarmMap.put(antiFarmKey, now);
+            // Anti-farm check
+            if (config.isAntiFarmEnabled(job.id())) {
+                String antiFarmSuffix = (loc != null)
+                        ? loc.getWorld().getName() + ":" + loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ()
+                        : upperTarget;
+                String antiFarmKey = uuid + "|" + job.id() + "|" + actionType + "|" + antiFarmSuffix;
+                long now = System.currentTimeMillis();
+                long cooldownMs = job.antiFarmCooldownSeconds() * 1000L;
+                Long last = antiFarmMap.get(antiFarmKey);
+                if (last != null && (now - last) < cooldownMs) continue;
+                antiFarmMap.put(antiFarmKey, now);
+            }
 
             Map<String, Object> playerJob = store.getPlayerJob(uuid, job.id());
             if (playerJob == null) continue;

@@ -837,6 +837,18 @@ function CustomJobsTab() {
     }
   }
 
+  const toggleAntiFarm = async (jobId: string, next: boolean) => {
+    setBusyJob(jobId + ':af')
+    try {
+      await api.customJobsAdminToggleAntiFarm(jobId, next)
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, anti_farm: next } : j))
+    } catch (e: any) {
+      alert('Erreur : ' + (e?.message ?? 'inconnue'))
+    } finally {
+      setBusyJob(null)
+    }
+  }
+
   if (loading) return <Loading/>
 
   return (
@@ -853,6 +865,7 @@ function CustomJobsTab() {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {jobs.map((j: any) => {
             const enabled = j.enabled !== false
+            const antiFarm = j.anti_farm !== false
             return (
               <div key={j.id}
                    className="rounded-xl p-4 transition flex flex-col gap-2"
@@ -895,10 +908,21 @@ function CustomJobsTab() {
                           }}>
                     {busyJob === j.id ? '⏳' : enabled ? '✓ Activé' : '✖ Désactivé'}
                   </button>
+                  <button onClick={() => toggleAntiFarm(j.id, !antiFarm)}
+                          disabled={busyJob === j.id + ':af'}
+                          title={antiFarm ? 'Anti-farm actif — cliquer pour désactiver' : 'Anti-farm désactivé — cliquer pour activer'}
+                          className="px-3 py-1.5 rounded text-xs font-medium transition"
+                          style={{
+                            background: antiFarm ? 'rgba(245,158,11,0.15)' : 'rgba(100,116,139,0.15)',
+                            border: `1px solid ${antiFarm ? 'rgba(245,158,11,0.4)' : 'rgba(100,116,139,0.4)'}`,
+                            color: antiFarm ? '#f59e0b' : 'var(--text-muted)',
+                          }}>
+                    {busyJob === j.id + ':af' ? '⏳' : antiFarm ? '🛡 AF' : '🛡 AF off'}
+                  </button>
                   <button onClick={() => setOpenJob(j.id)}
                           className="px-3 py-1.5 rounded text-xs"
                           style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
-                    Classement →
+                    →
                   </button>
                 </div>
               </div>
