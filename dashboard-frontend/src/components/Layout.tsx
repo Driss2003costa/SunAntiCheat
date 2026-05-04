@@ -89,6 +89,7 @@ const NAV_CATEGORIES = [
     icon: '🤖',
     items: [
       { to: '/assistant',    label: 'Assistant IA',    icon: '🤖' },
+      { to: '/roadmap',      label: 'Roadmap',         icon: '📍' },
     ],
   },
 ]
