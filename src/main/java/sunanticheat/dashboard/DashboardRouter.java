@@ -530,12 +530,19 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/custom-jobs/player/")      && path.endsWith("/timeline") && GET(method)) { customJobsApiHandler.playerTimeline(ex); return; }
         if (path.startsWith("/api/custom-jobs/player/")      && path.endsWith("/heatmap")  && GET(method)) { customJobsApiHandler.playerHeatmap(ex);  return; }
         if (path.startsWith("/api/custom-jobs/player/")      && GET(method)) { customJobsApiHandler.playerJobs(ex);        return; }
+        // Portal endpoints (player JWT — auth handled inside handler)
+        if (eq(path, "/api/custom-jobs/me/slots")           && GET(method))  { customJobsApiHandler.meSlots(ex);            return; }
+        if (eq(path, "/api/custom-jobs/me/join")            && POST(method)) { customJobsApiHandler.meJoin(ex);             return; }
+        if (eq(path, "/api/custom-jobs/me/leave")           && POST(method)) { customJobsApiHandler.meLeave(ex);            return; }
         // Admin controls (JWT + ADMIN required — auth handled inside handler)
         if (eq(path, "/api/custom-jobs/admin/dynamics/toggle")           && PATCH(method))  { customJobsApiHandler.adminToggle(ex);          return; }
         if (eq(path, "/api/custom-jobs/admin/dynamics/event/trigger")    && POST(method))   { customJobsApiHandler.adminTriggerEvent(ex);     return; }
         if (eq(path, "/api/custom-jobs/admin/dynamics/bulletin/refresh") && POST(method))   { customJobsApiHandler.adminRefreshBulletin(ex);  return; }
         if (eq(path, "/api/custom-jobs/admin/dynamics/reload")           && POST(method))   { customJobsApiHandler.adminReloadDynamics(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/heatmap")                   && DELETE(method)) { customJobsApiHandler.adminClearHeatmap(ex);     return; }
+        if (path.matches("/api/custom-jobs/admin/job/[^/]+/enabled")     && PATCH(method))  { customJobsApiHandler.adminToggleJob(ex);        return; }
+        if (eq(path, "/api/custom-jobs/admin/slots")                     && GET(method))    { customJobsApiHandler.adminGetSlots(ex);         return; }
+        if (eq(path, "/api/custom-jobs/admin/slots")                     && PUT(method))    { customJobsApiHandler.adminPutSlots(ex);         return; }
 
         // ── VIP routes PUBLIQUES (sans auth — webhooks + page d'achat) ───────
         if (eq(path, "/api/public/vip/plans")           && GET(method))   { vipPublicHandler.listPublicPlans(ex); return; }

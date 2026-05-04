@@ -1,13 +1,17 @@
 package sunanticheat.dashboard.handlers;
 
 import com.sun.net.httpserver.HttpExchange;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import sunanticheat.SunAntiCheat;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.DashboardUser;
+import sunanticheat.dashboard.portal.PlayerJwtUtil;
 import sunanticheat.jobs.CustomJob;
 import sunanticheat.jobs.CustomJobModule;
+import sunanticheat.jobs.CustomJobService;
 import sunanticheat.jobs.dynamics.WorldDynamicsService;
 
 import java.io.IOException;
@@ -18,11 +22,14 @@ public final class CustomJobsApiHandler {
     private final Plugin plugin;
     private final JwtUtil jwt;
     private final Map<String, DashboardUser> users;
+    private final PlayerJwtUtil playerJwt;
 
-    public CustomJobsApiHandler(Plugin plugin, JwtUtil jwt, Map<String, DashboardUser> users) {
-        this.plugin = plugin;
-        this.jwt    = jwt;
-        this.users  = users;
+    public CustomJobsApiHandler(Plugin plugin, JwtUtil jwt, Map<String, DashboardUser> users,
+                                 PlayerJwtUtil playerJwt) {
+        this.plugin    = plugin;
+        this.jwt       = jwt;
+        this.users     = users;
+        this.playerJwt = playerJwt;
     }
 
     /** GET /api/custom-jobs/list */
@@ -39,6 +46,7 @@ public final class CustomJobsApiHandler {
             m.put("icon",        job.icon());
             m.put("max_level",   job.maxLevel());
             m.put("actions",     job.actions());
+            m.put("enabled",     module.getConfig().isJobEnabled(job.id()));
 
             List<Map<String, Object>> stats = module.getStore().jobStats(job.id());
             if (!stats.isEmpty()) m.putAll(stats.get(0));
@@ -323,6 +331,164 @@ public final class CustomJobsApiHandler {
         module.getDynamics().clearOverrides();
         module.getDynamics().reload();
         HttpHelper.json(ex, 200, module.getDynamics().snapshot());
+    }
+
+    // ── Portal endpoints (player JWT required) ─────────────────────────────────
+
+    /** GET /api/custom-jobs/me/slots → {used, max, rank} */
+    public void meSlots(HttpExchange ex) throws IOException {
+        String uuid = portalUuid(ex);
+        if (uuid == null) return;
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        HttpHelper.json(ex, 200, module.getService().slotsSnapshot(uuid));
+    }
+
+    /** POST /api/custom-jobs/me/join — body {jobId} */
+    public void meJoin(HttpExchange ex) throws IOException {
+        String uuid = portalUuid(ex);
+        if (uuid == null) return;
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String jobId = (String) body.get("jobId");
+            if (jobId == null) { HttpHelper.error(ex, 400, "Missing 'jobId'"); return; }
+
+            CustomJobService svc = module.getService();
+            CustomJobService.JoinResult r;
+
+            Player online = Bukkit.getPlayer(UUID.fromString(uuid));
+            if (online != null) {
+                // Use the online path so the player gets the chat message + side effects.
+                boolean ok = svc.join(online, jobId);
+                r = ok ? CustomJobService.JoinResult.OK : svc.tryJoin(uuid, jobId);
+                // (If online join failed, tryJoin re-runs and gives the precise reason.)
+            } else {
+                r = svc.tryJoin(uuid, jobId);
+            }
+
+            int code = switch (r) {
+                case OK          -> 200;
+                case ALREADY_IN  -> 409;
+                case NOT_FOUND   -> 404;
+                case DISABLED    -> 423;
+                case NO_SLOT     -> 403;
+            };
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("ok",     r == CustomJobService.JoinResult.OK);
+            resp.put("reason", r.name());
+            resp.putAll(svc.slotsSnapshot(uuid));
+            HttpHelper.json(ex, code, resp);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /** POST /api/custom-jobs/me/leave — body {jobId} */
+    public void meLeave(HttpExchange ex) throws IOException {
+        String uuid = portalUuid(ex);
+        if (uuid == null) return;
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String jobId = (String) body.get("jobId");
+            if (jobId == null) { HttpHelper.error(ex, 400, "Missing 'jobId'"); return; }
+
+            CustomJobService svc = module.getService();
+            boolean ok;
+            Player online = Bukkit.getPlayer(UUID.fromString(uuid));
+            if (online != null) ok = svc.leave(online, jobId);
+            else                ok = svc.tryLeave(uuid, jobId);
+
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("ok", ok);
+            resp.putAll(svc.slotsSnapshot(uuid));
+            HttpHelper.json(ex, ok ? 200 : 404, resp);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    // ── Admin: per-job enable + slots-per-rank ─────────────────────────────────
+
+    /**
+     * PATCH /api/custom-jobs/admin/job/:id/enabled
+     * Body : { "enabled": true|false }
+     */
+    public void adminToggleJob(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+
+        String path = ex.getRequestURI().getPath();
+        String tail = path.substring("/api/custom-jobs/admin/job/".length());
+        String jobId = tail.endsWith("/enabled") ? tail.substring(0, tail.length() - "/enabled".length()) : tail;
+
+        if (module.getConfig().getJob(jobId) == null) {
+            HttpHelper.json(ex, 404, Map.of("error", "job_not_found")); return;
+        }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            Boolean enabled = (Boolean) body.get("enabled");
+            if (enabled == null) { HttpHelper.error(ex, 400, "Missing 'enabled'"); return; }
+            module.getConfig().setJobEnabled(jobId, enabled);
+            HttpHelper.json(ex, 200, Map.of("id", jobId, "enabled", enabled));
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /** GET /api/custom-jobs/admin/slots — { rank: count, ... } */
+    public void adminGetSlots(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        HttpHelper.json(ex, 200, module.getConfig().slotsPerRank());
+    }
+
+    /**
+     * PUT /api/custom-jobs/admin/slots
+     * Body : { "rank": "vip", "slots": 3 }   (slots = -1 supprime le rang)
+     */
+    public void adminPutSlots(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String rank = (String) body.get("rank");
+            Number slots = (Number) body.get("slots");
+            if (rank == null || slots == null) { HttpHelper.error(ex, 400, "Missing 'rank' or 'slots'"); return; }
+            int n = slots.intValue();
+            if (n < 0) module.getConfig().removeRank(rank);
+            else       module.getConfig().setSlotsForRank(rank, n);
+            HttpHelper.json(ex, 200, module.getConfig().slotsPerRank());
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    private String portalUuid(HttpExchange ex) throws IOException {
+        String header = ex.getRequestHeaders().getFirst("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            HttpHelper.error(ex, 401, "Non authentifié"); return null;
+        }
+        try {
+            return playerJwt.validate(header.substring(7)).getSubject();
+        } catch (Exception e) {
+            HttpHelper.error(ex, 401, "Token invalide ou expiré"); return null;
+        }
     }
 
     private static String extractUuid(String path, String prefix, String suffix) {

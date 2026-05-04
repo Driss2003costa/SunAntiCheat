@@ -106,6 +106,17 @@ export const api = {
     request<any>('/api/custom-jobs/admin/dynamics/reload', { method: 'POST' }),
   customJobsAdminClearHeatmap: () =>
     request<{ cleared: boolean }>('/api/custom-jobs/admin/heatmap', { method: 'DELETE' }),
+  customJobsAdminToggleJob: (jobId: string, enabled: boolean) =>
+    request<{ id: string; enabled: boolean }>(
+      `/api/custom-jobs/admin/job/${encodeURIComponent(jobId)}/enabled`,
+      { method: 'PATCH', body: JSON.stringify({ enabled }) },
+    ),
+  customJobsAdminGetSlots: () =>
+    request<Record<string, number>>('/api/custom-jobs/admin/slots'),
+  customJobsAdminPutSlots: (rank: string, slots: number) =>
+    request<Record<string, number>>('/api/custom-jobs/admin/slots', {
+      method: 'PUT', body: JSON.stringify({ rank, slots }),
+    }),
 
   // Sanctions (kick / ban / mute / warn modernes)
   sanctionsList: (params: Record<string, any> = {}) => {

@@ -6,6 +6,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public final class CustomJobConfig {
@@ -13,6 +14,11 @@ public final class CustomJobConfig {
     private final Plugin plugin;
     private final Logger logger;
     private final Map<String, CustomJob> jobs = new LinkedHashMap<>();
+
+    /** Per-job runtime enable state — persisted in jobs-state.yml. Missing = enabled. */
+    private final Map<String, Boolean> enabledOverrides = new ConcurrentHashMap<>();
+    /** Slots per LuckPerms primary group. Always contains a "default" entry. */
+    private final Map<String, Integer> slotsPerRank = new ConcurrentHashMap<>();
 
     public CustomJobConfig(Plugin plugin, Logger logger) {
         this.plugin = plugin;
@@ -83,6 +89,84 @@ public final class CustomJobConfig {
         }
 
         logger.info("[Jobs] " + jobs.size() + " métier(s) chargé(s).");
+        loadState();
+    }
+
+    /** jobs-state.yml — runtime mutable state (enabled + slot caps). */
+    private File stateFile() {
+        return new File(plugin.getDataFolder(), "jobs-state.yml");
+    }
+
+    private void loadState() {
+        enabledOverrides.clear();
+        slotsPerRank.clear();
+        slotsPerRank.put("default", 2);
+
+        File f = stateFile();
+        if (!f.exists()) { saveState(); return; }
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(f);
+
+        ConfigurationSection en = y.getConfigurationSection("enabled");
+        if (en != null) {
+            for (String k : en.getKeys(false)) enabledOverrides.put(k, en.getBoolean(k));
+        }
+        ConfigurationSection sl = y.getConfigurationSection("slots-per-rank");
+        if (sl != null) {
+            slotsPerRank.clear();
+            for (String k : sl.getKeys(false)) {
+                slotsPerRank.put(k.toLowerCase(Locale.ROOT), Math.max(0, sl.getInt(k, 0)));
+            }
+            slotsPerRank.putIfAbsent("default", 2);
+        }
+    }
+
+    public synchronized void saveState() {
+        YamlConfiguration y = new YamlConfiguration();
+        for (Map.Entry<String, Boolean> e : enabledOverrides.entrySet()) {
+            y.set("enabled." + e.getKey(), e.getValue());
+        }
+        for (Map.Entry<String, Integer> e : slotsPerRank.entrySet()) {
+            y.set("slots-per-rank." + e.getKey(), e.getValue());
+        }
+        try {
+            plugin.getDataFolder().mkdirs();
+            y.save(stateFile());
+        } catch (IOException e) {
+            logger.warning("[Jobs] Impossible d'écrire jobs-state.yml : " + e.getMessage());
+        }
+    }
+
+    public boolean isJobEnabled(String jobId) {
+        Boolean v = enabledOverrides.get(jobId);
+        return v == null || v;
+    }
+
+    public void setJobEnabled(String jobId, boolean enabled) {
+        enabledOverrides.put(jobId, enabled);
+        saveState();
+    }
+
+    public int slotsForRank(String rank) {
+        if (rank == null) return slotsPerRank.getOrDefault("default", 2);
+        Integer v = slotsPerRank.get(rank.toLowerCase(Locale.ROOT));
+        if (v != null) return v;
+        return slotsPerRank.getOrDefault("default", 2);
+    }
+
+    public Map<String, Integer> slotsPerRank() {
+        return Collections.unmodifiableMap(slotsPerRank);
+    }
+
+    public void setSlotsForRank(String rank, int slots) {
+        if (rank == null || rank.isBlank()) return;
+        slotsPerRank.put(rank.toLowerCase(Locale.ROOT), Math.max(0, slots));
+        saveState();
+    }
+
+    public void removeRank(String rank) {
+        if (rank == null || "default".equalsIgnoreCase(rank)) return;
+        slotsPerRank.remove(rank.toLowerCase(Locale.ROOT));
+        saveState();
     }
 
     public Map<String, CustomJob> getJobs() { return Collections.unmodifiableMap(jobs); }

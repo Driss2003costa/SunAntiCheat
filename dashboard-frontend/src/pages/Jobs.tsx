@@ -798,62 +798,188 @@ function Stat({ label, value, color }: { label: string; value: string; color: st
 // ── Custom Jobs Tab ───────────────────────────────────────────────────────────
 function CustomJobsTab() {
   const [jobs, setJobs] = useState<any[]>([])
+  const [slots, setSlots] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [openJob, setOpenJob] = useState<string | null>(null)
+  const [busyJob, setBusyJob] = useState<string | null>(null)
 
-  useEffect(() => {
-    api.customJobsList().then(setJobs).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const refresh = async () => {
+    try {
+      const [j, s] = await Promise.all([
+        api.customJobsList(),
+        api.customJobsAdminGetSlots().catch(() => ({})),
+      ])
+      setJobs(j)
+      setSlots(s)
+    } finally { setLoading(false) }
+  }
+
+  useEffect(() => { refresh() }, [])
+
+  const toggleJob = async (jobId: string, next: boolean) => {
+    setBusyJob(jobId)
+    try {
+      await api.customJobsAdminToggleJob(jobId, next)
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, enabled: next } : j))
+    } catch (e: any) {
+      alert('Erreur : ' + (e?.message ?? 'inconnue'))
+    } finally {
+      setBusyJob(null)
+    }
+  }
 
   if (loading) return <Loading/>
 
-  if (jobs.length === 0) return (
-    <div className="rounded-xl p-12 text-center"
-         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-      <div className="text-4xl mb-2">⚒️</div>
-      Aucun métier custom configuré — vérifier <code>jobs.yml</code>
+  return (
+    <div className="space-y-4">
+      <SlotsEditor slots={slots} onChange={setSlots}/>
+
+      {jobs.length === 0 ? (
+        <div className="rounded-xl p-12 text-center"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+          <div className="text-4xl mb-2">⚒️</div>
+          Aucun métier custom configuré — vérifier <code>jobs.yml</code>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          {jobs.map((j: any) => {
+            const enabled = j.enabled !== false
+            return (
+              <div key={j.id}
+                   className="rounded-xl p-4 transition flex flex-col gap-2"
+                   style={{
+                     background: 'var(--surface)',
+                     border: `1px solid ${enabled ? 'var(--border)' : 'rgba(239,68,68,0.4)'}`,
+                     opacity: enabled ? 1 : 0.7,
+                   }}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-base" style={{ color: 'var(--text)' }}>{j.name}</h3>
+                  <span className="text-xs px-2 py-0.5 rounded"
+                        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                    Niv max {j.max_level}
+                  </span>
+                </div>
+                {j.description && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{j.description}</p>}
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <Stat label="Joueurs" value={String(j.player_count ?? 0)} color="#3b82f6"/>
+                  <Stat label="Niv. moy." value={(j.avg_level ?? 0).toFixed(1)} color="#f59e0b"/>
+                  <Stat label="Total versé" value={fmtMoney(j.total_paid ?? 0)} color="#10b981"/>
+                </div>
+                {j.actions && Object.keys(j.actions).length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {Object.keys(j.actions).map((type: string) => (
+                      <span key={type} className="text-[10px] px-1.5 py-0.5 rounded font-mono"
+                            style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
+                        {type}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <button onClick={() => toggleJob(j.id, !enabled)}
+                          disabled={busyJob === j.id}
+                          className="flex-1 px-3 py-1.5 rounded text-xs font-medium transition"
+                          style={{
+                            background: enabled ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)',
+                            border: `1px solid ${enabled ? 'rgba(16,185,129,0.4)' : 'rgba(100,116,139,0.4)'}`,
+                            color: enabled ? '#10b981' : 'var(--text-muted)',
+                          }}>
+                    {busyJob === j.id ? '⏳' : enabled ? '✓ Activé' : '✖ Désactivé'}
+                  </button>
+                  <button onClick={() => setOpenJob(j.id)}
+                          className="px-3 py-1.5 rounded text-xs"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                    Classement →
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {openJob && <CustomJobLeaderboardModal jobId={openJob} jobs={jobs} onClose={() => setOpenJob(null)} />}
     </div>
   )
+}
+
+function SlotsEditor({ slots, onChange }: { slots: Record<string, number>; onChange: (s: Record<string, number>) => void }) {
+  const [newRank, setNewRank] = useState('')
+  const [newSlots, setNewSlots] = useState(2)
+  const [busy, setBusy] = useState(false)
+  const entries = Object.entries(slots).sort(([a], [b]) => a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b))
+
+  const updateSlot = async (rank: string, n: number) => {
+    setBusy(true)
+    try { onChange(await api.customJobsAdminPutSlots(rank, n)) }
+    finally { setBusy(false) }
+  }
+  const addRank = async () => {
+    if (!newRank.trim()) return
+    await updateSlot(newRank.trim().toLowerCase(), newSlots)
+    setNewRank('')
+    setNewSlots(2)
+  }
+  const removeRank = async (rank: string) => {
+    if (rank === 'default') return
+    if (!confirm(`Supprimer le rang "${rank}" ? Les joueurs reviendront au rang 'default'.`)) return
+    await updateSlot(rank, -1)
+  }
 
   return (
-    <>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        {jobs.map((j: any) => (
-          <button key={j.id}
-               onClick={() => setOpenJob(j.id)}
-               className="text-left rounded-xl p-4 transition hover:scale-[1.01]"
-               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-bold text-base" style={{ color: 'var(--text)' }}>{j.name}</h3>
-              <span className="text-xs px-2 py-0.5 rounded"
-                    style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
-                Niv max {j.max_level}
-              </span>
-            </div>
-            {j.description && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{j.description}</p>}
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <Stat label="Joueurs" value={String(j.player_count ?? 0)} color="#3b82f6"/>
-              <Stat label="Niv. moy." value={(j.avg_level ?? 0).toFixed(1)} color="#f59e0b"/>
-              <Stat label="Total versé" value={fmtMoney(j.total_paid ?? 0)} color="#10b981"/>
-            </div>
-            {j.actions && Object.keys(j.actions).length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {Object.keys(j.actions).map((type: string) => (
-                  <span key={type} className="text-[10px] px-1.5 py-0.5 rounded font-mono"
-                        style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
-                    {type}
-                  </span>
-                ))}
-              </div>
+    <div className="rounded-xl p-4 space-y-3"
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold" style={{ color: 'var(--text)' }}>🎟️ Slots métiers par rang</h3>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Nombre de métiers qu'un joueur peut rejoindre selon son groupe LuckPerms
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+        {entries.map(([rank, n]) => (
+          <div key={rank} className="flex items-center gap-2 px-3 py-2 rounded"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+            <span className="flex-1 text-sm font-medium" style={{ color: 'var(--text)' }}>
+              {rank === 'default' ? '⭐ default' : rank}
+            </span>
+            <input type="number" min={0} max={50}
+                   defaultValue={n}
+                   disabled={busy}
+                   onBlur={(e) => {
+                     const v = parseInt(e.target.value, 10)
+                     if (!isNaN(v) && v !== n) updateSlot(rank, Math.max(0, v))
+                   }}
+                   className="w-14 px-2 py-1 rounded text-sm text-center"
+                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+            {rank !== 'default' && (
+              <button onClick={() => removeRank(rank)}
+                      title="Supprimer ce rang"
+                      className="w-7 h-7 rounded text-xs"
+                      style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>×</button>
             )}
-            <p className="mt-2 text-xs text-center" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
-              Cliquer pour le classement →
-            </p>
-          </button>
+          </div>
         ))}
       </div>
-      {openJob && <CustomJobLeaderboardModal jobId={openJob} jobs={jobs} onClose={() => setOpenJob(null)} />}
-    </>
+
+      <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+        <input type="text" placeholder="Nom du rang LuckPerms (ex: vip)"
+               value={newRank}
+               onChange={(e) => setNewRank(e.target.value)}
+               className="flex-1 px-3 py-1.5 rounded text-sm"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+        <input type="number" min={0} max={50} value={newSlots}
+               onChange={(e) => setNewSlots(Math.max(0, parseInt(e.target.value, 10) || 0))}
+               className="w-16 px-2 py-1.5 rounded text-sm text-center"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+        <button onClick={addRank}
+                disabled={!newRank.trim() || busy}
+                className="px-3 py-1.5 rounded text-sm font-medium"
+                style={{ background: 'var(--primary)', color: 'white', opacity: !newRank.trim() ? 0.5 : 1 }}>
+          + Ajouter
+        </button>
+      </div>
+    </div>
   )
 }
 

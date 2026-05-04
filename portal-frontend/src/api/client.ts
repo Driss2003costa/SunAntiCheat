@@ -53,8 +53,10 @@ export type DailyClaimResult = {
 
 export type CustomJob = {
   id: string; name: string; description?: string | null; icon?: string | null
-  max_level: number; actions?: string[]
+  max_level: number; actions?: string[]; enabled?: boolean
 }
+export type SlotsSnapshot = { used: number; max: number; rank: string }
+export type JoinResponse  = { ok: boolean; reason: string; used: number; max: number; rank: string }
 export type PlayerJobProgress = {
   job_id: string; xp: number; level: number; total_earned: number
   job_name: string; max_level: number; xp_to_next: number
@@ -129,6 +131,31 @@ export const api = {
 
   jobHeatmap: (uuid: string, days = 7) =>
     get<JobHeatmapResponse>(`/api/custom-jobs/player/${uuid}/heatmap?days=${days}`),
+
+  jobSlots: (token: string) =>
+    get<SlotsSnapshot>('/api/custom-jobs/me/slots', token),
+
+  jobJoin: async (token: string, jobId: string): Promise<JoinResponse> => {
+    const res = await fetch('/api/custom-jobs/me/join', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw { status: res.status, ...data }
+    return data as JoinResponse
+  },
+
+  jobLeave: async (token: string, jobId: string): Promise<JoinResponse> => {
+    const res = await fetch('/api/custom-jobs/me/leave', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw { status: res.status, ...data }
+    return data as JoinResponse
+  },
 
   vipPlans: () =>
     get<VipPlan[]>(`${BASE}/vip/plans`),

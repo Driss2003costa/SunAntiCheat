@@ -57,27 +57,71 @@ public final class CustomJobService {
         this.comboTracker     = combos;
     }
 
-    /** Player joins a job. Returns false if already in it. */
+    public enum JoinResult { OK, ALREADY_IN, NOT_FOUND, DISABLED, NO_SLOT }
+
+    /** Online-player join (with messages). */
     public boolean join(Player player, String jobId) {
+        JoinResult r = tryJoin(player.getUniqueId().toString(), jobId);
+        switch (r) {
+            case OK -> sendMsg(player, "§a✔ Tu as rejoint le métier §e" + config.getJob(jobId).name() + "§a !");
+            case ALREADY_IN -> sendMsg(player, "§eTu es déjà dans ce métier.");
+            case NOT_FOUND  -> sendMsg(player, "§cMétier introuvable.");
+            case DISABLED   -> sendMsg(player, "§cCe métier est actuellement désactivé.");
+            case NO_SLOT    -> sendMsg(player, "§cTu as atteint ta limite de métiers (" + maxSlotsFor(player.getUniqueId().toString()) + ").");
+        }
+        return r == JoinResult.OK;
+    }
+
+    /** UUID-based join with slot + enabled enforcement. Used by portal API + commands. */
+    public JoinResult tryJoin(String uuid, String jobId) {
         CustomJob job = config.getJob(jobId);
-        if (job == null) return false;
-        String uuid = player.getUniqueId().toString();
-        if (store.hasJob(uuid, jobId)) return false;
+        if (job == null) return JoinResult.NOT_FOUND;
+        if (!config.isJobEnabled(jobId)) return JoinResult.DISABLED;
+        if (store.hasJob(uuid, jobId)) return JoinResult.ALREADY_IN;
+        if (countJobs(uuid) >= maxSlotsFor(uuid)) return JoinResult.NO_SLOT;
         store.joinJob(uuid, jobId);
-        sendMsg(player, "§a✔ Tu as rejoint le métier §e" + job.name() + "§a !");
+        return JoinResult.OK;
+    }
+
+    /** Online-player leave (with messages). */
+    public boolean leave(Player player, String jobId) {
+        boolean ok = tryLeave(player.getUniqueId().toString(), jobId);
+        if (ok) sendMsg(player, "§c✖ Tu as quitté le métier §e" + config.getJob(jobId).name() + "§c.");
+        else    sendMsg(player, "§cTu n'es pas dans ce métier.");
+        return ok;
+    }
+
+    /** UUID-based leave. */
+    public boolean tryLeave(String uuid, String jobId) {
+        if (config.getJob(jobId) == null) return false;
+        if (!store.hasJob(uuid, jobId)) return false;
+        store.leaveJob(uuid, jobId);
         return true;
     }
 
-    /** Player leaves a job. Returns false if not in it. */
-    public boolean leave(Player player, String jobId) {
-        CustomJob job = config.getJob(jobId);
-        if (job == null) return false;
-        String uuid = player.getUniqueId().toString();
-        if (!store.hasJob(uuid, jobId)) return false;
-        store.leaveJob(uuid, jobId);
-        sendMsg(player, "§c✖ Tu as quitté le métier §e" + job.name() + "§c.");
-        return true;
+    /** How many custom jobs the player currently holds. */
+    public int countJobs(String uuid) {
+        return store.getPlayerJobs(uuid).size();
     }
+
+    /** Max joinable jobs based on the player's LuckPerms primary group. */
+    public int maxSlotsFor(String uuid) {
+        String rank = sunanticheat.dashboard.luckperms.LuckPermsBridge.getPrimaryGroup(uuid);
+        return config.slotsForRank(rank);
+    }
+
+    /** {used, max, primaryGroup} snapshot used by the portal slots endpoint. */
+    public Map<String, Object> slotsSnapshot(String uuid) {
+        String rank = sunanticheat.dashboard.luckperms.LuckPermsBridge.getPrimaryGroup(uuid);
+        if (rank == null) rank = "default";
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("used", countJobs(uuid));
+        m.put("max",  config.slotsForRank(rank));
+        m.put("rank", rank);
+        return m;
+    }
+
+    public CustomJobConfig config() { return config; }
 
     /**
      * Called by the event listener when a player performs a job action.

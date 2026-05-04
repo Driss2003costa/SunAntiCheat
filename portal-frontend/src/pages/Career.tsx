@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   api, getToken, clearToken,
   type PlayerProfile, type CustomJob, type PlayerJobProgress,
-  type JobDynamicsSnapshot, type JobHeatmapResponse,
+  type JobDynamicsSnapshot, type JobHeatmapResponse, type SlotsSnapshot,
 } from '../api/client'
 import Navbar from '../components/Navbar'
 
@@ -25,34 +25,82 @@ export default function Career() {
   const [progress,    setProgress]    = useState<PlayerJobProgress[]>([])
   const [dynamics,    setDynamics]    = useState<JobDynamicsSnapshot | null>(null)
   const [heatmap,     setHeatmap]     = useState<JobHeatmapResponse | null>(null)
+  const [slots,       setSlots]       = useState<SlotsSnapshot | null>(null)
   const [loading,     setLoading]     = useState(true)
   const [unavailable, setUnavailable] = useState(false)
+  const [busyJob,     setBusyJob]     = useState<string | null>(null)
+  const [toast,       setToast]       = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
+
+  const loadAll = async (uuid: string) => {
+    const token = getToken()
+    const [j, pr, dyn, hm, sl] = await Promise.all([
+      api.customJobsList().catch(e => { if (e.status === 503) setUnavailable(true); return [] }),
+      api.customJobsPlayer(uuid).catch(() => []),
+      api.jobDynamics().catch(() => null),
+      api.jobHeatmap(uuid, 7).catch(() => null),
+      token ? api.jobSlots(token).catch(() => null) : Promise.resolve(null),
+    ])
+    setJobs(j as CustomJob[])
+    setProgress(pr as PlayerJobProgress[])
+    setDynamics(dyn as JobDynamicsSnapshot | null)
+    setHeatmap(hm as JobHeatmapResponse | null)
+    setSlots(sl as SlotsSnapshot | null)
+  }
 
   useEffect(() => {
     const token = getToken()
     if (!token) { navigate('/login', { replace: true }); return }
 
     api.me(token)
-      .then(p => {
-        setProfile(p)
-        return Promise.all([
-          api.customJobsList().catch(e => { if (e.status === 503) setUnavailable(true); return [] }),
-          api.customJobsPlayer(p.uuid).catch(() => []),
-          api.jobDynamics().catch(() => null),
-          api.jobHeatmap(p.uuid, 7).catch(() => null),
-        ])
-      })
-      .then(([j, pr, dyn, hm]) => {
-        setJobs(j as CustomJob[])
-        setProgress(pr as PlayerJobProgress[])
-        setDynamics(dyn as JobDynamicsSnapshot | null)
-        setHeatmap(hm as JobHeatmapResponse | null)
-      })
+      .then(p => { setProfile(p); return loadAll(p.uuid) })
       .catch(e => {
         if (e.status === 401) { clearToken(); navigate('/login', { replace: true }) }
       })
       .finally(() => setLoading(false))
   }, [navigate])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  const handleJoin = async (jobId: string) => {
+    const token = getToken(); if (!token || !profile) return
+    setBusyJob(jobId)
+    try {
+      const r = await api.jobJoin(token, jobId)
+      setToast({ kind: 'ok', msg: 'Métier rejoint !' })
+      setSlots({ used: r.used, max: r.max, rank: r.rank })
+      await loadAll(profile.uuid)
+    } catch (e: any) {
+      const reason = e?.reason ?? ''
+      const msg = reason === 'NO_SLOT'    ? 'Tu as atteint ta limite de métiers.'
+                : reason === 'DISABLED'   ? 'Ce métier est désactivé.'
+                : reason === 'ALREADY_IN' ? 'Tu es déjà dans ce métier.'
+                : reason === 'NOT_FOUND'  ? 'Métier introuvable.'
+                : 'Action impossible.'
+      setToast({ kind: 'err', msg })
+    } finally {
+      setBusyJob(null)
+    }
+  }
+
+  const handleLeave = async (jobId: string) => {
+    const token = getToken(); if (!token || !profile) return
+    if (!window.confirm('Quitter ce métier ? Tu garderas ton XP, mais tu devras le re-rejoindre pour gagner à nouveau.')) return
+    setBusyJob(jobId)
+    try {
+      const r = await api.jobLeave(token, jobId)
+      setToast({ kind: 'ok', msg: 'Métier quitté.' })
+      setSlots({ used: r.used, max: r.max, rank: r.rank })
+      await loadAll(profile.uuid)
+    } catch {
+      setToast({ kind: 'err', msg: 'Action impossible.' })
+    } finally {
+      setBusyJob(null)
+    }
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center pb-20">
@@ -62,10 +110,11 @@ export default function Career() {
   )
   if (!profile) return null
 
-  const activeProgress = progress.filter(p => p.level > 1 || p.xp > 0)
+  const activeProgress = progress
   const totalLevel     = progress.reduce((s, p) => s + p.level, 0)
   const totalEarned    = progress.reduce((s, p) => s + (p.total_earned ?? 0), 0)
-  const inactiveJobs   = jobs.filter(j => !progress.some(p => p.job_id === j.id && (p.level > 1 || p.xp > 0)))
+  const joinedIds      = new Set(progress.map(p => p.job_id))
+  const inactiveJobs   = jobs.filter(j => !joinedIds.has(j.id))
 
   const seasonKey  = dynamics?.season?.key ?? ''
   const seasonGrad = SEASON_GRADIENT[seasonKey] ?? 'from-gray-700/20 to-gray-900/10 border-gray-700/30'
@@ -105,6 +154,31 @@ export default function Career() {
       </div>
 
       <div className="px-4 pt-4 space-y-4 max-w-screen-sm mx-auto">
+
+        {/* Slots banner */}
+        {slots && (
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🎟️</span>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-widest">Slots métiers</p>
+                <p className="text-sm font-bold text-white">
+                  {slots.used} <span className="text-gray-500">/</span> {slots.max}
+                  <span className="text-[10px] text-gray-500 ml-2 font-normal">rang : {slots.rank}</span>
+                </p>
+              </div>
+            </div>
+            {slots.used >= slots.max ? (
+              <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/15 border border-orange-500/30 rounded-full px-2 py-1">
+                Limite atteinte
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold text-emerald-300">
+                {slots.max - slots.used} libre{slots.max - slots.used > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* ── World Dynamics card ───────────────────────────────────────── */}
         {dynamics?.enabled && (
@@ -232,7 +306,7 @@ export default function Career() {
 
                     {/* XP bar */}
                     {!isMax ? (
-                      <div className="px-4 pb-4">
+                      <div className="px-4 pb-3">
                         <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
                           <span>Vers niveau {prog.level + 1}</span>
                           <span className="font-mono">{xpPct}%</span>
@@ -249,13 +323,29 @@ export default function Career() {
                         </div>
                       </div>
                     ) : (
-                      <div className="px-4 pb-4">
+                      <div className="px-4 pb-3">
                         <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
                           <span className="text-base">⭐</span>
                           <p className="text-xs text-yellow-400 font-semibold">Niveau maximum atteint !</p>
                         </div>
                       </div>
                     )}
+
+                    <div className="px-4 pb-4">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); handleLeave(prog.job_id) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleLeave(prog.job_id) } }}
+                        aria-disabled={busyJob === prog.job_id}
+                        className={`block w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
+                          busyJob === prog.job_id
+                            ? 'border-gray-800 text-gray-600 bg-gray-900 cursor-wait'
+                            : 'border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20'
+                        }`}>
+                        {busyJob === prog.job_id ? '…' : '✖ Quitter ce métier'}
+                      </span>
+                    </div>
                   </button>
                 )
               })}
@@ -282,29 +372,53 @@ export default function Career() {
             </p>
             <div className="grid grid-cols-2 gap-3">
               {inactiveJobs.map(job => {
-                const isHot = bulletinJob?.id === job.id
+                const isHot     = bulletinJob?.id === job.id
+                const disabled  = job.enabled === false
+                const noSlot    = !!slots && slots.used >= slots.max
+                const canJoin   = !disabled && !noSlot && busyJob !== job.id
+                const joinLabel = disabled ? 'Désactivé'
+                                : noSlot   ? 'Slots pleins'
+                                : busyJob === job.id ? '…' : '➕ Rejoindre'
                 return (
-                  <button key={job.id}
-                    type="button"
-                    onClick={() => navigate(`/career/job/${job.id}`)}
-                    className={`text-left bg-gray-900 rounded-2xl border p-4 flex flex-col transition-colors hover:border-emerald-500/40 ${
-                      isHot ? 'border-yellow-500/40' : 'border-gray-800'
+                  <div key={job.id}
+                    className={`bg-gray-900 rounded-2xl border p-4 flex flex-col transition-colors ${
+                      disabled ? 'opacity-60 border-gray-800' :
+                      isHot    ? 'border-yellow-500/40' : 'border-gray-800'
                     }`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl">{job.icon ?? '💼'}</span>
-                      {isHot && <span className="text-[10px] font-bold text-yellow-400">★</span>}
-                    </div>
-                    <p className="text-sm font-bold text-white leading-tight mt-2">{job.name}</p>
-                    {job.description && (
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2 flex-1">{job.description}</p>
-                    )}
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-[10px] text-gray-600">Niv. max : {job.max_level}</span>
-                      {job.actions && job.actions.length > 0 && (
-                        <span className="text-[10px] text-gray-600">{job.actions.length} action{job.actions.length > 1 ? 's' : ''}</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/career/job/${job.id}`)}
+                      className="text-left flex-1 flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl">{job.icon ?? '💼'}</span>
+                        {disabled
+                          ? <span className="text-[10px] font-bold text-gray-500">⏸ OFF</span>
+                          : isHot && <span className="text-[10px] font-bold text-yellow-400">★</span>}
+                      </div>
+                      <p className="text-sm font-bold text-white leading-tight mt-2">{job.name}</p>
+                      {job.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 flex-1">{job.description}</p>
                       )}
-                    </div>
-                  </button>
+                      <div className="flex items-center justify-between mt-3 mb-3">
+                        <span className="text-[10px] text-gray-600">Niv. max : {job.max_level}</span>
+                        {job.actions && job.actions.length > 0 && (
+                          <span className="text-[10px] text-gray-600">{job.actions.length} action{job.actions.length > 1 ? 's' : ''}</span>
+                        )}
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!canJoin}
+                      onClick={() => handleJoin(job.id)}
+                      className={`w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
+                        canJoin
+                          ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20'
+                          : 'border-gray-800 text-gray-600 bg-gray-900/60 cursor-not-allowed'
+                      }`}>
+                      {joinLabel}
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -320,6 +434,18 @@ export default function Career() {
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
+          <div className={`px-4 py-2 rounded-full text-xs font-semibold shadow-lg border ${
+            toast.kind === 'ok'
+              ? 'bg-emerald-500/95 text-black border-emerald-300'
+              : 'bg-red-500/95 text-white border-red-300'
+          }`}>
+            {toast.kind === 'ok' ? '✔ ' : '⚠ '}{toast.msg}
+          </div>
+        </div>
+      )}
 
       <Navbar />
     </div>
