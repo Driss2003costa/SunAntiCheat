@@ -11,10 +11,28 @@ async function post<T>(url: string, body: object): Promise<T> {
   return data as T
 }
 
+function on401() {
+  clearToken()
+  window.location.replace('/portal/login')
+}
+
 async function get<T>(url: string, token?: string): Promise<T> {
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
+  if (res.status === 401 && token) { on401(); throw { status: 401 } }
+  const data = await res.json()
+  if (!res.ok) throw { status: res.status, ...data }
+  return data as T
+}
+
+async function authPost<T>(url: string, token: string, body: object): Promise<T> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (res.status === 401) { on401(); throw { status: 401 } }
   const data = await res.json()
   if (!res.ok) throw { status: res.status, ...data }
   return data as T
@@ -138,38 +156,14 @@ export const api = {
   jobSlots: (token: string) =>
     get<SlotsSnapshot>('/api/custom-jobs/me/slots', token),
 
-  jobJoin: async (token: string, jobId: string): Promise<JoinResponse> => {
-    const res = await fetch('/api/custom-jobs/me/join', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw { status: res.status, ...data }
-    return data as JoinResponse
-  },
+  jobJoin:    (token: string, jobId: string) =>
+    authPost<JoinResponse>('/api/custom-jobs/me/join', token, { jobId }),
 
-  jobLeave: async (token: string, jobId: string): Promise<JoinResponse> => {
-    const res = await fetch('/api/custom-jobs/me/leave', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw { status: res.status, ...data }
-    return data as JoinResponse
-  },
+  jobLeave:   (token: string, jobId: string) =>
+    authPost<JoinResponse>('/api/custom-jobs/me/leave', token, { jobId }),
 
-  jobPrestige: async (token: string, jobId: string): Promise<PrestigeResponse> => {
-    const res = await fetch('/api/custom-jobs/me/prestige', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw { status: res.status, ...data }
-    return data as PrestigeResponse
-  },
+  jobPrestige: (token: string, jobId: string) =>
+    authPost<PrestigeResponse>('/api/custom-jobs/me/prestige', token, { jobId }),
 
   myTickets: (token: string) =>
     get<ActiveTicket[]>('/api/custom-jobs/me/tickets', token),
@@ -177,16 +171,8 @@ export const api = {
   vipPlans: () =>
     get<VipPlan[]>(`${BASE}/vip/plans`),
 
-  dailyClaim: async (token: string): Promise<DailyClaimResult> => {
-    const res = await fetch(`${BASE}/player/me/daily/claim`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: '{}',
-    })
-    const data = await res.json()
-    if (!res.ok) throw { status: res.status, ...data }
-    return data as DailyClaimResult
-  },
+  dailyClaim: (token: string) =>
+    authPost<DailyClaimResult>(`${BASE}/player/me/daily/claim`, token, {}),
 }
 
 export function saveToken(token: string) { localStorage.setItem('portal_token', token) }

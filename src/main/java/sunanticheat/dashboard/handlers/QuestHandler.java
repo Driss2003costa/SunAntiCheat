@@ -5,6 +5,7 @@ import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.auth.Permission;
+import sunanticheat.dashboard.portal.PlayerJwtUtil;
 import sunanticheat.dashboard.quests.Quest;
 import sunanticheat.dashboard.quests.QuestStore;
 
@@ -14,8 +15,34 @@ import java.util.*;
 public final class QuestHandler {
 
     private final QuestStore store;
+    private final PlayerJwtUtil playerJwt;
 
-    public QuestHandler(QuestStore store) { this.store = store; }
+    public QuestHandler(QuestStore store, PlayerJwtUtil playerJwt) {
+        this.store = store;
+        this.playerJwt = playerJwt;
+    }
+
+    public void publicList(HttpExchange ex) throws IOException {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Quest q : store.all()) {
+            if (!q.isEnabled()) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id",          q.getId());
+            m.put("title",       q.getTitle());
+            m.put("description", q.getDescription());
+            m.put("icon",        q.getIcon());
+            m.put("color",       q.getColor());
+            m.put("type",        q.getType().name());
+            m.put("target",      q.getTarget());
+            m.put("goal",        q.getGoal());
+            m.put("rewardLabel", q.getRewardLabel());
+            m.put("repeatable",  q.isRepeatable());
+            m.put("completions", store.completedFor(q.getId()).size());
+            m.put("inProgress",  store.progressFor(q.getId()).size());
+            out.add(m);
+        }
+        HttpHelper.json(ex, 200, Map.of("quests", out));
+    }
 
     public void list(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         if (HttpHelper.authenticate(ex, jwt, users) == null) return;
@@ -41,6 +68,7 @@ public final class QuestHandler {
         try { type = Quest.Type.valueOf(((String) body.getOrDefault("type", "BREAK_BLOCK")).toUpperCase()); }
         catch (Exception e) { type = Quest.Type.BREAK_BLOCK; }
 
+        Long endsAt = body.get("endsAt") instanceof Number ? ((Number) body.get("endsAt")).longValue() : null;
         Quest q = store.add(
                 (String) body.get("title"),
                 (String) body.getOrDefault("description", ""),
@@ -52,7 +80,8 @@ public final class QuestHandler {
                 (String) body.get("rewardCommand"),
                 (String) body.getOrDefault("rewardLabel", ""),
                 Boolean.TRUE.equals(body.getOrDefault("enabled", true)),
-                Boolean.TRUE.equals(body.get("repeatable"))
+                Boolean.TRUE.equals(body.get("repeatable")),
+                endsAt
         );
         HttpHelper.json(ex, 200, toMap(q));
     }
@@ -82,6 +111,20 @@ public final class QuestHandler {
         HttpHelper.json(ex, 200, Map.of("progress", store.playerProgress(uuid)));
     }
 
+    public void publicPlayerProgress(HttpExchange ex) throws IOException {
+        String header = ex.getRequestHeaders().getFirst("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            HttpHelper.error(ex, 401, "Non authentifié"); return;
+        }
+        String uuid;
+        try {
+            uuid = playerJwt.validate(header.substring(7)).getSubject();
+        } catch (Exception e) {
+            HttpHelper.error(ex, 401, "Token invalide ou expiré"); return;
+        }
+        HttpHelper.json(ex, 200, Map.of("progress", store.playerProgress(uuid)));
+    }
+
     private static Map<String, Object> toMap(Quest q) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", q.getId());
@@ -97,6 +140,7 @@ public final class QuestHandler {
         m.put("enabled", q.isEnabled());
         m.put("repeatable", q.isRepeatable());
         m.put("createdAt", q.getCreatedAt());
+        if (q.getEndsAt() != null) m.put("endsAt", q.getEndsAt());
         return m;
     }
 }

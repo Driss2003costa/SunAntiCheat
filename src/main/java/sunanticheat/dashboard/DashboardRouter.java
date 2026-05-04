@@ -522,6 +522,9 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/player/me/daily/claim")    && POST(method))  { publicDailyHandler.claim(ex);             return; }
         if (eq(path, "/api/public/leaderboard")               && GET(method))   { publicLeaderboardHandler.leaderboard(ex); return; }
         if (path.startsWith("/api/public/profile/")           && GET(method))   { publicProfileHandler.profile(ex);         return; }
+        if (eq(path, "/api/public/games/arenas")              && GET(method))   { gamesHandler.publicArenas(ex);           return; }
+        if (eq(path, "/api/public/quests")                    && GET(method))   { questHandler.publicList(ex);              return; }
+        if (eq(path, "/api/public/quests/player/me")          && GET(method))   { questHandler.publicPlayerProgress(ex);    return; }
         if (eq(path, "/api/custom-jobs/list")               && GET(method))  { customJobsApiHandler.list(ex);              return; }
         if (eq(path, "/api/custom-jobs/dynamics")           && GET(method))  { customJobsApiHandler.dynamics(ex);          return; }
         if (eq(path, "/api/custom-jobs/market")             && GET(method))  { customJobsApiHandler.market(ex);            return; }

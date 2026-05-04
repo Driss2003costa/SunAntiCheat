@@ -161,29 +161,69 @@ export default function Career() {
       <div className="px-4 pt-4 space-y-4 max-w-screen-sm mx-auto">
 
         {/* Slots banner */}
-        {slots && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🎟️</span>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-widest">Slots métiers</p>
-                <p className="text-sm font-bold text-white">
-                  {slots.used} <span className="text-gray-500">/</span> {slots.max}
-                  <span className="text-[10px] text-gray-500 ml-2 font-normal">rang : {slots.rank}</span>
-                </p>
+        {slots && (() => {
+          const full = slots.used >= slots.max
+          const pct  = slots.max > 0 ? Math.min(100, Math.round(slots.used / slots.max * 100)) : 100
+          const free = Math.max(0, slots.max - slots.used)
+          return (
+            <div className="rounded-2xl px-4 py-3"
+                 style={{
+                   background: full ? 'rgba(249,115,22,0.07)' : 'rgba(255,255,255,0.03)',
+                   border: `1px solid ${full ? 'rgba(249,115,22,0.3)' : 'rgba(255,255,255,0.07)'}`,
+                 }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🎟️</span>
+                  <span className="text-xs text-gray-500 uppercase tracking-widest">Slots métiers</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7280' }}>
+                    {slots.rank}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold" style={{ color: full ? '#fb923c' : '#fff' }}>
+                    {slots.used}
+                    <span className="text-gray-600 font-normal mx-0.5">/</span>
+                    {slots.max}
+                  </span>
+                  {full ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(249,115,22,0.2)', color: '#fb923c', border: '1px solid rgba(249,115,22,0.35)' }}>
+                      Plein
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      {free} libre{free > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Segmented slots bar */}
+              <div className="flex gap-1">
+                {Array.from({ length: slots.max }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-full transition-all duration-300"
+                    style={{
+                      height: 6,
+                      background: i < slots.used
+                        ? full
+                          ? 'linear-gradient(90deg,#f97316,#fb923c)'
+                          : 'linear-gradient(90deg,#10b981,#34d399)'
+                        : 'rgba(255,255,255,0.08)',
+                    }}
+                  />
+                ))}
+                {/* If used > max, show overflow */}
+                {slots.used > slots.max && Array.from({ length: slots.used - slots.max }).map((_, i) => (
+                  <div key={`over-${i}`} className="flex-1 rounded-full"
+                       style={{ height: 6, background: '#ef4444' }} />
+                ))}
               </div>
             </div>
-            {slots.used >= slots.max ? (
-              <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/15 border border-orange-500/30 rounded-full px-2 py-1">
-                Limite atteinte
-              </span>
-            ) : (
-              <span className="text-[10px] font-semibold text-emerald-300">
-                {slots.max - slots.used} libre{slots.max - slots.used > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-        )}
+          )
+        })()}
 
         {/* Active tickets */}
         {tickets.length > 0 && (
@@ -297,15 +337,14 @@ export default function Career() {
                 const recent7   = actionsByJob.get(prog.job_id) ?? 0
 
                 return (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/career/job/${prog.job_id}`)}
+                  <div
                     key={prog.job_id}
-                    className={`w-full text-left bg-gray-900 rounded-2xl border overflow-hidden transition-colors hover:border-emerald-500/40 ${
+                    className={`w-full text-left bg-gray-900 rounded-2xl border overflow-hidden transition-colors hover:border-emerald-500/40 cursor-pointer ${
                       isHot ? 'border-yellow-500/40' : 'border-gray-800'
                     }`}
                   >
-                    <div className="flex items-center gap-3 p-4">
+                    <div className="flex items-center gap-3 p-4"
+                         onClick={() => navigate(`/career/job/${prog.job_id}`)}>
                       <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${
                         isHot ? 'bg-yellow-500/15 border-yellow-500/30' : 'bg-emerald-500/10 border-emerald-500/20'
                       }`}>
@@ -332,48 +371,48 @@ export default function Career() {
                     </div>
 
                     {/* XP bar */}
-                    {!isMax ? (
-                      <div className="px-4 pb-3">
-                        <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
-                          <span>Vers niveau {prog.level + 1}</span>
-                          <span className="font-mono">{xpPct}%</span>
+                    <div onClick={() => navigate(`/career/job/${prog.job_id}`)}>
+                      {!isMax ? (
+                        <div className="px-4 pb-3">
+                          <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
+                            <span>Vers niveau {prog.level + 1}</span>
+                            <span className="font-mono">{xpPct}%</span>
+                          </div>
+                          <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                isHot
+                                  ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
+                                  : 'bg-gradient-to-r from-emerald-600 to-emerald-400'
+                              }`}
+                              style={{ width: `${xpPct}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              isHot
-                                ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
-                                : 'bg-gradient-to-r from-emerald-600 to-emerald-400'
-                            }`}
-                            style={{ width: `${xpPct}%` }}
-                          />
+                      ) : (
+                        <div className="px-4 pb-3">
+                          <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
+                            <span className="text-base">⭐</span>
+                            <p className="text-xs text-yellow-400 font-semibold">Niveau maximum atteint !</p>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="px-4 pb-3">
-                        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
-                          <span className="text-base">⭐</span>
-                          <p className="text-xs text-yellow-400 font-semibold">Niveau maximum atteint !</p>
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     <div className="px-4 pb-4">
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); handleLeave(prog.job_id) }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleLeave(prog.job_id) } }}
-                        aria-disabled={busyJob === prog.job_id}
-                        className={`block w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
+                      <button
+                        type="button"
+                        disabled={busyJob === prog.job_id}
+                        onClick={() => handleLeave(prog.job_id)}
+                        className={`w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
                           busyJob === prog.job_id
                             ? 'border-gray-800 text-gray-600 bg-gray-900 cursor-wait'
                             : 'border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20'
                         }`}>
                         {busyJob === prog.job_id ? '…' : '✖ Quitter ce métier'}
-                      </span>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>

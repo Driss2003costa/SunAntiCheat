@@ -45,10 +45,10 @@ public final class QuestStore {
     public Quest add(String title, String description, String icon, String color,
                      Quest.Type type, String target, int goal,
                      String rewardCommand, String rewardLabel,
-                     boolean enabled, boolean repeatable) {
+                     boolean enabled, boolean repeatable, Long endsAt) {
         String id = UUID.randomUUID().toString();
         Quest q = new Quest(id, title, description, icon, color, type, target, goal,
-                rewardCommand, rewardLabel, enabled, repeatable, System.currentTimeMillis());
+                rewardCommand, rewardLabel, enabled, repeatable, System.currentTimeMillis(), endsAt);
         quests.put(id, q);
         saveQuests();
         return q;
@@ -70,6 +70,10 @@ public final class QuestStore {
         if (patch.containsKey("rewardLabel")) q.setRewardLabel((String) patch.get("rewardLabel"));
         if (patch.containsKey("enabled")) q.setEnabled((Boolean) patch.get("enabled"));
         if (patch.containsKey("repeatable")) q.setRepeatable((Boolean) patch.get("repeatable"));
+        if (patch.containsKey("endsAt")) {
+            Object v = patch.get("endsAt");
+            q.setEndsAt(v instanceof Number ? ((Number) v).longValue() : null);
+        }
         saveQuests();
         return q;
     }
@@ -184,7 +188,8 @@ public final class QuestStore {
                             (String) m.get("rewardLabel"),
                             Boolean.TRUE.equals(m.get("enabled")),
                             Boolean.TRUE.equals(m.get("repeatable")),
-                            ((Number) m.getOrDefault("createdAt", System.currentTimeMillis())).longValue()
+                            ((Number) m.getOrDefault("createdAt", System.currentTimeMillis())).longValue(),
+                            m.get("endsAt") instanceof Number ? ((Number) m.get("endsAt")).longValue() : null
                     );
                     quests.put(q.getId(), q);
                 }

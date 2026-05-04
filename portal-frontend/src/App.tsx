@@ -11,6 +11,7 @@ import Minigames from './pages/Minigames'
 import Career from './pages/Career'
 import CareerJobDetail from './pages/CareerJobDetail'
 import Shop from './pages/Shop'
+import Quests from './pages/Quests'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/career"            element={<Career />} />
         <Route path="/career/job/:jobId" element={<CareerJobDetail />} />
         <Route path="/shop"              element={<Shop />} />
+        <Route path="/quests"            element={<Quests />} />
         <Route path="*"                  element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

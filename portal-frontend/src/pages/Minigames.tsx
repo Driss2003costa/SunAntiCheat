@@ -63,8 +63,7 @@ export default function Minigames() {
   useEffect(() => {
     const token = getToken()
     if (!token) { navigate('/login', { replace: true }); return }
-    // Attempt to load live arena data (admin endpoint — graceful fallback)
-    fetch('/api/games/arenas', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('/api/public/games/arenas')
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setLiveData(d) })
       .catch(() => {})

@@ -24,10 +24,17 @@ public final class GamesHandler {
         this.scanner = scanner;
     }
 
+    public void publicArenas(HttpExchange ex) throws IOException {
+        buildArenasResponse(ex);
+    }
+
     public void arenas(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
+        buildArenasResponse(ex);
+    }
 
+    private void buildArenasResponse(HttpExchange ex) throws IOException {
         List<Arena> arenas = scanner.scanAll();
         List<Map<String, Object>> games = scanner.games();
 

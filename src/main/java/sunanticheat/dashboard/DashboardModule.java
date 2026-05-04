@@ -355,7 +355,7 @@ public final class DashboardModule {
         HoneypotHandler honeypotHandler = new HoneypotHandler(honeypotStore);
         ToxicChatHandler toxicChatHandler = new ToxicChatHandler(toxicChatStore);
         EventCalendarHandler eventCalendarHandler = new EventCalendarHandler(eventCalendarStore);
-        QuestHandler questHandler = new QuestHandler(questStore);
+        QuestHandler questHandler; // initialized after playerJwtUtil
         ExperimentHandler experimentHandler = new ExperimentHandler(experimentStore);
         AiHandler aiHandler = new AiHandler(plugin, blobs);
 
@@ -469,6 +469,7 @@ public final class DashboardModule {
         PlayerAccountStore playerAccountStore = new PlayerAccountStore(database, plugin.getLogger());
         RegisterPinService registerPinService = new RegisterPinService(playerAccountStore, plugin.getLogger());
         PlayerJwtUtil playerJwtUtil = new PlayerJwtUtil(portalJwtSecret);
+        questHandler = new QuestHandler(questStore, playerJwtUtil);
         PublicRegisterHandler publicRegisterHandler = new PublicRegisterHandler(
                 playerAccountStore, registerPinService, playerJwtUtil, plugin, plugin.getLogger());
         PublicPlayerHandler publicPlayerHandler = new PublicPlayerHandler(playerAccountStore, playerJwtUtil, plugin);
