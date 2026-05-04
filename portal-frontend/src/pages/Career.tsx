@@ -7,6 +7,7 @@ import {
   type ActiveTicket,
 } from '../api/client'
 import Navbar from '../components/Navbar'
+import MinecraftIcon from '../components/MinecraftIcon'
 
 function fmtEarned(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
@@ -308,7 +309,7 @@ export default function Career() {
                       <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${
                         isHot ? 'bg-yellow-500/15 border-yellow-500/30' : 'bg-emerald-500/10 border-emerald-500/20'
                       }`}>
-                        <span className="text-2xl">{job?.icon ?? '💼'}</span>
+                        <MinecraftIcon icon={job?.icon} size={32} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-2">
@@ -416,7 +417,7 @@ export default function Career() {
                       onClick={() => navigate(`/career/job/${job.id}`)}
                       className="text-left flex-1 flex flex-col">
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl">{job.icon ?? '💼'}</span>
+                        <MinecraftIcon icon={job.icon} size={36} />
                         {disabled
                           ? <span className="text-[10px] font-bold text-gray-500">⏸ OFF</span>
                           : isHot && <span className="text-[10px] font-bold text-yellow-400">★</span>}

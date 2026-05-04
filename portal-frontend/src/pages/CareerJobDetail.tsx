@@ -6,6 +6,7 @@ import {
   type JobTimelineResponse,
 } from '../api/client'
 import Navbar from '../components/Navbar'
+import MinecraftIcon from '../components/MinecraftIcon'
 
 function fmtNum(n: number) { return Math.round(n).toLocaleString('fr-FR') }
 function fmtMoney(n: number) {
@@ -154,7 +155,7 @@ export default function CareerJobDetail() {
           </button>
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
-              <span className="text-3xl">{job.icon ?? '💼'}</span>
+              <MinecraftIcon icon={job.icon} size={40} />
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-black text-white truncate">{job.name}</h1>
