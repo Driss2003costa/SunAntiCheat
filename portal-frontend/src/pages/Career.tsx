@@ -161,29 +161,69 @@ export default function Career() {
       <div className="px-4 pt-4 space-y-4 max-w-screen-sm mx-auto">
 
         {/* Slots banner */}
-        {slots && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🎟️</span>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-widest">Slots métiers</p>
-                <p className="text-sm font-bold text-white">
-                  {slots.used} <span className="text-gray-500">/</span> {slots.max}
-                  <span className="text-[10px] text-gray-500 ml-2 font-normal">rang : {slots.rank}</span>
-                </p>
+        {slots && (() => {
+          const full = slots.used >= slots.max
+          const pct  = slots.max > 0 ? Math.min(100, Math.round(slots.used / slots.max * 100)) : 100
+          const free = Math.max(0, slots.max - slots.used)
+          return (
+            <div className="rounded-2xl px-4 py-3"
+                 style={{
+                   background: full ? 'rgba(249,115,22,0.07)' : 'rgba(255,255,255,0.03)',
+                   border: `1px solid ${full ? 'rgba(249,115,22,0.3)' : 'rgba(255,255,255,0.07)'}`,
+                 }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🎟️</span>
+                  <span className="text-xs text-gray-500 uppercase tracking-widest">Slots métiers</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7280' }}>
+                    {slots.rank}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold" style={{ color: full ? '#fb923c' : '#fff' }}>
+                    {slots.used}
+                    <span className="text-gray-600 font-normal mx-0.5">/</span>
+                    {slots.max}
+                  </span>
+                  {full ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(249,115,22,0.2)', color: '#fb923c', border: '1px solid rgba(249,115,22,0.35)' }}>
+                      Plein
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      {free} libre{free > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Segmented slots bar */}
+              <div className="flex gap-1">
+                {Array.from({ length: slots.max }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-full transition-all duration-300"
+                    style={{
+                      height: 6,
+                      background: i < slots.used
+                        ? full
+                          ? 'linear-gradient(90deg,#f97316,#fb923c)'
+                          : 'linear-gradient(90deg,#10b981,#34d399)'
+                        : 'rgba(255,255,255,0.08)',
+                    }}
+                  />
+                ))}
+                {/* If used > max, show overflow */}
+                {slots.used > slots.max && Array.from({ length: slots.used - slots.max }).map((_, i) => (
+                  <div key={`over-${i}`} className="flex-1 rounded-full"
+                       style={{ height: 6, background: '#ef4444' }} />
+                ))}
               </div>
             </div>
-            {slots.used >= slots.max ? (
-              <span className="text-[10px] font-semibold text-orange-300 bg-orange-500/15 border border-orange-500/30 rounded-full px-2 py-1">
-                Limite atteinte
-              </span>
-            ) : (
-              <span className="text-[10px] font-semibold text-emerald-300">
-                {slots.max - slots.used} libre{slots.max - slots.used > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-        )}
+          )
+        })()}
 
         {/* Active tickets */}
         {tickets.length > 0 && (
