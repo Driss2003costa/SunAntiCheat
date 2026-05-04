@@ -24,7 +24,7 @@ public final class CustomJobListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
-        service.processAction(e.getPlayer(), "break", e.getBlock().getType().name());
+        service.processAction(e.getPlayer(), "break", e.getBlock().getType().name(), e.getBlock().getLocation());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
