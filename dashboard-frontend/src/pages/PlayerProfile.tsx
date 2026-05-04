@@ -237,7 +237,7 @@ export default function PlayerProfile() {
           <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <h3 className="font-semibold mb-3" style={{ color: 'var(--text)' }}>💰 Solde</h3>
             <div className="text-3xl font-bold" style={{ color: '#10b981' }}>
-              {economy.balance != null ? economy.balance.toLocaleString('fr-FR') : '—'}
+              {economy.balance != null ? economy.balance.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
             </div>
             <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
               {economy.shopTransactions?.length || 0} transactions shop
@@ -294,7 +294,7 @@ export default function PlayerProfile() {
           <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)' }}>
             <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Solde Vault</div>
             <div className="text-3xl font-bold" style={{ color: '#10b981' }}>
-              {economy.balance != null ? economy.balance.toLocaleString('fr-FR') : '—'}
+              {economy.balance != null ? economy.balance.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
             </div>
           </div>
           <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Transactions shop récentes</h3>
