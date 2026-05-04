@@ -9,17 +9,18 @@ public final class Quest {
     private String icon;
     private String color;
     private Type type;
-    private String target;       // material name ou entity type ou "ANY"
-    private int goal;            // nombre d'occurrences à atteindre
-    private String rewardCommand; // commande console exécutée à la complétion (peut contenir {player})
-    private String rewardLabel;  // texte affiché (ex "500 coins")
+    private String target;
+    private int goal;
+    private String rewardCommand;
+    private String rewardLabel;
     private boolean enabled;
     private boolean repeatable;
     private final long createdAt;
+    private Long endsAt; // null = permanent
 
     public Quest(String id, String title, String description, String icon, String color,
                  Type type, String target, int goal, String rewardCommand, String rewardLabel,
-                 boolean enabled, boolean repeatable, long createdAt) {
+                 boolean enabled, boolean repeatable, long createdAt, Long endsAt) {
         this.id = id;
         this.title = title != null ? title : "Quête";
         this.description = description != null ? description : "";
@@ -33,6 +34,7 @@ public final class Quest {
         this.enabled = enabled;
         this.repeatable = repeatable;
         this.createdAt = createdAt;
+        this.endsAt = endsAt;
     }
 
     public String getId() { return id; }
@@ -48,6 +50,7 @@ public final class Quest {
     public boolean isEnabled() { return enabled; }
     public boolean isRepeatable() { return repeatable; }
     public long getCreatedAt() { return createdAt; }
+    public Long getEndsAt() { return endsAt; }
 
     public void setTitle(String v) { title = v; }
     public void setDescription(String v) { description = v; }
@@ -60,4 +63,7 @@ public final class Quest {
     public void setRewardLabel(String v) { rewardLabel = v; }
     public void setEnabled(boolean v) { enabled = v; }
     public void setRepeatable(boolean v) { repeatable = v; }
+    public void setEndsAt(Long v) { endsAt = v; }
+
+    public boolean isExpired() { return endsAt != null && System.currentTimeMillis() > endsAt; }
 }
