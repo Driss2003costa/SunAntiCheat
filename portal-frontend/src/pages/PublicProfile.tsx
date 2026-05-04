@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import SunSky from '../components/SunSky'
-import SunWordmark from '../components/SunWordmark'
+import SunBackground from '../components/SunBackground'
+
+const BG     = '#080d19'
+const CARD   = 'rgba(15,22,40,0.85)'
+const BORDER = 'rgba(251,191,36,0.12)'
+const GOLD   = '#fbbf24'
+const TEXT   = '#f1f5f9'
+const MUTED  = '#64748b'
 
 type LpGroup = { name: string; display: string; color: string | null }
 type Vip = { active: boolean; plan?: string; expires_at?: number }
@@ -29,33 +35,22 @@ type Profile = {
   trophies?: Trophy[]
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 function roleBadge(role: string) {
-  const map: Record<string, string> = {
-    PLAYER:    'bg-white/10 text-white/80 border-white/20',
-    VIP:       'bg-yellow-400/15 text-yellow-200 border-yellow-300/30',
-    MODERATOR: 'bg-blue-400/15 text-blue-200 border-blue-300/30',
-    ADMIN:     'bg-red-400/15 text-red-200 border-red-300/30',
+  const map: Record<string, { bg: string; color: string; border: string }> = {
+    PLAYER:    { bg: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: 'rgba(255,255,255,0.12)' },
+    VIP:       { bg: 'rgba(251,191,36,0.15)',  color: GOLD,      border: 'rgba(251,191,36,0.35)' },
+    MODERATOR: { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa', border: 'rgba(59,130,246,0.35)' },
+    ADMIN:     { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.35)' },
   }
-  return map[role] ?? 'bg-white/10 text-white/80 border-white/20'
+  return map[role] ?? map.PLAYER
 }
 
 function rarityStyle(r: Trophy['rarity']) {
   return {
-    common:    'border-white/15 bg-white/5 text-white/80',
-    rare:      'border-blue-400/40 bg-blue-400/10 text-blue-100',
-    epic:      'border-purple-400/40 bg-purple-400/10 text-purple-100',
-    legendary: 'border-yellow-300/50 bg-yellow-300/15 text-yellow-100',
-  }[r]
-}
-
-function rarityGlow(r: Trophy['rarity']) {
-  return {
-    common:    '',
-    rare:      'shadow-[0_0_12px_rgba(96,165,250,0.4)]',
-    epic:      'shadow-[0_0_14px_rgba(192,132,252,0.45)]',
-    legendary: 'shadow-[0_0_16px_rgba(252,211,77,0.55)]',
+    common:    { border: 'rgba(255,255,255,0.12)', bg: 'rgba(255,255,255,0.04)', color: '#e2e8f0' },
+    rare:      { border: 'rgba(96,165,250,0.4)',   bg: 'rgba(59,130,246,0.08)',  color: '#bfdbfe' },
+    epic:      { border: 'rgba(192,132,252,0.4)',  bg: 'rgba(139,92,246,0.08)',  color: '#e9d5ff' },
+    legendary: { border: 'rgba(251,191,36,0.5)',   bg: 'rgba(251,191,36,0.12)', color: '#fde68a' },
   }[r]
 }
 
@@ -79,8 +74,6 @@ function fmtDate(ts: number | null | undefined) {
   if (!ts) return '—'
   return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>()
@@ -108,201 +101,230 @@ export default function PublicProfile() {
   }
 
   return (
-    <SunSky variant="dusk">
-      <div className="min-h-screen flex flex-col items-center py-8 px-4">
-        <div className="w-full max-w-2xl space-y-4">
+    <div className="min-h-screen relative pb-10" style={{ background: BG }}>
+      <SunBackground />
 
-          {/* Top bar */}
-          <div className="flex items-center justify-between mb-2">
-            <SunWordmark size="sm" />
-            <div className="flex items-center gap-3 text-xs">
-              <Link to="/leaderboard" className="text-sun-100 hover:text-white transition-colors">Classement</Link>
-              <span className="text-white/30">·</span>
-              <Link to="/login" className="text-sun-100 hover:text-white transition-colors">Connexion</Link>
-            </div>
+      {/* Radial top */}
+      <div className="absolute inset-0 pointer-events-none z-0"
+           style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -5%,rgba(251,191,36,0.16),transparent)' }} />
+
+      <div className="relative z-10 max-w-2xl mx-auto px-4 py-8 space-y-4">
+
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">☀️</span>
+            <span className="text-sm font-bold" style={{ color: TEXT }}>SunAntiCheat</span>
           </div>
+          <div className="flex items-center gap-3 text-xs" style={{ color: MUTED }}>
+            <Link to="/leaderboard" className="hover:text-white transition-colors">Classement</Link>
+            <span style={{ color: '#1e293b' }}>·</span>
+            <Link to="/login" className="hover:text-white transition-colors">Connexion</Link>
+          </div>
+        </div>
 
-          {loading && (
-            <div className="flex justify-center py-20">
-              <div className="w-8 h-8 border-2 border-sun-200 border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
+        {loading && (
+          <div className="flex justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 animate-spin"
+                 style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
+          </div>
+        )}
 
-          {error && (
-            <div className="glass-warm rounded-3xl p-10 text-center space-y-3">
-              <p className="text-5xl">🔍</p>
-              <p className="text-white font-display text-2xl">Profil introuvable</p>
-              <p className="text-sand-200/80 text-sm">{error}</p>
-              <Link to="/" className="inline-block text-sun-200 hover:text-sun-100 text-sm font-medium mt-2 underline-offset-4 hover:underline">
-                Créer un compte →
-              </Link>
-            </div>
-          )}
+        {error && (
+          <div className="rounded-3xl p-10 text-center space-y-3 backdrop-blur-sm"
+               style={{ background: CARD, border: `1px solid rgba(239,68,68,0.2)` }}>
+            <p className="text-5xl">🔍</p>
+            <p className="text-2xl font-black" style={{ color: TEXT }}>Profil introuvable</p>
+            <p className="text-sm" style={{ color: MUTED }}>{error}</p>
+            <Link to="/" className="inline-block text-sm font-medium mt-2 underline-offset-4 hover:underline"
+                  style={{ color: GOLD }}>
+              Créer un compte →
+            </Link>
+          </div>
+        )}
 
-          {profile && (
-            <>
-              {/* ── Hero card ───────────────────────────────────────────────── */}
-              <div className="glass-warm rounded-3xl overflow-hidden">
-                <div className="relative px-7 pt-7 pb-5">
-                  <div className="flex items-end gap-5">
-                    {/* Body skin */}
-                    <div className="relative shrink-0">
-                      <img
-                        src={`https://mc-heads.net/body/${profile.username}/130`}
-                        alt={profile.username}
-                        className="h-32 w-auto object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                        onError={e => {
-                          const img = e.target as HTMLImageElement
-                          img.src = `https://mc-heads.net/avatar/${profile.username}/72`
-                          img.className = 'w-20 h-20 rounded-2xl border-2 border-white/15'
-                        }}
-                      />
-                      <span className={`absolute bottom-1 right-0 w-3.5 h-3.5 rounded-full border-2 border-ink-500 ${profile.online ? 'bg-jade-300' : 'bg-white/30'}`} />
-                    </div>
+        {profile && (
+          <>
+            {/* ── Hero card ──────────────────────────────────────────────────── */}
+            <div className="rounded-3xl overflow-hidden backdrop-blur-sm"
+                 style={{ background: CARD, border: `1px solid rgba(251,191,36,0.2)` }}>
+              <div className="relative px-7 pt-7 pb-5">
+                {/* Sun halo behind avatar */}
+                <div className="absolute top-4 left-4 w-40 h-40 rounded-full blur-3xl pointer-events-none"
+                     style={{ background: 'radial-gradient(circle,rgba(251,191,36,0.12),transparent)' }} />
 
-                    {/* Identity */}
-                    <div className="flex-1 min-w-0 pb-1">
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <h2 className="font-display text-3xl font-medium text-white leading-none">{profile.username}</h2>
-                        {profile.vip?.active && (
-                          <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold bg-yellow-300/20 text-yellow-100 border border-yellow-300/40">
-                            {profile.vip.plan ?? 'VIP'}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap gap-1.5 mb-2.5">
-                        <span className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-medium border ${roleBadge(profile.role)}`}>
-                          {profile.role}
-                        </span>
-                        {profile.lp_group && profile.lp_group.name !== 'default' && (
-                          <span
-                            className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-medium border"
-                            style={{
-                              color: profile.lp_group.color ?? undefined,
-                              borderColor: profile.lp_group.color ? `${profile.lp_group.color}55` : undefined,
-                              backgroundColor: profile.lp_group.color ? `${profile.lp_group.color}15` : undefined,
-                            }}
-                          >
-                            {profile.lp_group.display}
-                          </span>
-                        )}
-                      </div>
-
-                      <p className={`text-xs ${profile.online ? 'text-jade-300' : 'text-sand-300/70'}`}>
-                        {lastSeenLabel(profile.last_seen, profile.online)}
-                      </p>
-                    </div>
+                <div className="flex items-end gap-5 relative">
+                  {/* Body skin */}
+                  <div className="relative shrink-0">
+                    <img
+                      src={`https://mc-heads.net/body/${profile.username}/130`}
+                      alt={profile.username}
+                      className="h-32 w-auto object-contain"
+                      style={{ filter: 'drop-shadow(0 8px 24px rgba(251,191,36,0.1))' }}
+                      onError={e => {
+                        const img = e.target as HTMLImageElement
+                        img.src = `https://mc-heads.net/avatar/${profile.username}/72`
+                        img.className = 'w-20 h-20 rounded-2xl'
+                        img.style.cssText = `border: 2px solid rgba(251,191,36,0.3)`
+                      }}
+                    />
+                    <span className={`absolute bottom-1 right-0 w-3.5 h-3.5 rounded-full border-2 ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`}
+                          style={{ borderColor: '#0f1628' }} />
                   </div>
 
-                  {/* Bio */}
-                  {profile.bio && (
-                    <p className="mt-4 text-sm text-sand-200/90 italic leading-relaxed font-display">
-                      « {profile.bio} »
+                  {/* Identity */}
+                  <div className="flex-1 min-w-0 pb-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <h2 className="text-3xl font-black leading-none" style={{ color: TEXT }}>{profile.username}</h2>
+                      {profile.vip?.active && (
+                        <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold"
+                              style={{ background: 'rgba(251,191,36,0.2)', color: GOLD, border: `1px solid rgba(251,191,36,0.4)` }}>
+                          {profile.vip.plan ?? 'VIP'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mb-2.5">
+                      {(() => { const rb = roleBadge(profile.role); return (
+                        <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-medium border"
+                              style={{ background: rb.bg, color: rb.color, borderColor: rb.border }}>
+                          {profile.role}
+                        </span>
+                      )})()}
+                      {profile.lp_group && profile.lp_group.name !== 'default' && (
+                        <span
+                          className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-medium border"
+                          style={{
+                            color: profile.lp_group.color ?? undefined,
+                            borderColor: profile.lp_group.color ? `${profile.lp_group.color}55` : undefined,
+                            backgroundColor: profile.lp_group.color ? `${profile.lp_group.color}15` : undefined,
+                          }}
+                        >
+                          {profile.lp_group.display}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs" style={{ color: profile.online ? '#4ade80' : MUTED }}>
+                      {lastSeenLabel(profile.last_seen, profile.online)}
                     </p>
-                  )}
+                  </div>
                 </div>
 
-                {/* Stats row */}
-                <div className="grid grid-cols-4 divide-x divide-white/5 border-t border-white/5">
-                  <StatCell icon="⏱️" value={profile.playtime_formatted ?? '—'}                                label="Temps de jeu" />
-                  <StatCell icon="📊" value={profile.playtime_rank ? `#${profile.playtime_rank}` : '—'}        label="Classement"   />
-                  <StatCell icon="🔥" value={profile.daily_streak != null ? String(profile.daily_streak) : '—'} label="Série"        />
-                  <StatCell icon="✦"  value={profile.quests ? String(profile.quests.completed_count) : '—'}    label="Quêtes"       />
-                </div>
+                {/* Bio */}
+                {profile.bio && (
+                  <p className="mt-4 text-sm italic leading-relaxed" style={{ color: '#cbd5e1' }}>
+                    « {profile.bio} »
+                  </p>
+                )}
               </div>
 
-              {/* ── Active quests ──────────────────────────────────────────── */}
-              {(profile.quests?.active?.length ?? 0) > 0 && (
-                <div className="glass rounded-3xl p-6 space-y-3">
-                  <p className="text-[11px] font-semibold text-sand-200/70 uppercase tracking-[0.2em]">Quêtes en cours</p>
-                  {profile.quests!.active.map(q => {
-                    const pct = Math.min(100, Math.round((q.progress / Math.max(1, q.goal)) * 100))
+              {/* Stats row */}
+              <div className="grid grid-cols-4 border-t" style={{ borderColor: BORDER }}>
+                <StatCell icon="⏱️" value={profile.playtime_formatted ?? '—'}                                  label="Temps de jeu" />
+                <StatCell icon="📊" value={profile.playtime_rank ? `#${profile.playtime_rank}` : '—'}          label="Classement"   />
+                <StatCell icon="🔥" value={profile.daily_streak != null ? String(profile.daily_streak) : '—'}  label="Série"        />
+                <StatCell icon="✦"  value={profile.quests ? String(profile.quests.completed_count) : '—'}      label="Quêtes"       />
+              </div>
+            </div>
+
+            {/* Active quests */}
+            {(profile.quests?.active?.length ?? 0) > 0 && (
+              <div className="rounded-3xl p-6 space-y-3 backdrop-blur-sm"
+                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: MUTED }}>
+                  Quêtes en cours
+                </p>
+                {profile.quests!.active.map(q => {
+                  const pct = Math.min(100, Math.round((q.progress / Math.max(1, q.goal)) * 100))
+                  return (
+                    <div key={q.questId} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm flex items-center gap-1.5" style={{ color: TEXT }}>
+                          <span>{q.icon}</span>
+                          <span className="truncate">{q.title}</span>
+                        </span>
+                        <span className="text-xs shrink-0 font-mono" style={{ color: MUTED }}>{q.progress}/{q.goal}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: q.color }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Trophies */}
+            {(profile.trophies?.length ?? 0) > 0 && (
+              <div className="rounded-3xl p-6 space-y-3 backdrop-blur-sm"
+                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: MUTED }}>Trophées</p>
+                <div className="flex flex-wrap gap-2">
+                  {profile.trophies!.map(t => {
+                    const rs = rarityStyle(t.rarity)
                     return (
-                      <div key={q.questId} className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm text-white flex items-center gap-1.5">
-                            <span>{q.icon}</span>
-                            <span className="truncate">{q.title}</span>
-                          </span>
-                          <span className="text-xs text-white/60 shrink-0 font-mono">{q.progress}/{q.goal}</span>
-                        </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: q.color }}
-                          />
-                        </div>
+                      <div key={t.id} title={t.name}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium"
+                        style={{ background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color }}>
+                        <span>{t.icon}</span>
+                        <span>{t.name}</span>
                       </div>
                     )
                   })}
                 </div>
-              )}
-
-              {/* ── Trophies ───────────────────────────────────────────────── */}
-              {(profile.trophies?.length ?? 0) > 0 && (
-                <div className="glass rounded-3xl p-6 space-y-3">
-                  <p className="text-[11px] font-semibold text-sand-200/70 uppercase tracking-[0.2em]">Trophées</p>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.trophies!.map(t => (
-                      <div
-                        key={t.id}
-                        title={t.name}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium backdrop-blur ${rarityStyle(t.rarity)} ${rarityGlow(t.rarity)}`}
-                      >
-                        <span>{t.icon}</span>
-                        <span>{t.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Sanctions ──────────────────────────────────────────────── */}
-              {(profile.active_sanctions?.length ?? 0) > 0 && (
-                <div className="bg-red-500/10 backdrop-blur-xl border border-red-400/30 rounded-3xl p-6 space-y-2">
-                  <p className="text-[11px] font-semibold text-red-200 uppercase tracking-[0.2em]">Sanctions actives</p>
-                  {profile.active_sanctions!.map((s, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-red-500/30 text-red-100 border border-red-400/40 shrink-0">
-                        {s.type}
-                      </span>
-                      <span className="text-sm text-white/90">{s.reason || 'Non précisé'}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-2 px-2">
-                <p className="text-[11px] text-sand-300/60 font-display italic">
-                  Membre depuis {fmtDate(profile.created_at)}
-                </p>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={copyLink}
-                    className="text-xs text-sun-100 hover:text-white transition-colors flex items-center gap-1"
-                  >
-                    {copied ? '✓ Copié' : '🔗 Partager'}
-                  </button>
-                  <span className="text-white/30">·</span>
-                  <Link to="/" className="text-xs text-sun-100 hover:text-white transition-colors">Inscription</Link>
-                </div>
               </div>
-            </>
-          )}
-        </div>
+            )}
+
+            {/* Sanctions */}
+            {(profile.active_sanctions?.length ?? 0) > 0 && (
+              <div className="rounded-3xl p-6 space-y-2 backdrop-blur-sm"
+                   style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">Sanctions actives</p>
+                {profile.active_sanctions!.map((s, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded shrink-0"
+                          style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.4)' }}>
+                      {s.type}
+                    </span>
+                    <span className="text-sm" style={{ color: '#e2e8f0' }}>{s.reason || 'Non précisé'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-2 px-2">
+              <p className="text-[11px] italic" style={{ color: MUTED }}>
+                Membre depuis {fmtDate(profile.created_at)}
+              </p>
+              <div className="flex items-center gap-3">
+                <button onClick={copyLink}
+                  className="text-xs transition-colors flex items-center gap-1"
+                  style={{ color: GOLD }}>
+                  {copied ? '✓ Copié' : '🔗 Partager'}
+                </button>
+                <span style={{ color: '#1e293b' }}>·</span>
+                <Link to="/" className="text-xs transition-colors hover:text-white"
+                      style={{ color: MUTED }}>
+                  Inscription
+                </Link>
+              </div>
+            </div>
+          </>
+        )}
       </div>
-    </SunSky>
+    </div>
   )
 }
 
 function StatCell({ icon, value, label }: { icon: string; value: string; label: string }) {
   return (
-    <div className="flex flex-col items-center py-4 px-2 gap-0.5">
+    <div className="flex flex-col items-center py-4 px-2 gap-0.5"
+         style={{ borderRight: `1px solid rgba(251,191,36,0.08)` }}>
       <span className="text-base">{icon}</span>
-      <span className="font-display text-base font-medium text-white leading-none">{value}</span>
-      <span className="text-[10px] uppercase tracking-widest text-sand-200/60 mt-0.5">{label}</span>
+      <span className="text-base font-black leading-none" style={{ color: '#f1f5f9' }}>{value}</span>
+      <span className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: '#64748b' }}>{label}</span>
     </div>
   )
 }

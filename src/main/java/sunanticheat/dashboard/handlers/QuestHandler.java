@@ -25,7 +25,7 @@ public final class QuestHandler {
     public void publicList(HttpExchange ex) throws IOException {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Quest q : store.all()) {
-            if (!q.isEnabled()) continue;
+            if (!q.isEnabled() || q.isExpired()) continue;
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id",          q.getId());
             m.put("title",       q.getTitle());
@@ -39,6 +39,7 @@ public final class QuestHandler {
             m.put("repeatable",  q.isRepeatable());
             m.put("completions", store.completedFor(q.getId()).size());
             m.put("inProgress",  store.progressFor(q.getId()).size());
+            if (q.getEndsAt() != null) m.put("endsAt", q.getEndsAt());
             out.add(m);
         }
         HttpHelper.json(ex, 200, Map.of("quests", out));

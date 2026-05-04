@@ -2,8 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult } from '../api/client'
 import Navbar from '../components/Navbar'
+import SunBackground from '../components/SunBackground'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const BG     = '#080d19'
+const CARD   = 'rgba(15,22,40,0.8)'
+const BORDER = 'rgba(251,191,36,0.12)'
+const GOLD   = '#fbbf24'
+const TEXT   = '#f1f5f9'
+const MUTED  = '#64748b'
 
 function fmtDate(ts: number | null | undefined) {
   if (!ts) return '—'
@@ -11,30 +17,25 @@ function fmtDate(ts: number | null | undefined) {
 }
 
 function roleBadge(role: string) {
-  const map: Record<string, string> = {
-    PLAYER:    'bg-gray-700/60 text-gray-300 border-gray-600',
-    VIP:       'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    MODERATOR: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    ADMIN:     'bg-red-500/20 text-red-400 border-red-500/30',
+  const map: Record<string, { bg: string; color: string; border: string }> = {
+    PLAYER:    { bg: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: 'rgba(255,255,255,0.1)' },
+    VIP:       { bg: 'rgba(251,191,36,0.15)',  color: GOLD,      border: 'rgba(251,191,36,0.35)' },
+    MODERATOR: { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa', border: 'rgba(59,130,246,0.35)' },
+    ADMIN:     { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.35)' },
   }
-  return map[role] ?? 'bg-gray-700/60 text-gray-300 border-gray-600'
+  return map[role] ?? map.PLAYER
 }
 
-function sanctionBadge(type: string) {
+function sanctionColor(type: string) {
   const map: Record<string, string> = {
-    BAN:  'bg-red-500/20 text-red-400 border-red-500/30',
-    MUTE: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    WARN: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    KICK: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    BAN: '#f87171', MUTE: '#fb923c', WARN: GOLD, KICK: '#60a5fa',
   }
-  return map[type] ?? 'bg-gray-700 text-gray-300 border-gray-600'
+  return map[type] ?? '#94a3b8'
 }
 
 function fmtBalance(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -47,11 +48,11 @@ export default function Profile() {
   const [bioSaving, setBioSaving]   = useState(false)
   const [bioError, setBioError]     = useState('')
 
-  const [daily, setDaily]                   = useState<DailyStatus | null>(null)
-  const [dailyClaiming, setDailyClaiming]   = useState(false)
-  const [dailyResult, setDailyResult]       = useState<DailyClaimResult | null>(null)
-  const [dailyError, setDailyError]         = useState('')
-  const [cooldownLabel, setCooldownLabel]   = useState('')
+  const [daily, setDaily]                 = useState<DailyStatus | null>(null)
+  const [dailyClaiming, setDailyClaiming] = useState(false)
+  const [dailyResult, setDailyResult]     = useState<DailyClaimResult | null>(null)
+  const [dailyError, setDailyError]       = useState('')
+  const [cooldownLabel, setCooldownLabel] = useState('')
 
   useEffect(() => {
     const token = getToken()
@@ -120,79 +121,85 @@ export default function Profile() {
     }
   }
 
-  // ── Loading / error states ─────────────────────────────────────────────────
   if (loading) return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center pb-20">
-      <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex items-center justify-center pb-20" style={{ background: BG }}>
+      <div className="w-10 h-10 rounded-full border-2 animate-spin"
+           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
       <Navbar />
     </div>
   )
 
   if (error || !profile) return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4 p-8 pb-28">
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 pb-28" style={{ background: BG }}>
       <p className="text-red-400 text-center">{error || 'Profil introuvable.'}</p>
-      <Link to="/login" className="text-sm text-brand-400 hover:text-brand-300">Retour à la connexion</Link>
+      <Link to="/login" className="text-sm" style={{ color: GOLD }}>Retour à la connexion</Link>
       <Navbar />
     </div>
   )
 
   const sanctions = profile.active_sanctions ?? []
+  const rb = roleBadge(profile.role)
 
   return (
-    <div className="min-h-screen bg-gray-950 pb-24">
+    <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
+      <SunBackground />
 
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden">
-        {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-600/25 via-orange-600/10 to-gray-950" />
-        {/* Subtle grid overlay */}
-        <div className="absolute inset-0 opacity-5"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      {/* ── HERO ──────────────────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden z-10">
+        <div className="absolute inset-0 pointer-events-none"
+             style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%,rgba(251,191,36,0.18),transparent)' }} />
 
-        <div className="relative px-5 pt-12 pb-6">
+        <div className="relative px-5 pt-12 pb-6 max-w-screen-sm mx-auto">
           {/* Top bar */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-2">
               <span className="text-xl">☀️</span>
-              <span className="text-sm font-bold text-white">SunAntiCheat</span>
+              <span className="text-sm font-bold" style={{ color: TEXT }}>SunAntiCheat</span>
             </div>
-            <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-300 transition-colors px-3 py-1.5 rounded-lg border border-gray-800 hover:border-gray-700">
+            <button onClick={logout}
+              className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, color: MUTED }}>
               Déconnexion
             </button>
           </div>
 
-          {/* Identity row */}
+          {/* Avatar + name */}
           <div className="flex items-end gap-5">
-            {/* Avatar */}
             <div className="relative shrink-0">
+              {/* Halo */}
+              <div className="absolute inset-0 rounded-2xl blur-xl pointer-events-none"
+                   style={{ background: 'radial-gradient(circle,rgba(251,191,36,0.25),transparent)', transform: 'scale(1.3)' }} />
               <img
                 src={`https://mc-heads.net/body/${profile.username}/100`}
                 alt={profile.username}
-                className="h-28 w-auto object-contain drop-shadow-2xl"
+                className="relative h-28 w-auto object-contain drop-shadow-2xl"
                 onError={e => {
                   const img = e.target as HTMLImageElement
                   img.src = `https://mc-heads.net/avatar/${profile.username}/80`
-                  img.className = 'w-20 h-20 rounded-2xl border-2 border-gray-700'
+                  img.className = 'relative w-20 h-20 rounded-2xl'
+                  img.style.cssText = `border: 2px solid rgba(251,191,36,0.3)`
                 }}
               />
-              <span className={`absolute bottom-1 right-0 w-3.5 h-3.5 rounded-full border-2 border-gray-950 ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`} />
+              <span className={`absolute bottom-1 right-0 w-3.5 h-3.5 rounded-full border-2 ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`}
+                    style={{ borderColor: BG }} />
             </div>
 
             {/* Name + badges */}
             <div className="flex-1 min-w-0 mb-2">
-              <h1 className="text-3xl font-black text-white leading-none mb-2 truncate">{profile.username}</h1>
+              <h1 className="text-3xl font-black leading-none mb-2 truncate" style={{ color: TEXT }}>{profile.username}</h1>
               <div className="flex items-center flex-wrap gap-2 mb-2">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${roleBadge(profile.role)}`}>
+                <span className="text-xs px-2.5 py-1 rounded-full font-semibold border"
+                      style={{ background: rb.bg, color: rb.color, borderColor: rb.border }}>
                   {profile.role}
                 </span>
-                <span className={`text-xs flex items-center gap-1 ${profile.online ? 'text-green-400' : 'text-gray-500'}`}>
+                <span className={`text-xs flex items-center gap-1`}
+                      style={{ color: profile.online ? '#4ade80' : MUTED }}>
                   <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`} />
                   {profile.online ? 'En ligne' : 'Hors ligne'}
                 </span>
               </div>
-              {/* Bio inline */}
               {!bioEditing && (
-                <p className={`text-sm italic leading-relaxed ${bio ? 'text-gray-300' : 'text-gray-600'}`}>
+                <p className="text-sm italic leading-relaxed" style={{ color: bio ? '#cbd5e1' : MUTED }}>
                   {bio ? `"${bio}"` : 'Aucune biographie…'}
                 </p>
               )}
@@ -207,17 +214,20 @@ export default function Profile() {
                 onChange={e => setBio(e.target.value.slice(0, 160))}
                 rows={2}
                 placeholder="Présente-toi en quelques mots…"
-                className="w-full bg-gray-800/80 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 resize-none focus:outline-none focus:border-brand-500 backdrop-blur"
+                className="w-full rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none backdrop-blur"
+                style={{ background: 'rgba(15,22,40,0.9)', border: `1px solid rgba(251,191,36,0.3)`, color: TEXT }}
               />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-gray-600">{bio.length}/160</span>
+                <span className="text-xs" style={{ color: MUTED }}>{bio.length}/160</span>
                 <div className="flex gap-2">
                   <button onClick={() => { setBioEditing(false); setBioError('') }}
-                    className="text-xs text-gray-500 hover:text-gray-300 px-3 py-1.5 rounded-lg border border-gray-700">
+                    className="text-xs px-3 py-1.5 rounded-lg border"
+                    style={{ borderColor: BORDER, color: MUTED }}>
                     Annuler
                   </button>
                   <button onClick={saveBio} disabled={bioSaving}
-                    className="text-xs text-white bg-brand-600 hover:bg-brand-500 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors">
+                    className="text-xs text-gray-900 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)' }}>
                     {bioSaving ? 'Enregistrement…' : 'Enregistrer'}
                   </button>
                 </div>
@@ -230,40 +240,42 @@ export default function Profile() {
           <div className="flex gap-2 mt-4">
             {!bioEditing && (
               <button onClick={() => setBioEditing(true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-gray-800/70 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-colors backdrop-blur">
+                className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+                style={{ background: 'rgba(251,191,36,0.08)', border: `1px solid ${BORDER}`, color: MUTED }}>
                 ✏️ Modifier la bio
               </button>
             )}
-            <a
-              href={`/portal/player/${profile.username}`}
-              target="_blank" rel="noreferrer"
-              className="text-xs px-3 py-1.5 rounded-lg bg-gray-800/70 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-colors backdrop-blur"
-            >
+            <a href={`/portal/player/${profile.username}`} target="_blank" rel="noreferrer"
+              className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+              style={{ background: 'rgba(251,191,36,0.08)', border: `1px solid ${BORDER}`, color: MUTED }}>
               🔗 Profil public
             </a>
           </div>
         </div>
       </div>
 
-      {/* ── STATS STRIP ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-px bg-gray-800/50 mx-0 border-y border-gray-800">
+      {/* Stats strip */}
+      <div className="grid grid-cols-2 mx-0"
+           style={{ borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
         <StatCell icon="⏱️" label="Temps de jeu" value={profile.playtime_formatted ?? '—'} />
         <StatCell icon="💰" label="Solde"         value={profile.balance != null ? fmtBalance(profile.balance) : '—'} />
       </div>
 
-      {/* ── CONTENT ───────────────────────────────────────────────────────── */}
-      <div className="px-4 pt-4 space-y-3 max-w-screen-sm mx-auto">
+      {/* Content */}
+      <div className="px-4 pt-4 space-y-3 max-w-screen-sm mx-auto relative z-10">
 
         {/* Daily reward */}
         {daily && daily.config?.enabled && (
-          <section className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-800 flex items-center justify-between">
+          <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
+                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <div className="px-5 py-3.5 flex items-center justify-between"
+                 style={{ borderBottom: `1px solid ${BORDER}` }}>
               <div className="flex items-center gap-2">
                 <span>🎁</span>
-                <span className="text-sm font-semibold text-white">Récompense quotidienne</span>
+                <span className="text-sm font-semibold" style={{ color: TEXT }}>Récompense quotidienne</span>
               </div>
-              <span className="text-xs text-gray-500">
-                Série : <span className="text-yellow-400 font-bold">{daily.streak}</span>j
+              <span className="text-xs" style={{ color: MUTED }}>
+                Série : <span className="font-bold" style={{ color: GOLD }}>{daily.streak}</span>j
               </span>
             </div>
 
@@ -273,15 +285,19 @@ export default function Profile() {
                 const isDone    = d.day < daily.nextDay || (!daily.canClaim && d.day === daily.nextDay)
                 return (
                   <div key={d.day}
-                    className={`flex flex-col items-center gap-1 rounded-xl p-1.5 border transition-all
-                      ${isCurrent && daily.canClaim
-                        ? 'border-yellow-500/60 bg-yellow-500/10 ring-1 ring-yellow-500/30'
-                        : isDone ? 'border-gray-700/50 bg-gray-800/30 opacity-50'
-                        : 'border-gray-700/50 bg-gray-800/30'}`}
-                  >
+                    className="flex flex-col items-center gap-1 rounded-xl p-1.5 border transition-all"
+                    style={{
+                      borderColor: isCurrent && daily.canClaim
+                        ? 'rgba(251,191,36,0.6)'
+                        : isDone ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.06)',
+                      background: isCurrent && daily.canClaim
+                        ? 'rgba(251,191,36,0.1)'
+                        : isDone ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.03)',
+                      opacity: isDone && !isCurrent ? 0.5 : 1,
+                    }}>
                     <span className="text-sm leading-none">{d.icon ?? '🎁'}</span>
-                    <span className="text-[10px] text-gray-500 font-medium">J{d.day}</span>
-                    {d.bonusCoins > 0 && <span className="text-[10px] text-yellow-400 font-bold leading-none">{d.bonusCoins}$</span>}
+                    <span className="text-[10px] font-medium" style={{ color: MUTED }}>J{d.day}</span>
+                    {d.bonusCoins > 0 && <span className="text-[10px] font-bold leading-none" style={{ color: GOLD }}>{d.bonusCoins}$</span>}
                     {isDone && <span className="text-green-400 text-[10px] leading-none">✓</span>}
                   </div>
                 )
@@ -290,23 +306,25 @@ export default function Profile() {
 
             <div className="px-4 pb-4">
               {dailyResult ? (
-                <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3 text-center space-y-1">
+                <div className="rounded-xl p-3 text-center space-y-1"
+                     style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
                   <p className="text-sm font-semibold text-green-400">
                     {dailyResult.icon ?? '🎁'} {dailyResult.displayName ?? `Jour ${dailyResult.day}`}
                   </p>
-                  {dailyResult.bonusCoins > 0 && <p className="text-xs text-yellow-400">+{dailyResult.bonusCoins} coins</p>}
-                  {dailyResult.itemsLabel && <p className="text-xs text-gray-400">{dailyResult.itemsLabel}</p>}
-                  <p className="text-xs text-gray-500">{dailyResult.message}</p>
+                  {dailyResult.bonusCoins > 0 && <p className="text-xs" style={{ color: GOLD }}>+{dailyResult.bonusCoins} coins</p>}
+                  {dailyResult.itemsLabel && <p className="text-xs" style={{ color: MUTED }}>{dailyResult.itemsLabel}</p>}
+                  <p className="text-xs" style={{ color: MUTED }}>{dailyResult.message}</p>
                 </div>
               ) : daily.canClaim ? (
                 <button onClick={claimDaily} disabled={dailyClaiming}
-                  className="w-full py-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-gray-900 font-bold text-sm transition-colors">
+                  className="w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 text-gray-900"
+                  style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', boxShadow: '0 4px 20px rgba(251,191,36,0.25)' }}>
                   {dailyClaiming ? 'Réclamation…' : '🎁 Réclamer ma récompense'}
                 </button>
               ) : (
                 <div className="text-center py-1">
-                  <p className="text-xs text-gray-600">Prochaine dans</p>
-                  <p className="text-sm font-semibold text-gray-300 font-mono">{cooldownLabel}</p>
+                  <p className="text-xs" style={{ color: MUTED }}>Prochaine dans</p>
+                  <p className="text-sm font-semibold font-mono" style={{ color: TEXT }}>{cooldownLabel}</p>
                 </div>
               )}
               {dailyError && <p className="text-xs text-red-400 text-center mt-2">{dailyError}</p>}
@@ -315,12 +333,13 @@ export default function Profile() {
         )}
 
         {/* Account info */}
-        <section className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-gray-800">
-            <span className="text-sm font-semibold text-white">Informations du compte</span>
+        <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
+                 style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+          <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <span className="text-sm font-semibold" style={{ color: TEXT }}>Informations du compte</span>
           </div>
-          <div className="divide-y divide-gray-800/60">
-            <InfoRow label="UUID"              value={<span className="font-mono text-xs text-gray-400 break-all">{profile.uuid}</span>} />
+          <div>
+            <InfoRow label="UUID"              value={<span className="font-mono text-xs break-all" style={{ color: MUTED }}>{profile.uuid}</span>} />
             <InfoRow label="Inscrit le"        value={fmtDate(profile.created_at)} />
             <InfoRow label="Dernière connexion" value={fmtDate(profile.last_login)} />
           </div>
@@ -328,18 +347,19 @@ export default function Profile() {
 
         {/* Sanctions */}
         {sanctions.length > 0 && (
-          <section className="bg-red-500/5 border border-red-500/20 rounded-2xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-red-500/20">
+          <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
+                   style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
               <span className="text-sm font-semibold text-red-400">Sanctions actives</span>
             </div>
-            <div className="divide-y divide-red-500/10">
+            <div>
               {sanctions.map(s => <SanctionRow key={s.id} s={s} />)}
             </div>
           </section>
         )}
 
         {sanctions.length === 0 && (
-          <p className="text-center text-xs text-gray-700 py-3">✓ Aucune sanction active</p>
+          <p className="text-center text-xs py-3" style={{ color: '#475569' }}>✓ Aucune sanction active</p>
         )}
       </div>
 
@@ -348,15 +368,13 @@ export default function Profile() {
   )
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
 function StatCell({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div className="bg-gray-900 flex items-center gap-3 px-5 py-4">
+    <div className="flex items-center gap-3 px-5 py-4" style={{ background: 'rgba(15,22,40,0.6)' }}>
       <span className="text-2xl">{icon}</span>
       <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-base font-bold text-white">{value}</p>
+        <p className="text-xs" style={{ color: '#64748b' }}>{label}</p>
+        <p className="text-base font-bold" style={{ color: '#f1f5f9' }}>{value}</p>
       </div>
     </div>
   )
@@ -364,9 +382,10 @@ function StatCell({ icon, label, value }: { icon: string; label: string; value: 
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3 gap-4">
-      <span className="text-sm text-gray-500 shrink-0">{label}</span>
-      <span className="text-sm text-white text-right">{value}</span>
+    <div className="flex items-center justify-between px-5 py-3 gap-4"
+         style={{ borderBottom: '1px solid rgba(251,191,36,0.05)' }}>
+      <span className="text-sm shrink-0" style={{ color: '#64748b' }}>{label}</span>
+      <span className="text-sm text-right" style={{ color: '#f1f5f9' }}>{value}</span>
     </div>
   )
 }
@@ -374,23 +393,20 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 function SanctionRow({ s }: { s: ActiveSanction }) {
   const fmtExpiry = (ts: number | null) =>
     ts ? new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent'
-
-  function sanctionBadge(type: string) {
-    const map: Record<string, string> = {
-      BAN:  'bg-red-500/20 text-red-400 border-red-500/30',
-      MUTE: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      WARN: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      KICK: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    }
-    return map[type] ?? 'bg-gray-700 text-gray-300 border-gray-600'
-  }
+  const color = {
+    BAN: '#f87171', MUTE: '#fb923c', WARN: '#fbbf24', KICK: '#60a5fa',
+  }[s.type] ?? '#94a3b8'
 
   return (
-    <div className="px-5 py-3 flex items-start gap-3">
-      <span className={`text-xs font-bold px-2 py-0.5 rounded border shrink-0 ${sanctionBadge(s.type)}`}>{s.type}</span>
+    <div className="px-5 py-3 flex items-start gap-3"
+         style={{ borderBottom: '1px solid rgba(239,68,68,0.08)' }}>
+      <span className="text-xs font-bold px-2 py-0.5 rounded border shrink-0"
+            style={{ background: `${color}20`, color, borderColor: `${color}40` }}>
+        {s.type}
+      </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white truncate">{s.reason || 'Aucune raison'}</p>
-        <p className="text-xs text-gray-500 mt-0.5">Par {s.issued_by} · Expire : {fmtExpiry(s.expires_at)}</p>
+        <p className="text-sm truncate" style={{ color: '#f1f5f9' }}>{s.reason || 'Aucune raison'}</p>
+        <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Par {s.issued_by} · Expire : {fmtExpiry(s.expires_at)}</p>
       </div>
     </div>
   )

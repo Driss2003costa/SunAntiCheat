@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, getToken } from '../api/client'
+import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
+import SunBackground from '../components/SunBackground'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type PublicQuest = {
@@ -30,36 +31,33 @@ type QuestProgress = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const TYPE_LABELS: Record<string, string> = {
-  BREAK_BLOCK:  'Casser',
-  PLACE_BLOCK:  'Placer',
-  KILL_ENTITY:  'Tuer',
-  KILL_PLAYER:  'PvP',
-  CRAFT_ITEM:   'Craft',
-  FISH_CATCH:   'Pêche',
-  PLAY_TIME:    'Temps',
+  BREAK_BLOCK: 'Casser',
+  PLACE_BLOCK: 'Placer',
+  KILL_ENTITY: 'Tuer',
+  KILL_PLAYER: 'PvP',
+  CRAFT_ITEM:  'Craft',
+  FISH_CATCH:  'Pêche',
+  PLAY_TIME:   'Temps',
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  BREAK_BLOCK:  '#f59e0b',
-  PLACE_BLOCK:  '#10b981',
-  KILL_ENTITY:  '#ef4444',
-  KILL_PLAYER:  '#dc2626',
-  CRAFT_ITEM:   '#3b82f6',
-  FISH_CATCH:   '#06b6d4',
-  PLAY_TIME:    '#8b5cf6',
+  BREAK_BLOCK: '#f59e0b',
+  PLACE_BLOCK: '#10b981',
+  KILL_ENTITY: '#ef4444',
+  KILL_PLAYER: '#dc2626',
+  CRAFT_ITEM:  '#3b82f6',
+  FISH_CATCH:  '#06b6d4',
+  PLAY_TIME:   '#8b5cf6',
 }
 
-function fmtRemaining(endsAt: number): string {
-  const ms = endsAt - Date.now()
-  if (ms <= 0) return 'Expirée'
-  const s = Math.floor(ms / 1000)
-  if (s < 60) return `${s}s`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ${m % 60}m`
-  const d = Math.floor(h / 24)
-  return `${d}j ${h % 24}h`
+function fmtDuration(ms: number): string {
+  if (ms <= 0) return '00:00:00:00'
+  const totalSec = Math.floor(ms / 1000)
+  const d = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec % 86400) / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  return `${String(d).padStart(2,'0')}:${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
 }
 
 function fmtTarget(target: string): string {
@@ -67,47 +65,165 @@ function fmtTarget(target: string): string {
   return target.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())
 }
 
+// ── SolarTimer ─────────────────────────────────────────────────────────────────
+function SolarTimer({ endsAt, totalMs, onExpired }: { endsAt: number; totalMs: number; onExpired: () => void }) {
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const t = Date.now()
+      setNow(t)
+      if (t >= endsAt) {
+        clearInterval(id)
+        setTimeout(onExpired, 800) // let fade-out play
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [endsAt, onExpired])
+
+  const msLeft = Math.max(0, endsAt - now)
+  const pct    = totalMs > 0 ? msLeft / totalMs : 0
+  const urgent = msLeft < 3_600_000  // < 1h
+  const warn   = msLeft < 86_400_000 // < 24h
+
+  const r = 22
+  const circ = 2 * Math.PI * r
+  const dashOffset = circ * (1 - pct)
+
+  const ringColor = urgent ? '#ef4444' : warn ? '#f59e0b' : '#fbbf24'
+  const textColor = urgent ? '#f87171' : warn ? '#fbbf24' : '#e5e7eb'
+
+  const label = fmtDuration(msLeft)
+
+  return (
+    <div className="flex items-center gap-3 mt-2">
+      {/* SVG ring */}
+      <div className="relative shrink-0 flex items-center justify-center" style={{ width: 54, height: 54 }}>
+        <svg width="54" height="54" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx="27" cy="27" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
+          <circle
+            cx="27" cy="27" r={r}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={dashOffset}
+            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s' }}
+          />
+        </svg>
+        {urgent && (
+          <span
+            className="absolute text-[10px]"
+            style={{
+              color: ringColor,
+              animation: 'pulse 1s ease-in-out infinite',
+            }}
+          >🔴</span>
+        )}
+        {!urgent && (
+          <span className="absolute text-[10px]" style={{ color: ringColor }}>⏱</span>
+        )}
+      </div>
+
+      {/* Countdown */}
+      <div>
+        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: '#64748b' }}>Fin dans</p>
+        <p
+          className="font-mono font-bold text-sm leading-none"
+          style={{
+            color: textColor,
+            animation: urgent ? 'pulse 1s ease-in-out infinite' : undefined,
+          }}
+        >
+          {label.startsWith('00:') ? label.slice(3) : label}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 // ── QuestCard ──────────────────────────────────────────────────────────────────
 function QuestCard({
   quest,
   progress,
-  now,
+  totalMs,
+  onExpired,
 }: {
   quest: PublicQuest
   progress: QuestProgress | null
-  now: number
+  totalMs: number
+  onExpired: (id: string) => void
 }) {
-  const pct    = progress ? Math.min(100, Math.round((progress.progress / quest.goal) * 100)) : 0
-  const done   = progress?.completed ?? false
-  const expired = quest.endsAt != null && now > quest.endsAt
-  const timed  = quest.endsAt != null
-  const msLeft = timed ? quest.endsAt! - now : null
-  const urgent = msLeft != null && msLeft < 3600_000 && msLeft > 0
+  const [fading, setFading] = useState(false)
+  const pct  = progress ? Math.min(100, Math.round((progress.progress / quest.goal) * 100)) : 0
+  const done = progress?.completed ?? false
+  const timed = quest.endsAt != null
+  const now   = Date.now()
+  const msLeft = timed ? Math.max(0, quest.endsAt! - now) : null
+  const urgent = msLeft !== null && msLeft < 3_600_000
+  const warn   = msLeft !== null && msLeft < 86_400_000
+
+  const handleExpired = useCallback(() => {
+    setFading(true)
+    setTimeout(() => onExpired(quest.id), 600)
+  }, [quest.id, onExpired])
+
+  // Card tint based on urgency
+  const cardBg = urgent
+    ? 'rgba(239,68,68,0.06)'
+    : warn
+    ? 'rgba(251,191,36,0.06)'
+    : 'rgba(15,22,40,0.8)'
+
+  const borderColor = done
+    ? 'rgba(16,185,129,0.35)'
+    : urgent
+    ? 'rgba(239,68,68,0.35)'
+    : warn
+    ? 'rgba(251,191,36,0.2)'
+    : 'rgba(251,191,36,0.12)'
 
   return (
     <div
-      className="rounded-2xl overflow-hidden flex flex-col"
+      className="rounded-2xl overflow-hidden flex flex-col backdrop-blur-sm"
       style={{
-        background: '#0f172a',
-        border: `1px solid ${done ? 'rgba(16,185,129,0.4)' : expired ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.07)'}`,
-        opacity: expired ? 0.6 : 1,
+        background: cardBg,
+        border: `1px solid ${borderColor}`,
+        backdropFilter: 'blur(12px)',
+        opacity: fading ? 0 : 1,
+        transform: fading ? 'scale(0.95)' : 'scale(1)',
+        transition: 'opacity 0.6s ease, transform 0.6s ease',
       }}
     >
       {/* Top accent bar */}
-      <div style={{ height: 3, background: done ? '#10b981' : expired ? '#ef4444' : quest.color }} />
+      <div style={{
+        height: 3,
+        background: done
+          ? '#10b981'
+          : urgent
+          ? 'linear-gradient(90deg,#ef4444,#f87171)'
+          : warn
+          ? 'linear-gradient(90deg,#f59e0b,#fbbf24)'
+          : `linear-gradient(90deg,${quest.color},${quest.color}cc)`,
+      }} />
 
       <div className="p-4 flex flex-col gap-3 flex-1">
         {/* Header */}
         <div className="flex items-start gap-3">
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-            style={{ background: `${quest.color}22`, border: `1px solid ${quest.color}44` }}
+            style={{
+              background: `${quest.color}18`,
+              border: `1px solid ${quest.color}35`,
+              boxShadow: timed && urgent ? `0 0 12px ${quest.color}30` : 'none',
+            }}
           >
             {quest.icon}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-bold text-sm text-white leading-tight">{quest.title}</h3>
+              <h3 className="font-bold text-sm leading-tight" style={{ color: '#f1f5f9' }}>{quest.title}</h3>
               {done && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
                       style={{ background: 'rgba(16,185,129,0.2)', color: '#10b981' }}>
@@ -122,7 +238,7 @@ function QuestCard({
               )}
             </div>
             {quest.description && (
-              <p className="text-xs mt-0.5 text-gray-400 line-clamp-2">{quest.description}</p>
+              <p className="text-xs mt-0.5 line-clamp-2" style={{ color: '#64748b' }}>{quest.description}</p>
             )}
           </div>
         </div>
@@ -130,11 +246,11 @@ function QuestCard({
         {/* Meta badges */}
         <div className="flex flex-wrap gap-1.5">
           <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                style={{ background: `${TYPE_COLORS[quest.type] ?? '#6b7280'}22`, color: TYPE_COLORS[quest.type] ?? '#9ca3af' }}>
+                style={{ background: `${TYPE_COLORS[quest.type] ?? '#6b7280'}18`, color: TYPE_COLORS[quest.type] ?? '#9ca3af' }}>
             {TYPE_LABELS[quest.type] ?? quest.type}
           </span>
           <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                style={{ background: 'rgba(255,255,255,0.05)', color: '#9ca3af' }}>
+                style={{ background: 'rgba(251,191,36,0.07)', color: '#64748b' }}>
             {fmtTarget(quest.target)}
           </span>
           {quest.rewardLabel && (
@@ -148,13 +264,13 @@ function QuestCard({
         {/* Personal progress bar */}
         {progress && (
           <div>
-            <div className="flex justify-between text-[10px] mb-1" style={{ color: '#9ca3af' }}>
+            <div className="flex justify-between text-[10px] mb-1" style={{ color: '#64748b' }}>
               <span>Ma progression</span>
-              <span style={{ color: done ? '#10b981' : 'white' }}>
+              <span style={{ color: done ? '#10b981' : '#f1f5f9' }}>
                 {progress.progress} / {quest.goal}
               </span>
             </div>
-            <div className="rounded-full overflow-hidden" style={{ height: 7, background: 'rgba(255,255,255,0.07)' }}>
+            <div className="rounded-full overflow-hidden" style={{ height: 6, background: 'rgba(255,255,255,0.06)' }}>
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -170,20 +286,19 @@ function QuestCard({
 
         {/* Community stats */}
         <div className="flex gap-3 mt-auto pt-1">
-          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#9ca3af' }}>
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#64748b' }}>
             <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
             <span>{quest.completions} complétée{quest.completions !== 1 ? 's' : ''}</span>
           </div>
           {quest.inProgress > 0 && (
-            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#9ca3af' }}>
-              <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+            <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#64748b' }}>
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#fbbf24' }} />
               <span>{quest.inProgress} en cours</span>
             </div>
           )}
-          {/* Community progress bar */}
           {(quest.completions > 0 || quest.inProgress > 0) && (
             <div className="ml-auto flex items-center gap-1">
-              <div className="w-16 rounded-full overflow-hidden" style={{ height: 4, background: 'rgba(255,255,255,0.07)' }}>
+              <div className="w-16 rounded-full overflow-hidden" style={{ height: 4, background: 'rgba(255,255,255,0.06)' }}>
                 <div
                   className="h-full rounded-full"
                   style={{
@@ -192,24 +307,20 @@ function QuestCard({
                   }}
                 />
               </div>
-              <span className="text-[10px]" style={{ color: '#6b7280' }}>
+              <span className="text-[10px]" style={{ color: '#475569' }}>
                 {Math.round(quest.completions / Math.max(quest.completions + quest.inProgress, 1) * 100)}%
               </span>
             </div>
           )}
         </div>
 
-        {/* Timer */}
-        {timed && (
-          <div
-            className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg"
-            style={{
-              background: expired ? 'rgba(239,68,68,0.1)' : urgent ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.04)',
-              color: expired ? '#f87171' : urgent ? '#fbbf24' : '#94a3b8',
-            }}
-          >
-            <span>{expired ? '🔴' : urgent ? '⚡' : '⏱'}</span>
-            <span>{expired ? 'Expirée' : `Fin dans ${fmtRemaining(quest.endsAt!)}`}</span>
+        {/* Solar ring timer */}
+        {timed && msLeft !== null && msLeft > 0 && (
+          <SolarTimer endsAt={quest.endsAt!} totalMs={totalMs} onExpired={handleExpired} />
+        )}
+        {timed && msLeft !== null && msLeft <= 0 && (
+          <div className="text-[11px] px-2 py-1 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+            🔴 Expirée
           </div>
         )}
       </div>
@@ -226,13 +337,7 @@ export default function Quests() {
   const [progress, setProgress] = useState<Record<string, QuestProgress>>({})
   const [loading,  setLoading]  = useState(true)
   const [filter,   setFilter]   = useState<Filter>('all')
-  const [now,      setNow]      = useState(Date.now())
   const token = getToken()
-
-  useEffect(() => {
-    const tick = setInterval(() => setNow(Date.now()), 10_000)
-    return () => clearInterval(tick)
-  }, [])
 
   useEffect(() => {
     const loads: Promise<void>[] = [
@@ -253,6 +358,10 @@ export default function Quests() {
     }
     Promise.all(loads).finally(() => setLoading(false))
   }, [token])
+
+  const handleExpired = useCallback((id: string) => {
+    setQuests(qs => qs.filter(q => q.id !== id))
+  }, [])
 
   const filtered = useMemo(() => {
     return quests.filter(q => {
@@ -280,18 +389,24 @@ export default function Quests() {
     { key: 'timed',     label: '⏱ Limitées' },
   ]
 
+  // For each timed quest, compute totalMs (from creation or a reasonable window)
+  // We use endsAt as reference and assume a fixed window of 7 days if no start known
+  const FALLBACK_WINDOW = 7 * 24 * 3600 * 1000
+
   return (
-    <div className="min-h-screen pb-24" style={{ background: '#080d19' }}>
+    <div className="min-h-screen pb-24 relative" style={{ background: '#080d19' }}>
+      <SunBackground />
+
       {/* Header */}
-      <div className="relative overflow-hidden pt-10 pb-6 px-4">
+      <div className="relative overflow-hidden pt-10 pb-6 px-4 z-10">
         <div className="absolute inset-0 pointer-events-none"
-             style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,92,246,0.15),transparent)' }} />
+             style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%,rgba(251,191,36,0.12),transparent)' }} />
         <div className="relative max-w-screen-sm mx-auto">
           <div className="flex items-center gap-3 mb-1">
             <span className="text-2xl">📜</span>
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">Quêtes</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#f1f5f9' }}>Quêtes</h1>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm" style={{ color: '#64748b' }}>
             {quests.length} quête{quests.length !== 1 ? 's' : ''} disponible{quests.length !== 1 ? 's' : ''}
             {token && counts.completed > 0 && (
               <span className="ml-2 text-green-400">· {counts.completed} terminée{counts.completed !== 1 ? 's' : ''}</span>
@@ -301,12 +416,12 @@ export default function Quests() {
           {/* Global community stats bar */}
           {(globalCompletions > 0 || globalInProgress > 0) && (
             <div className="mt-4 rounded-xl p-3"
-                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div className="flex justify-between text-[11px] mb-2" style={{ color: '#9ca3af' }}>
+                 style={{ background: 'rgba(15,22,40,0.8)', border: '1px solid rgba(251,191,36,0.12)', backdropFilter: 'blur(12px)' }}>
+              <div className="flex justify-between text-[11px] mb-2" style={{ color: '#64748b' }}>
                 <span>Progression de la communauté</span>
                 <span style={{ color: '#34d399' }}>{globalCompletions} complétion{globalCompletions !== 1 ? 's' : ''}</span>
               </div>
-              <div className="rounded-full overflow-hidden flex" style={{ height: 8, background: 'rgba(255,255,255,0.06)' }}>
+              <div className="rounded-full overflow-hidden flex" style={{ height: 8, background: 'rgba(255,255,255,0.05)' }}>
                 <div
                   className="h-full transition-all duration-700"
                   style={{
@@ -318,13 +433,13 @@ export default function Quests() {
                   className="h-full"
                   style={{
                     width: `${Math.round(globalInProgress / Math.max(globalCompletions + globalInProgress, 1) * 100)}%`,
-                    background: 'rgba(251,191,36,0.5)',
+                    background: 'rgba(251,191,36,0.4)',
                   }}
                 />
               </div>
-              <div className="flex gap-4 mt-2 text-[10px]" style={{ color: '#6b7280' }}>
+              <div className="flex gap-4 mt-2 text-[10px]" style={{ color: '#475569' }}>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block"/>Complétées</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block"/>En cours</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: '#fbbf24' }}/>En cours</span>
               </div>
             </div>
           )}
@@ -332,7 +447,7 @@ export default function Quests() {
       </div>
 
       {/* Filters */}
-      <div className="px-4 max-w-screen-sm mx-auto mb-4">
+      <div className="px-4 max-w-screen-sm mx-auto mb-4 relative z-10">
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
           {FILTERS.map(f => (
             <button
@@ -340,9 +455,9 @@ export default function Quests() {
               onClick={() => setFilter(f.key)}
               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
               style={{
-                background: filter === f.key ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${filter === f.key ? 'rgba(139,92,246,0.6)' : 'rgba(255,255,255,0.08)'}`,
-                color: filter === f.key ? '#a78bfa' : '#6b7280',
+                background: filter === f.key ? 'rgba(251,191,36,0.2)' : 'rgba(15,22,40,0.6)',
+                border: `1px solid ${filter === f.key ? 'rgba(251,191,36,0.5)' : 'rgba(251,191,36,0.1)'}`,
+                color: filter === f.key ? '#fbbf24' : '#64748b',
               }}
             >
               {f.label}
@@ -353,14 +468,15 @@ export default function Quests() {
       </div>
 
       {/* Content */}
-      <div className="px-4 max-w-screen-sm mx-auto">
+      <div className="px-4 max-w-screen-sm mx-auto relative z-10">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-600">
-            <div className="w-8 h-8 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin mb-3" />
+          <div className="flex flex-col items-center justify-center py-20" style={{ color: '#64748b' }}>
+            <div className="w-8 h-8 rounded-full border-2 border-t-amber-500 animate-spin mb-3"
+                 style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#f59e0b' }} />
             Chargement des quêtes…
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-600">
+          <div className="flex flex-col items-center justify-center py-20" style={{ color: '#64748b' }}>
             <span className="text-4xl mb-3">📭</span>
             <p className="text-sm">Aucune quête dans cette catégorie</p>
           </div>
@@ -371,7 +487,8 @@ export default function Quests() {
                 key={q.id}
                 quest={q}
                 progress={progress[q.id] ?? null}
-                now={now}
+                totalMs={FALLBACK_WINDOW}
+                onExpired={handleExpired}
               />
             ))}
           </div>
@@ -379,7 +496,7 @@ export default function Quests() {
 
         {!token && (
           <div className="mt-6 rounded-xl p-4 text-center text-sm"
-               style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', color: '#a78bfa' }}>
+               style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}>
             <button onClick={() => navigate('/login')} className="font-medium underline">
               Connecte-toi
             </button>

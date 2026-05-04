@@ -26,13 +26,16 @@ async function get<T>(url: string, token?: string): Promise<T> {
   return data as T
 }
 
-async function authPost<T>(url: string, token: string, body: object): Promise<T> {
+async function authPost<T>(url: string, token: string, body: object, redirectOn401 = true): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (res.status === 401) { on401(); throw { status: 401 } }
+  if (res.status === 401) {
+    if (redirectOn401) { on401() }
+    throw { status: 401 }
+  }
   const data = await res.json()
   if (!res.ok) throw { status: res.status, ...data }
   return data as T
@@ -157,13 +160,13 @@ export const api = {
     get<SlotsSnapshot>('/api/custom-jobs/me/slots', token),
 
   jobJoin:    (token: string, jobId: string) =>
-    authPost<JoinResponse>('/api/custom-jobs/me/join', token, { jobId }),
+    authPost<JoinResponse>('/api/custom-jobs/me/join', token, { jobId }, false),
 
   jobLeave:   (token: string, jobId: string) =>
-    authPost<JoinResponse>('/api/custom-jobs/me/leave', token, { jobId }),
+    authPost<JoinResponse>('/api/custom-jobs/me/leave', token, { jobId }, false),
 
   jobPrestige: (token: string, jobId: string) =>
-    authPost<PrestigeResponse>('/api/custom-jobs/me/prestige', token, { jobId }),
+    authPost<PrestigeResponse>('/api/custom-jobs/me/prestige', token, { jobId }, false),
 
   myTickets: (token: string) =>
     get<ActiveTicket[]>('/api/custom-jobs/me/tickets', token),

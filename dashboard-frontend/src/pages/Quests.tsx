@@ -17,12 +17,20 @@ export default function Quests() {
     title: '', description: '', icon: '⭐', color: '#8B5CF6',
     type: 'BREAK_BLOCK', target: 'ANY', goal: 100,
     rewardCommand: '', rewardLabel: '', enabled: true, repeatable: false,
+    endsAtLocal: '',
   })
 
   const save = async () => {
     if (!editing) return
-    if (editing.id) await api.questUpdate(editing.id, editing)
-    else await api.questCreate(editing)
+    const payload = { ...editing }
+    if (payload.endsAtLocal) {
+      payload.endsAt = new Date(payload.endsAtLocal).getTime()
+    } else {
+      payload.endsAt = null
+    }
+    delete payload.endsAtLocal
+    if (editing.id) await api.questUpdate(editing.id, payload)
+    else await api.questCreate(payload)
     setEditing(null); refresh()
   }
 
@@ -44,7 +52,7 @@ export default function Quests() {
               <div className="text-3xl">{q.icon}</div>
               <div className="flex gap-1">
                 {canEdit && <>
-                  <button onClick={() => setEditing(q)} className="text-xs px-2 py-1 rounded hover:bg-white/10" style={{ color: 'var(--text-muted)' }}>✏️</button>
+                  <button onClick={() => setEditing({ ...q, endsAtLocal: q.endsAt ? new Date(q.endsAt).toISOString().slice(0,16) : '' })} className="text-xs px-2 py-1 rounded hover:bg-white/10" style={{ color: 'var(--text-muted)' }}>✏️</button>
                   <button onClick={async () => { if (confirm('Supprimer ?')) { await api.questDelete(q.id); refresh() } }}
                           className="text-xs px-2 py-1 rounded text-red-400 hover:bg-red-500/10">🗑</button>
                 </>}
@@ -108,6 +116,16 @@ export default function Quests() {
                 <input type="checkbox" checked={editing.repeatable} onChange={e => setEditing({ ...editing, repeatable: e.target.checked })}/> Répétable
               </label>
             </div>
+            <label className="text-xs block" style={{ color: 'var(--text-muted)' }}>
+              Expiration (optionnelle)
+              <input
+                type="datetime-local"
+                value={editing.endsAtLocal ?? ''}
+                onChange={e => setEditing({ ...editing, endsAtLocal: e.target.value })}
+                className="w-full mt-1 px-3 py-2 rounded"
+                style={inp}
+              />
+            </label>
             <div className="flex gap-2">
               <button onClick={save} className="flex-1 px-4 py-2 rounded text-white" style={{ background: 'var(--primary)' }}>💾 Sauvegarder</button>
               <button onClick={() => setEditing(null)} className="px-4 py-2 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>Annuler</button>
