@@ -148,6 +148,11 @@ export default function Jobs() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link to="/jobs/roadmap"
+                className="px-3 py-2 rounded text-xs font-medium hover:opacity-80 transition"
+                style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.4)', color: 'var(--primary)' }}>
+            🗂️ Roadmap
+          </Link>
           <RebornSwitch enabled={rebornEnabled} onToggle={toggleReborn} />
           {(tab === 'overview' || tab === 'catalog') && (
             <div className="flex gap-1 rounded p-1" style={{ background: 'var(--surface-2)' }}>
