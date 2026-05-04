@@ -17,6 +17,8 @@ public final class CustomJobConfig {
 
     /** Per-job runtime enable state — persisted in jobs-state.yml. Missing = enabled. */
     private final Map<String, Boolean> enabledOverrides = new ConcurrentHashMap<>();
+    /** Per-job runtime anti-farm override — persisted in jobs-state.yml. Missing = use jobs.yml default. */
+    private final Map<String, Boolean> antiFarmOverrides = new ConcurrentHashMap<>();
     /** Slots per LuckPerms primary group. Always contains a "default" entry. */
     private final Map<String, Integer> slotsPerRank = new ConcurrentHashMap<>();
 
@@ -62,6 +64,7 @@ public final class CustomJobConfig {
                 int baseXp         = js.getInt("base-xp-per-level", 500);
                 double mult        = js.getDouble("level-multiplier", 1.2);
                 int cooldown       = js.getInt("anti-farm-cooldown", 60);
+                boolean antiFarm   = js.getBoolean("anti-farm-enabled", true);
 
                 Map<String, Map<String, JobAction>> actions = new LinkedHashMap<>();
                 ConfigurationSection actSection = js.getConfigurationSection("actions");
@@ -81,7 +84,7 @@ public final class CustomJobConfig {
                     }
                 }
 
-                jobs.put(id, new CustomJob(id, name, description, icon, maxLevel, baseXp, mult, cooldown, actions));
+                jobs.put(id, new CustomJob(id, name, description, icon, maxLevel, baseXp, mult, cooldown, antiFarm, actions));
                 logger.info("[Jobs] Métier chargé : " + name + " (" + id + ")");
             } catch (Exception e) {
                 logger.warning("[Jobs] Erreur chargement métier '" + id + "': " + e.getMessage());
@@ -99,6 +102,7 @@ public final class CustomJobConfig {
 
     private void loadState() {
         enabledOverrides.clear();
+        antiFarmOverrides.clear();
         slotsPerRank.clear();
         slotsPerRank.put("default", 2);
 
@@ -109,6 +113,10 @@ public final class CustomJobConfig {
         ConfigurationSection en = y.getConfigurationSection("enabled");
         if (en != null) {
             for (String k : en.getKeys(false)) enabledOverrides.put(k, en.getBoolean(k));
+        }
+        ConfigurationSection af = y.getConfigurationSection("anti-farm");
+        if (af != null) {
+            for (String k : af.getKeys(false)) antiFarmOverrides.put(k, af.getBoolean(k));
         }
         ConfigurationSection sl = y.getConfigurationSection("slots-per-rank");
         if (sl != null) {
@@ -124,6 +132,9 @@ public final class CustomJobConfig {
         YamlConfiguration y = new YamlConfiguration();
         for (Map.Entry<String, Boolean> e : enabledOverrides.entrySet()) {
             y.set("enabled." + e.getKey(), e.getValue());
+        }
+        for (Map.Entry<String, Boolean> e : antiFarmOverrides.entrySet()) {
+            y.set("anti-farm." + e.getKey(), e.getValue());
         }
         for (Map.Entry<String, Integer> e : slotsPerRank.entrySet()) {
             y.set("slots-per-rank." + e.getKey(), e.getValue());
@@ -143,6 +154,19 @@ public final class CustomJobConfig {
 
     public void setJobEnabled(String jobId, boolean enabled) {
         enabledOverrides.put(jobId, enabled);
+        saveState();
+    }
+
+    /** Returns true if anti-farm is active for this job (runtime override takes priority). */
+    public boolean isAntiFarmEnabled(String jobId) {
+        Boolean override = antiFarmOverrides.get(jobId);
+        if (override != null) return override;
+        CustomJob job = jobs.get(jobId);
+        return job == null || job.antiFarmEnabled();
+    }
+
+    public void setAntiFarmEnabled(String jobId, boolean enabled) {
+        antiFarmOverrides.put(jobId, enabled);
         saveState();
     }
 

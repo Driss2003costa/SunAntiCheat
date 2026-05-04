@@ -1,6 +1,7 @@
 package sunanticheat.jobs;
 
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import net.kyori.adventure.text.Component;
 import sunanticheat.jobs.dynamics.MultiplierBreakdown;
@@ -158,6 +159,10 @@ public final class CustomJobService {
      * target: material or entity name (uppercase).
      */
     public void processAction(Player player, String actionType, String target) {
+        processAction(player, actionType, target, null);
+    }
+
+    public void processAction(Player player, String actionType, String target, Location loc) {
         String uuid = player.getUniqueId().toString();
         String upperTarget = target.toUpperCase();
 
@@ -171,12 +176,17 @@ public final class CustomJobService {
             if (action == null) continue;
 
             // Anti-farm check
-            String antiFarmKey = uuid + "|" + job.id() + "|" + actionType + "|" + upperTarget;
-            long now = System.currentTimeMillis();
-            long cooldownMs = job.antiFarmCooldownSeconds() * 1000L;
-            Long last = antiFarmMap.get(antiFarmKey);
-            if (last != null && (now - last) < cooldownMs) continue;
-            antiFarmMap.put(antiFarmKey, now);
+            if (config.isAntiFarmEnabled(job.id())) {
+                String antiFarmSuffix = (loc != null)
+                        ? loc.getWorld().getName() + ":" + loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ()
+                        : upperTarget;
+                String antiFarmKey = uuid + "|" + job.id() + "|" + actionType + "|" + antiFarmSuffix;
+                long now = System.currentTimeMillis();
+                long cooldownMs = job.antiFarmCooldownSeconds() * 1000L;
+                Long last = antiFarmMap.get(antiFarmKey);
+                if (last != null && (now - last) < cooldownMs) continue;
+                antiFarmMap.put(antiFarmKey, now);
+            }
 
             Map<String, Object> playerJob = store.getPlayerJob(uuid, job.id());
             if (playerJob == null) continue;

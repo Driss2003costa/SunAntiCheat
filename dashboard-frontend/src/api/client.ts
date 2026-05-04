@@ -111,6 +111,11 @@ export const api = {
       `/api/custom-jobs/admin/job/${encodeURIComponent(jobId)}/enabled`,
       { method: 'PATCH', body: JSON.stringify({ enabled }) },
     ),
+  customJobsAdminToggleAntiFarm: (jobId: string, enabled: boolean) =>
+    request<{ id: string; antiFarm: boolean }>(
+      `/api/custom-jobs/admin/job/${encodeURIComponent(jobId)}/anti-farm`,
+      { method: 'PATCH', body: JSON.stringify({ enabled }) },
+    ),
   customJobsAdminGetSlots: () =>
     request<Record<string, number>>('/api/custom-jobs/admin/slots'),
   customJobsAdminPutSlots: (rank: string, slots: number) =>

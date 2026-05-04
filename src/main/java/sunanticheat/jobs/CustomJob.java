@@ -11,6 +11,7 @@ public record CustomJob(
         int baseXpPerLevel,
         double levelMultiplier,
         int antiFarmCooldownSeconds,
+        boolean antiFarmEnabled,
         // actionType (break/kill/fish/craft) -> target (material/entity) -> reward
         Map<String, Map<String, JobAction>> actions
 ) {
