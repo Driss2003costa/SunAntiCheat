@@ -117,6 +117,33 @@ export const api = {
     request<Record<string, number>>('/api/custom-jobs/admin/slots', {
       method: 'PUT', body: JSON.stringify({ rank, slots }),
     }),
+  // Tickets
+  customJobsAdminListTickets: () =>
+    request<any[]>('/api/custom-jobs/admin/tickets'),
+  customJobsAdminGrantTicket: (playerName: string, type: string, durationHours: number) =>
+    request<any>('/api/custom-jobs/admin/tickets', {
+      method: 'POST', body: JSON.stringify({ playerName, type, durationHours }),
+    }),
+  customJobsAdminRevokeTicket: (id: number) =>
+    request<{ revoked: boolean }>(`/api/custom-jobs/admin/tickets/${id}`, { method: 'DELETE' }),
+  // Regulator
+  customJobsAdminRegulator: () =>
+    request<{
+      enabled: boolean; aggressiveness: number;
+      multipliers: Record<string, number>; shares: Record<string, number>;
+      frozen: Record<string, number>; last_tick_at: number
+    }>('/api/custom-jobs/admin/regulator'),
+  customJobsAdminRegulatorPatch: (body: { enabled?: boolean; aggressiveness?: number; tickNow?: boolean }) =>
+    request<any>('/api/custom-jobs/admin/regulator', {
+      method: 'PATCH', body: JSON.stringify(body),
+    }),
+  customJobsAdminRegulatorHistory: (days = 7) =>
+    request<Array<{ ts: number; job_id: string; share: number; multiplier: number }>>(
+      `/api/custom-jobs/admin/regulator/history?days=${days}`),
+  customJobsAdminRegulatorFreeze: (jobId: string, multiplier: number) =>
+    request<any>('/api/custom-jobs/admin/regulator/freeze', {
+      method: 'PUT', body: JSON.stringify({ jobId, multiplier }),
+    }),
 
   // Sanctions (kick / ban / mute / warn modernes)
   sanctionsList: (params: Record<string, any> = {}) => {

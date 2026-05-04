@@ -13,6 +13,8 @@ import sunanticheat.jobs.CustomJob;
 import sunanticheat.jobs.CustomJobModule;
 import sunanticheat.jobs.CustomJobService;
 import sunanticheat.jobs.dynamics.WorldDynamicsService;
+import sunanticheat.jobs.regulator.EconomicRegulator;
+import sunanticheat.jobs.tickets.JobTicketService;
 
 import java.io.IOException;
 import java.util.*;
@@ -474,6 +476,224 @@ public final class CustomJobsApiHandler {
             if (n < 0) module.getConfig().removeRank(rank);
             else       module.getConfig().setSlotsForRank(rank, n);
             HttpHelper.json(ex, 200, module.getConfig().slotsPerRank());
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    // ── Portal: Prestige ───────────────────────────────────────────────────────
+
+    /** POST /api/custom-jobs/me/prestige — body {jobId} */
+    public void mePrestige(HttpExchange ex) throws IOException {
+        String uuid = portalUuid(ex);
+        if (uuid == null) return;
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String jobId = (String) body.get("jobId");
+            if (jobId == null) { HttpHelper.error(ex, 400, "Missing 'jobId'"); return; }
+
+            CustomJobService.PrestigeResult r = module.getService().tryPrestige(uuid, jobId);
+            int code = switch (r) {
+                case OK             -> 200;
+                case NOT_FOUND      -> 404;
+                case NOT_JOINED     -> 404;
+                case NOT_MAX_LEVEL  -> 409;
+                case MAX_STARS      -> 423;
+                case ERROR          -> 500;
+            };
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("ok",     r == CustomJobService.PrestigeResult.OK);
+            resp.put("reason", r.name());
+            // Echo new state if successful
+            Map<String, Object> pj = module.getStore().getPlayerJob(uuid, jobId);
+            if (pj != null) {
+                resp.put("level", pj.get("level"));
+                resp.put("xp",    pj.get("xp"));
+                resp.put("prestige_stars", pj.getOrDefault("prestige_stars", 0));
+            }
+            HttpHelper.json(ex, code, resp);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    // ── Portal: Tickets (read-only) ────────────────────────────────────────────
+
+    /** GET /api/custom-jobs/me/tickets — active tickets for the player. */
+    public void meTickets(HttpExchange ex) throws IOException {
+        String uuid = portalUuid(ex);
+        if (uuid == null) return;
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        HttpHelper.json(ex, 200, module.getTickets().listActive(uuid));
+    }
+
+    // ── Admin: Tickets ─────────────────────────────────────────────────────────
+
+    /** GET /api/custom-jobs/admin/tickets — last 200 active tickets across the server. */
+    public void adminListTickets(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        HttpHelper.json(ex, 200, module.getTickets().listAllActive(200));
+    }
+
+    /**
+     * POST /api/custom-jobs/admin/tickets
+     * Body : { "playerName": "...", "type": "extra_slot|xp_boost_25|bypass_heatmap",
+     *          "durationHours": 24 }
+     */
+    public void adminGrantTicket(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String playerName = (String) body.get("playerName");
+            String type       = (String) body.get("type");
+            Number hours      = (Number) body.get("durationHours");
+            if (playerName == null || type == null || hours == null) {
+                HttpHelper.error(ex, 400, "Missing 'playerName', 'type' or 'durationHours'"); return;
+            }
+            if (!JobTicketService.ALL_TYPES.contains(type)) {
+                HttpHelper.error(ex, 400, "Invalid type. Allowed: " + JobTicketService.ALL_TYPES); return;
+            }
+
+            // Resolve UUID from name (online or offline player)
+            Player online = Bukkit.getPlayerExact(playerName);
+            String uuid = online != null
+                    ? online.getUniqueId().toString()
+                    : Bukkit.getOfflinePlayer(playerName).getUniqueId().toString();
+
+            long durationMs = (long) (hours.doubleValue() * 3_600_000L);
+            int id = module.getTickets().grant(uuid, type, durationMs, user.username());
+            if (id < 0) { HttpHelper.error(ex, 500, "Grant failed"); return; }
+
+            HttpHelper.json(ex, 200, Map.of(
+                    "id", id, "uuid", uuid, "type", type,
+                    "expires_at", System.currentTimeMillis() + durationMs));
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /** DELETE /api/custom-jobs/admin/tickets/:id */
+    public void adminRevokeTicket(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+        try {
+            String path = ex.getRequestURI().getPath();
+            int id = Integer.parseInt(path.substring(path.lastIndexOf('/') + 1));
+            boolean ok = module.getTickets().revoke(id);
+            HttpHelper.json(ex, ok ? 200 : 404, Map.of("revoked", ok));
+        } catch (NumberFormatException e) {
+            HttpHelper.error(ex, 400, "Invalid id");
+        }
+    }
+
+    // ── Admin: Economic Regulator ──────────────────────────────────────────────
+
+    /** GET /api/custom-jobs/admin/regulator — current snapshot {enabled, aggressiveness, multipliers, shares, frozen, last_tick_at} */
+    public void adminRegulatorState(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getRegulator() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        EconomicRegulator r = module.getRegulator();
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("enabled",        r.isEnabled());
+        resp.put("aggressiveness", r.aggressiveness());
+        resp.put("multipliers",    r.snapshot());
+        resp.put("shares",         r.shareMap());
+        resp.put("frozen",         r.frozenMap());
+        resp.put("last_tick_at",   r.lastTickAt());
+        HttpHelper.json(ex, 200, resp);
+    }
+
+    /** GET /api/custom-jobs/admin/regulator/history?days=30 */
+    public void adminRegulatorHistory(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getRegulator() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        String q = ex.getRequestURI().getRawQuery();
+        int days = 30;
+        if (q != null) {
+            for (String p : q.split("&")) {
+                if (p.startsWith("days=")) try { days = Integer.parseInt(p.substring(5)); } catch (Exception ignored) {}
+            }
+        }
+        HttpHelper.json(ex, 200, module.getRegulator().history(Math.max(1, Math.min(90, days))));
+    }
+
+    /**
+     * PATCH /api/custom-jobs/admin/regulator
+     * Body : { "enabled": bool?, "aggressiveness": 0..1?, "tickNow": bool? }
+     */
+    public void adminRegulatorPatch(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getRegulator() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            EconomicRegulator r = module.getRegulator();
+            if (body.containsKey("enabled"))         r.setEnabled((Boolean) body.get("enabled"));
+            if (body.containsKey("aggressiveness"))  r.setAggressiveness(((Number) body.get("aggressiveness")).doubleValue());
+            if (Boolean.TRUE.equals(body.get("tickNow"))) r.tickNow();
+            HttpHelper.json(ex, 200, Map.of(
+                    "enabled", r.isEnabled(),
+                    "aggressiveness", r.aggressiveness()));
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /**
+     * PUT /api/custom-jobs/admin/regulator/freeze
+     * Body : { "jobId": "...", "multiplier": 1.0 }   (multiplier <0 supprime le freeze)
+     */
+    public void adminRegulatorFreeze(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null || module.getRegulator() == null) {
+            HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return;
+        }
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String jobId = (String) body.get("jobId");
+            Number mult  = (Number) body.get("multiplier");
+            if (jobId == null || mult == null) { HttpHelper.error(ex, 400, "Missing 'jobId' or 'multiplier'"); return; }
+            if (mult.doubleValue() < 0) module.getRegulator().clearFreeze(jobId);
+            else                        module.getRegulator().freezeMultiplier(jobId, mult.doubleValue());
+            HttpHelper.json(ex, 200, Map.of("frozen", module.getRegulator().frozenMap()));
         } catch (Exception e) {
             HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
         }

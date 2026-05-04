@@ -11,6 +11,8 @@ import sunanticheat.jobs.polish.JobActionBarService;
 import sunanticheat.jobs.polish.JobBossBarService;
 import sunanticheat.jobs.polish.JobFxService;
 import sunanticheat.jobs.polish.JobTitlesService;
+import sunanticheat.jobs.regulator.EconomicRegulator;
+import sunanticheat.jobs.tickets.JobTicketService;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +32,8 @@ public final class CustomJobService {
     private JobFxService         fxService;
     private JobTitlesService     titlesService;
     private ComboTracker         comboTracker;
+    private JobTicketService     tickets;
+    private EconomicRegulator    regulator;
 
     // Anti-farm: uuid+jobId+target -> last reward timestamp
     private final Map<String, Long> antiFarmMap = new ConcurrentHashMap<>();
@@ -48,14 +52,21 @@ public final class CustomJobService {
                                   JobActionBarService actionBar,
                                   JobFxService fx,
                                   JobTitlesService titles,
-                                  ComboTracker combos) {
+                                  ComboTracker combos,
+                                  JobTicketService tickets,
+                                  EconomicRegulator regulator) {
         this.dynamics         = dynamics;
         this.bossBarService   = bossBar;
         this.actionBarService = actionBar;
         this.fxService        = fx;
         this.titlesService    = titles;
         this.comboTracker     = combos;
+        this.tickets          = tickets;
+        this.regulator        = regulator;
     }
+
+    public JobTicketService tickets()       { return tickets; }
+    public EconomicRegulator regulator()    { return regulator; }
 
     public enum JoinResult { OK, ALREADY_IN, NOT_FOUND, DISABLED, NO_SLOT }
 
@@ -104,10 +115,28 @@ public final class CustomJobService {
         return store.getPlayerJobs(uuid).size();
     }
 
-    /** Max joinable jobs based on the player's LuckPerms primary group. */
+    /** Max joinable jobs based on the player's LuckPerms primary group + active extra_slot tickets. */
     public int maxSlotsFor(String uuid) {
         String rank = sunanticheat.dashboard.luckperms.LuckPermsBridge.getPrimaryGroup(uuid);
-        return config.slotsForRank(rank);
+        int base = config.slotsForRank(rank);
+        if (tickets != null && tickets.has(uuid, JobTicketService.TYPE_EXTRA_SLOT)) base += 1;
+        return base;
+    }
+
+    public enum PrestigeResult { OK, NOT_FOUND, NOT_JOINED, NOT_MAX_LEVEL, MAX_STARS, ERROR }
+    private static final int MAX_PRESTIGE_STARS = 5;
+
+    /** Prestige a job: requires the player to be at max level. Resets level to 1 and grants +1 star. */
+    public PrestigeResult tryPrestige(String uuid, String jobId) {
+        CustomJob job = config.getJob(jobId);
+        if (job == null) return PrestigeResult.NOT_FOUND;
+        Map<String, Object> pj = store.getPlayerJob(uuid, jobId);
+        if (pj == null) return PrestigeResult.NOT_JOINED;
+        int level = ((Number) pj.get("level")).intValue();
+        int stars = ((Number) pj.getOrDefault("prestige_stars", 0)).intValue();
+        if (!job.isMaxLevel(level)) return PrestigeResult.NOT_MAX_LEVEL;
+        if (stars >= MAX_PRESTIGE_STARS) return PrestigeResult.MAX_STARS;
+        return store.prestige(uuid, jobId) > 0 ? PrestigeResult.OK : PrestigeResult.ERROR;
     }
 
     /** {used, max, primaryGroup} snapshot used by the portal slots endpoint. */
@@ -153,12 +182,14 @@ public final class CustomJobService {
             if (playerJob == null) continue;
 
             int level = ((Number) playerJob.get("level")).intValue();
+            int stars = ((Number) playerJob.getOrDefault("prestige_stars", 0)).intValue();
             double currentXp = ((Number) playerJob.get("xp")).doubleValue();
             double levelMult = job.rewardMultiplier(level);
 
             // ── Dynamiques de monde (saison, météo, jour/nuit, heatmap, bulletin) ─
+            boolean bypassHeatmap = tickets != null && tickets.has(uuid, JobTicketService.TYPE_BYPASS_HEATMAP);
             MultiplierBreakdown world = dynamics != null
-                    ? dynamics.computeMultiplier(player, job.id(), actionType)
+                    ? dynamics.computeMultiplier(player, job.id(), actionType, bypassHeatmap)
                     : new MultiplierBreakdown();
             double worldMult = world.total();
 
@@ -171,8 +202,18 @@ public final class CustomJobService {
                 comboMult  = st.multiplier();
             }
 
-            double xpGain    = action.xp()    * levelMult * worldMult * comboMult;
-            double moneyGain = action.money() * levelMult * worldMult * comboMult;
+            // ── Prestige (étoiles permanentes, +3% par étoile) ───────────────────
+            double prestigeMult = 1.0 + (stars * 0.03);
+
+            // ── Ticket xp_boost (+25% sur tout le gain) ──────────────────────────
+            double ticketMult = (tickets != null && tickets.has(uuid, JobTicketService.TYPE_XP_BOOST_25))
+                    ? 1.25 : 1.0;
+
+            // ── Régulateur économique (correction par métier) ────────────────────
+            double regMult = regulator != null ? regulator.multiplierFor(job.id()) : 1.0;
+
+            double xpGain    = action.xp()    * levelMult * worldMult * comboMult * prestigeMult * ticketMult * regMult;
+            double moneyGain = action.money() * levelMult * worldMult * comboMult * prestigeMult * ticketMult * regMult;
 
             // ── Évènement (1er servi gagne) ──────────────────────────────────────
             WorldEventManager.ActiveEvent claimed = dynamics != null

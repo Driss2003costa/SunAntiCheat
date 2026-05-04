@@ -41,6 +41,29 @@ public final class CustomJobStore {
             );
             CREATE INDEX IF NOT EXISTS idx_cjh_uuid ON custom_job_history(uuid);
             CREATE INDEX IF NOT EXISTS idx_cjh_job  ON custom_job_history(job_id)""");
+
+        db.migrate("custom_jobs", 2, """
+            ALTER TABLE custom_job_players ADD COLUMN prestige_stars INTEGER NOT NULL DEFAULT 0""");
+
+        db.migrate("custom_jobs", 3, """
+            CREATE TABLE IF NOT EXISTS custom_job_tickets (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                uuid        TEXT NOT NULL,
+                type        TEXT NOT NULL,
+                expires_at  INTEGER NOT NULL,
+                granted_by  TEXT NOT NULL,
+                granted_at  INTEGER NOT NULL,
+                consumed_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_cjt_uuid    ON custom_job_tickets(uuid);
+            CREATE INDEX IF NOT EXISTS idx_cjt_expires ON custom_job_tickets(expires_at);
+            CREATE TABLE IF NOT EXISTS custom_job_regulator (
+                ts         INTEGER NOT NULL,
+                job_id     TEXT NOT NULL,
+                share      REAL NOT NULL,
+                multiplier REAL NOT NULL,
+                PRIMARY KEY(ts, job_id)
+            )""");
     }
 
     // ── Player job data ───────────────────────────────────────────────────────
@@ -107,6 +130,31 @@ public final class CustomJobStore {
             ps.setInt(1, level); ps.setString(2, uuid); ps.setString(3, jobId);
             ps.executeUpdate();
         } catch (SQLException e) { logger.warning("[Jobs] setLevel: " + e.getMessage()); }
+    }
+
+    /** Reset level/xp to 1/0 and increment prestige_stars. Returns the new star count, or -1 on error. */
+    public int prestige(String uuid, String jobId) {
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "UPDATE custom_job_players SET level=1, xp=0, prestige_stars=prestige_stars+1 WHERE uuid=? AND job_id=?")) {
+            ps.setString(1, uuid); ps.setString(2, jobId);
+            if (ps.executeUpdate() == 0) return -1;
+        } catch (SQLException e) { logger.warning("[Jobs] prestige: " + e.getMessage()); return -1; }
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT prestige_stars FROM custom_job_players WHERE uuid=? AND job_id=?")) {
+            ps.setString(1, uuid); ps.setString(2, jobId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? rs.getInt(1) : -1; }
+        } catch (SQLException e) { return -1; }
+    }
+
+    /** Distribution {jobId: count} of unique players currently in each job. */
+    public Map<String, Integer> jobDistribution() {
+        Map<String, Integer> m = new LinkedHashMap<>();
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT job_id, COUNT(DISTINCT uuid) AS n FROM custom_job_players GROUP BY job_id");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) m.put(rs.getString("job_id"), rs.getInt("n"));
+        } catch (SQLException e) { logger.warning("[Jobs] jobDistribution: " + e.getMessage()); }
+        return m;
     }
 
     // ── History ───────────────────────────────────────────────────────────────
@@ -268,12 +316,14 @@ public final class CustomJobStore {
 
     private static Map<String, Object> rowToMap(ResultSet rs) throws SQLException {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("uuid",         rs.getString("uuid"));
-        m.put("job_id",       rs.getString("job_id"));
-        m.put("xp",           rs.getDouble("xp"));
-        m.put("level",        rs.getInt("level"));
-        m.put("total_earned", rs.getDouble("total_earned"));
-        m.put("joined_at",    rs.getLong("joined_at"));
+        m.put("uuid",           rs.getString("uuid"));
+        m.put("job_id",         rs.getString("job_id"));
+        m.put("xp",             rs.getDouble("xp"));
+        m.put("level",          rs.getInt("level"));
+        m.put("total_earned",   rs.getDouble("total_earned"));
+        m.put("joined_at",      rs.getLong("joined_at"));
+        try { m.put("prestige_stars", rs.getInt("prestige_stars")); }
+        catch (SQLException ignored) { m.put("prestige_stars", 0); }
         return m;
     }
 }

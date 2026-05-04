@@ -4,6 +4,7 @@ import {
   api, getToken, clearToken,
   type PlayerProfile, type CustomJob, type PlayerJobProgress,
   type JobDynamicsSnapshot, type JobHeatmapResponse, type SlotsSnapshot,
+  type ActiveTicket,
 } from '../api/client'
 import Navbar from '../components/Navbar'
 
@@ -26,6 +27,7 @@ export default function Career() {
   const [dynamics,    setDynamics]    = useState<JobDynamicsSnapshot | null>(null)
   const [heatmap,     setHeatmap]     = useState<JobHeatmapResponse | null>(null)
   const [slots,       setSlots]       = useState<SlotsSnapshot | null>(null)
+  const [tickets,     setTickets]     = useState<ActiveTicket[]>([])
   const [loading,     setLoading]     = useState(true)
   const [unavailable, setUnavailable] = useState(false)
   const [busyJob,     setBusyJob]     = useState<string | null>(null)
@@ -33,18 +35,20 @@ export default function Career() {
 
   const loadAll = async (uuid: string) => {
     const token = getToken()
-    const [j, pr, dyn, hm, sl] = await Promise.all([
+    const [j, pr, dyn, hm, sl, tk] = await Promise.all([
       api.customJobsList().catch(e => { if (e.status === 503) setUnavailable(true); return [] }),
       api.customJobsPlayer(uuid).catch(() => []),
       api.jobDynamics().catch(() => null),
       api.jobHeatmap(uuid, 7).catch(() => null),
-      token ? api.jobSlots(token).catch(() => null) : Promise.resolve(null),
+      token ? api.jobSlots(token).catch(() => null)   : Promise.resolve(null),
+      token ? api.myTickets(token).catch(() => [])    : Promise.resolve([]),
     ])
     setJobs(j as CustomJob[])
     setProgress(pr as PlayerJobProgress[])
     setDynamics(dyn as JobDynamicsSnapshot | null)
     setHeatmap(hm as JobHeatmapResponse | null)
     setSlots(sl as SlotsSnapshot | null)
+    setTickets(tk as ActiveTicket[])
   }
 
   useEffect(() => {
@@ -177,6 +181,28 @@ export default function Career() {
                 {slots.max - slots.used} libre{slots.max - slots.used > 1 ? 's' : ''}
               </span>
             )}
+          </div>
+        )}
+
+        {/* Active tickets */}
+        {tickets.length > 0 && (
+          <div className="bg-gradient-to-br from-purple-500/15 to-pink-500/10 border border-purple-500/30 rounded-2xl px-4 py-3">
+            <p className="text-xs font-semibold text-purple-300 uppercase tracking-widest mb-2">🎫 Tickets actifs</p>
+            <div className="flex flex-wrap gap-2">
+              {tickets.map(t => {
+                const remainingMs = t.expires_at - Date.now()
+                const remainingH = remainingMs > 0 ? Math.max(1, Math.round(remainingMs / 3_600_000)) : 0
+                const label =
+                  t.type === 'extra_slot'     ? '+1 slot métier' :
+                  t.type === 'xp_boost_25'    ? '+25% XP' :
+                  t.type === 'bypass_heatmap' ? 'Bypass heatmap' : t.type
+                return (
+                  <span key={t.id} className="text-[11px] font-semibold text-purple-200 bg-purple-500/20 border border-purple-500/40 rounded-full px-2.5 py-1">
+                    {label} · {remainingH}h
+                  </span>
+                )
+              })}
+            </div>
           </div>
         )}
 

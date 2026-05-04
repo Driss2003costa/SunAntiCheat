@@ -133,6 +133,11 @@ public final class WorldDynamicsService {
      * Ne consomme PAS les évènements (cf. {@link #claimEventReward}).
      */
     public MultiplierBreakdown computeMultiplier(Player player, String jobId, String actionType) {
+        return computeMultiplier(player, jobId, actionType, false);
+    }
+
+    /** Variante avec bypass heatmap (ticket admin). */
+    public MultiplierBreakdown computeMultiplier(Player player, String jobId, String actionType, boolean bypassHeatmap) {
         MultiplierBreakdown b = new MultiplierBreakdown();
         if (!isSubsystemEnabled(SYS_GLOBAL)) return b;
 
@@ -166,8 +171,8 @@ public final class WorldDynamicsService {
             if (mult != 1.0) b.add(period.equals("night") ? "🌙 Nuit" : "🌞 Jour", mult);
         }
 
-        // Heatmap
-        if (isSubsystemEnabled(SYS_HEATMAP) && player != null) {
+        // Heatmap (skipped if the player holds a bypass_heatmap ticket)
+        if (isSubsystemEnabled(SYS_HEATMAP) && player != null && !bypassHeatmap) {
             Location loc = player.getLocation();
             int cx = loc.getBlockX() >> 4;
             int cz = loc.getBlockZ() >> 4;

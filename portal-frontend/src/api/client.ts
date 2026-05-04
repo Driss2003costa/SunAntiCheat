@@ -57,9 +57,12 @@ export type CustomJob = {
 }
 export type SlotsSnapshot = { used: number; max: number; rank: string }
 export type JoinResponse  = { ok: boolean; reason: string; used: number; max: number; rank: string }
+export type PrestigeResponse = { ok: boolean; reason: string; level?: number; xp?: number; prestige_stars?: number }
+export type ActiveTicket = { id: number; type: string; expires_at: number; granted_by: string; granted_at: number }
 export type PlayerJobProgress = {
   job_id: string; xp: number; level: number; total_earned: number
   job_name: string; max_level: number; xp_to_next: number
+  prestige_stars?: number
 }
 export type VipPlan = {
   id: string; displayName: string; description?: string | null
@@ -156,6 +159,20 @@ export const api = {
     if (!res.ok) throw { status: res.status, ...data }
     return data as JoinResponse
   },
+
+  jobPrestige: async (token: string, jobId: string): Promise<PrestigeResponse> => {
+    const res = await fetch('/api/custom-jobs/me/prestige', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw { status: res.status, ...data }
+    return data as PrestigeResponse
+  },
+
+  myTickets: (token: string) =>
+    get<ActiveTicket[]>('/api/custom-jobs/me/tickets', token),
 
   vipPlans: () =>
     get<VipPlan[]>(`${BASE}/vip/plans`),

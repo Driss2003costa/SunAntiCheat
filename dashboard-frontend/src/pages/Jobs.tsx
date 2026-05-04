@@ -12,7 +12,7 @@ import { api } from '../api/client'
  *  - Catalogue : liste de tous les jobs (config Jobs Reborn) avec stats
  */
 
-type Tab = 'overview' | 'active' | 'history' | 'catalog' | 'custom-jobs' | 'dynamics'
+type Tab = 'overview' | 'active' | 'history' | 'catalog' | 'custom-jobs' | 'dynamics' | 'tickets' | 'regulator'
 
 const TABS: { id: Tab; label: string; icon: string; section?: string }[] = [
   { id: 'overview',    label: 'Vue générale',   icon: '📊' },
@@ -21,6 +21,8 @@ const TABS: { id: Tab; label: string; icon: string; section?: string }[] = [
   { id: 'catalog',     label: 'Catalogue',      icon: '💼' },
   { id: 'custom-jobs', label: 'Métiers Custom', icon: '⚒️',  section: 'Custom' },
   { id: 'dynamics',    label: 'Dynamiques',     icon: '🌍',  section: 'Custom' },
+  { id: 'tickets',     label: 'Tickets',        icon: '🎫',  section: 'Custom' },
+  { id: 'regulator',   label: 'Régulateur',     icon: '⚖️',  section: 'Custom' },
 ]
 
 const REBORN_TABS: Tab[] = ['overview', 'active', 'history', 'catalog']
@@ -232,6 +234,8 @@ export default function Jobs() {
       {rebornEnabled && tab === 'catalog'     && <CatalogTab data={overview} days={days} />}
       {tab === 'custom-jobs' && <CustomJobsTab />}
       {tab === 'dynamics'    && <DynamicsTab />}
+      {tab === 'tickets'     && <TicketsTab />}
+      {tab === 'regulator'   && <RegulatorTab />}
     </div>
   )
 }
@@ -1267,6 +1271,324 @@ function SimpleLineChart({ data }: { data: { labels: string[]; data: number[] } 
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ── Tickets tab ─────────────────────────────────────────────────────────────
+
+const TICKET_TYPES = [
+  { id: 'extra_slot',     label: '+1 slot métier',  icon: '🎟️', desc: 'Permet de rejoindre un métier de plus' },
+  { id: 'xp_boost_25',    label: '+25% XP / argent', icon: '✨', desc: 'Bonus multiplicatif sur tous les gains' },
+  { id: 'bypass_heatmap', label: 'Bypass heatmap',   icon: '🔥', desc: 'Ignore la pénalité de zone surexploitée' },
+]
+
+function TicketsTab() {
+  const [list, setList] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [form, setForm] = useState({ playerName: '', type: 'xp_boost_25', durationHours: 24 })
+
+  const refresh = () => {
+    setLoading(true)
+    api.customJobsAdminListTickets().then(setList).catch(() => {}).finally(() => setLoading(false))
+  }
+  useEffect(() => { refresh() }, [])
+
+  const grant = async () => {
+    if (!form.playerName.trim()) return
+    setBusy(true)
+    try {
+      await api.customJobsAdminGrantTicket(form.playerName.trim(), form.type, form.durationHours)
+      setForm({ ...form, playerName: '' })
+      refresh()
+    } catch (e: any) { alert('Erreur : ' + (e?.message ?? 'inconnue')) }
+    finally { setBusy(false) }
+  }
+  const revoke = async (id: number) => {
+    if (!confirm('Révoquer ce ticket ?')) return
+    await api.customJobsAdminRevokeTicket(id)
+    refresh()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl p-4 space-y-3"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <h3 className="font-bold" style={{ color: 'var(--text)' }}>🎫 Émettre un ticket</h3>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Distribue un bonus temporaire à un joueur (vote, crate, événement). Survit aux reboots.
+        </p>
+        <div className="grid grid-cols-12 gap-2">
+          <input type="text" placeholder="Nom du joueur"
+                 value={form.playerName}
+                 onChange={e => setForm({ ...form, playerName: e.target.value })}
+                 className="col-span-4 px-3 py-2 rounded text-sm"
+                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+          <select value={form.type}
+                  onChange={e => setForm({ ...form, type: e.target.value })}
+                  className="col-span-4 px-3 py-2 rounded text-sm"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            {TICKET_TYPES.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+          </select>
+          <input type="number" min={1} max={720}
+                 value={form.durationHours}
+                 onChange={e => setForm({ ...form, durationHours: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                 className="col-span-2 px-3 py-2 rounded text-sm text-center"
+                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+          <button onClick={grant} disabled={busy || !form.playerName.trim()}
+                  className="col-span-2 px-3 py-2 rounded text-sm font-medium"
+                  style={{ background: 'var(--primary)', color: 'white', opacity: !form.playerName.trim() ? 0.5 : 1 }}>
+            + Émettre
+          </button>
+        </div>
+        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          {TICKET_TYPES.find(t => t.id === form.type)?.desc} · durée en heures
+        </p>
+      </div>
+
+      <div className="rounded-xl p-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold" style={{ color: 'var(--text)' }}>Tickets actifs ({list.length})</h3>
+          <button onClick={refresh} className="text-xs" style={{ color: 'var(--text-muted)' }}>↻</button>
+        </div>
+        {loading ? <Loading/> : list.length === 0 ? (
+          <p className="text-sm py-6 text-center" style={{ color: 'var(--text-muted)' }}>Aucun ticket actif.</p>
+        ) : (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            <table className="w-full text-sm">
+              <thead style={{ background: 'var(--surface-2)' }}>
+                <tr style={{ color: 'var(--text-muted)' }}>
+                  <th className="text-left px-3 py-2 text-xs">Joueur</th>
+                  <th className="text-left px-3 py-2 text-xs">Type</th>
+                  <th className="text-left px-3 py-2 text-xs">Expire</th>
+                  <th className="text-left px-3 py-2 text-xs">Émis par</th>
+                  <th className="px-3 py-2 text-xs"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map(t => {
+                  const meta = TICKET_TYPES.find(tt => tt.id === t.type)
+                  const remH = Math.max(0, Math.round((t.expires_at - Date.now()) / 3_600_000))
+                  return (
+                    <tr key={t.id} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td className="px-3 py-2 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{t.uuid.slice(0, 8)}…</td>
+                      <td className="px-3 py-2">{meta?.icon} {meta?.label ?? t.type}</td>
+                      <td className="px-3 py-2 text-xs" style={{ color: remH < 6 ? '#ef4444' : 'var(--text-muted)' }}>
+                        dans {remH}h
+                      </td>
+                      <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>{t.granted_by}</td>
+                      <td className="px-3 py-2 text-right">
+                        <button onClick={() => revoke(t.id)}
+                                className="text-xs px-2 py-1 rounded"
+                                style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                          Révoquer
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Regulator tab ───────────────────────────────────────────────────────────
+
+function RegulatorTab() {
+  const [state, setState] = useState<any>(null)
+  const [history, setHistory] = useState<any[]>([])
+  const [jobs, setJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const refresh = async () => {
+    setLoading(true)
+    try {
+      const [s, h, j] = await Promise.all([
+        api.customJobsAdminRegulator(),
+        api.customJobsAdminRegulatorHistory(7),
+        api.customJobsList(),
+      ])
+      setState(s); setHistory(h); setJobs(j)
+    } finally { setLoading(false) }
+  }
+  useEffect(() => { refresh() }, [])
+
+  const patch = async (body: any) => {
+    setBusy(true)
+    try { await api.customJobsAdminRegulatorPatch(body); await refresh() }
+    finally { setBusy(false) }
+  }
+  const freeze = async (jobId: string, mult: number) => {
+    setBusy(true)
+    try { await api.customJobsAdminRegulatorFreeze(jobId, mult); await refresh() }
+    finally { setBusy(false) }
+  }
+
+  if (loading || !state) return <Loading/>
+
+  const lastTickStr = state.last_tick_at
+    ? new Date(state.last_tick_at).toLocaleTimeString('fr-FR')
+    : 'jamais'
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="rounded-xl p-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+              ⚖️ Régulateur économique
+              <span className="text-xs px-2 py-0.5 rounded"
+                    style={{
+                      background: state.enabled ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)',
+                      color: state.enabled ? '#10b981' : 'var(--text-muted)',
+                    }}>
+                {state.enabled ? 'ACTIF' : 'INACTIF'}
+              </span>
+            </h3>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Auto-ajuste les payouts par métier selon la distribution de joueurs · dernier tick : {lastTickStr}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => patch({ enabled: !state.enabled })} disabled={busy}
+                    className="px-3 py-2 rounded text-xs font-medium"
+                    style={{
+                      background: state.enabled ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                      color: state.enabled ? '#ef4444' : '#10b981',
+                      border: `1px solid ${state.enabled ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)'}`,
+                    }}>
+              {state.enabled ? '⏸ Désactiver' : '▶ Activer'}
+            </button>
+            <button onClick={() => patch({ tickNow: true })} disabled={busy}
+                    className="px-3 py-2 rounded text-xs"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              ↻ Forcer tick
+            </button>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+            <span>Agressivité</span>
+            <span className="font-mono">{(state.aggressiveness * 100).toFixed(0)}%</span>
+          </div>
+          <input type="range" min={0} max={100} value={state.aggressiveness * 100}
+                 onChange={e => setState({ ...state, aggressiveness: parseInt(e.target.value, 10) / 100 })}
+                 onMouseUp={e => patch({ aggressiveness: parseInt((e.target as HTMLInputElement).value, 10) / 100 })}
+                 className="w-full"/>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            0% = aucun effet · 100% = correction maximale (multiplier 0.7x à 1.4x selon distribution)
+          </p>
+        </div>
+      </div>
+
+      {/* Per-job state */}
+      <div className="rounded-xl p-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <h3 className="font-bold mb-3" style={{ color: 'var(--text)' }}>Multiplicateurs actuels</h3>
+        {jobs.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Aucun métier.</p>
+        ) : (
+          <div className="space-y-2">
+            {jobs.map((j: any) => {
+              const mult  = state.multipliers[j.id] ?? 1.0
+              const share = state.shares[j.id] ?? 0
+              const frozen = state.frozen[j.id]
+              const color = mult > 1.05 ? '#10b981' : mult < 0.95 ? '#ef4444' : 'var(--text-muted)'
+              return (
+                <div key={j.id} className="flex items-center gap-3 px-3 py-2 rounded"
+                     style={{ background: 'var(--surface-2)' }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{j.name}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                      {(share * 100).toFixed(1)}% de la pop · {j.player_count ?? 0} joueurs
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-bold" style={{ color }}>
+                      ×{mult.toFixed(2)}
+                    </span>
+                    {frozen != null && (
+                      <span className="text-[10px] font-bold text-orange-400 bg-orange-500/15 px-1.5 py-0.5 rounded">
+                        🔒 {frozen.toFixed(2)}
+                      </span>
+                    )}
+                    <input type="number" step={0.05} min={0.7} max={1.4}
+                           defaultValue={frozen ?? mult}
+                           onBlur={e => {
+                             const v = parseFloat(e.target.value)
+                             if (!isNaN(v)) freeze(j.id, v)
+                           }}
+                           title="Freeze à cette valeur"
+                           className="w-16 px-1 py-0.5 rounded text-xs text-center"
+                           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+                    {frozen != null && (
+                      <button onClick={() => freeze(j.id, -1)}
+                              title="Libérer"
+                              className="text-xs px-1.5 py-0.5 rounded"
+                              style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>×</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* History sparklines */}
+      {history.length > 0 && (
+        <div className="rounded-xl p-4"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="font-bold mb-3" style={{ color: 'var(--text)' }}>Historique 7j (par métier)</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {jobs.map((j: any) => (
+              <RegulatorSparkline key={j.id} jobName={j.name}
+                                  data={history.filter(h => h.job_id === j.id)}/>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RegulatorSparkline({ jobName, data }: { jobName: string; data: { ts: number; multiplier: number }[] }) {
+  if (data.length === 0) return (
+    <div className="rounded p-2 text-xs"
+         style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+      {jobName} — pas de données
+    </div>
+  )
+  const min = 0.7, max = 1.4
+  const points = data.map((d, i) => {
+    const x = (i / Math.max(1, data.length - 1)) * 100
+    const y = 100 - ((d.multiplier - min) / (max - min)) * 100
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const last = data[data.length - 1].multiplier
+  const color = last > 1.05 ? '#10b981' : last < 0.95 ? '#ef4444' : '#94a3b8'
+  return (
+    <div className="rounded p-2"
+         style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>{jobName}</span>
+        <span className="text-xs font-mono font-bold" style={{ color }}>×{last.toFixed(2)}</span>
+      </div>
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-8">
+        <line x1={0} y1={(100 - ((1.0 - min) / (max - min)) * 100) * 0.3} x2={100} y2={(100 - ((1.0 - min) / (max - min)) * 100) * 0.3}
+              stroke="var(--border)" strokeDasharray="2 2" strokeWidth="0.3"/>
+        <polyline fill="none" stroke={color} strokeWidth="1" points={points}
+                  vectorEffect="non-scaling-stroke" transform="scale(1, 0.3)"/>
+      </svg>
     </div>
   )
 }

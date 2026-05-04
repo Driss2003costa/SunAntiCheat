@@ -31,6 +31,43 @@ export default function CareerJobDetail() {
   const [timeline,  setTimeline]  = useState<JobTimelineResponse | null>(null)
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState<string | null>(null)
+  const [prestigeBusy, setPrestigeBusy] = useState(false)
+  const [toast,     setToast]     = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
+
+  const reloadProgress = async (uuid: string) => {
+    const [progs, tl] = await Promise.all([
+      api.customJobsPlayer(uuid).catch(() => []),
+      api.jobTimeline(uuid, jobId, 30).catch(() => null),
+    ])
+    setProgress((progs as PlayerJobProgress[]).find(p => p.job_id === jobId) ?? null)
+    setTimeline(tl)
+  }
+
+  const handlePrestige = async () => {
+    const token = getToken(); if (!token || !profile) return
+    if (!window.confirm("Renaître ? Tu reset ton niveau à 1 mais gagnes une étoile permanente (+3% XP/argent).")) return
+    setPrestigeBusy(true)
+    try {
+      const r = await api.jobPrestige(token, jobId)
+      setToast({ kind: 'ok', msg: `Renaissance ! ⭐ ${r.prestige_stars ?? '?'} étoile(s)` })
+      await reloadProgress(profile.uuid)
+    } catch (e: any) {
+      const reason = e?.reason ?? ''
+      const msg = reason === 'NOT_MAX_LEVEL' ? 'Tu dois être au niveau maximum.'
+                : reason === 'MAX_STARS'     ? 'Maximum d\'étoiles atteint (5).'
+                : reason === 'NOT_JOINED'    ? 'Tu n\'es pas dans ce métier.'
+                : 'Action impossible.'
+      setToast({ kind: 'err', msg })
+    } finally {
+      setPrestigeBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
 
   useEffect(() => {
     const token = getToken()
@@ -166,6 +203,31 @@ export default function CareerJobDetail() {
                   <p className="text-xs text-yellow-400 font-semibold">Niveau maximum atteint — Maître {job.name}</p>
                 </div>
               )}
+
+              {/* Prestige badge + button */}
+              {(progress.prestige_stars ?? 0) > 0 && (
+                <div className="mt-3 flex items-center gap-2 text-xs">
+                  <span className="text-yellow-400">{'⭐'.repeat(progress.prestige_stars ?? 0)}</span>
+                  <span className="text-gray-400">
+                    {progress.prestige_stars} étoile{(progress.prestige_stars ?? 0) > 1 ? 's' : ''} · +{((progress.prestige_stars ?? 0) * 3).toFixed(0)}% bonus permanent
+                  </span>
+                </div>
+              )}
+
+              {isMax && (progress.prestige_stars ?? 0) < 5 && (
+                <button
+                  type="button"
+                  onClick={handlePrestige}
+                  disabled={prestigeBusy}
+                  className="mt-3 w-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/40 rounded-xl px-4 py-3 text-sm font-bold text-yellow-300 hover:from-yellow-500/30 hover:to-orange-500/30 disabled:opacity-50 transition-all">
+                  {prestigeBusy ? '…' : `✨ Renaître — gagner 1 étoile permanente (+3% XP/$)`}
+                </button>
+              )}
+              {isMax && (progress.prestige_stars ?? 0) >= 5 && (
+                <div className="mt-3 bg-gradient-to-r from-purple-500/15 to-yellow-500/15 border border-purple-500/30 rounded-xl px-4 py-3 text-center">
+                  <p className="text-xs font-bold text-purple-300">⭐⭐⭐⭐⭐ Maître Suprême — Toutes les étoiles atteintes</p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -267,6 +329,18 @@ export default function CareerJobDetail() {
         )}
 
       </div>
+
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
+          <div className={`px-4 py-2 rounded-full text-xs font-semibold shadow-lg border ${
+            toast.kind === 'ok'
+              ? 'bg-emerald-500/95 text-black border-emerald-300'
+              : 'bg-red-500/95 text-white border-red-300'
+          }`}>
+            {toast.kind === 'ok' ? '✔ ' : '⚠ '}{toast.msg}
+          </div>
+        </div>
+      )}
 
       <Navbar />
     </div>

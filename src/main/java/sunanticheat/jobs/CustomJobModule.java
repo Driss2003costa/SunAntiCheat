@@ -9,6 +9,8 @@ import sunanticheat.jobs.polish.JobActionBarService;
 import sunanticheat.jobs.polish.JobBossBarService;
 import sunanticheat.jobs.polish.JobFxService;
 import sunanticheat.jobs.polish.JobTitlesService;
+import sunanticheat.jobs.regulator.EconomicRegulator;
+import sunanticheat.jobs.tickets.JobTicketService;
 
 public final class CustomJobModule {
 
@@ -25,6 +27,8 @@ public final class CustomJobModule {
     private final JobFxService         fxService;
     private final JobTitlesService     titlesService;
     private final ComboTracker         comboTracker;
+    private final JobTicketService     tickets;
+    private final EconomicRegulator    regulator;
 
     public CustomJobModule(JavaPlugin plugin, Database db, Economy economy) {
         this.config   = new CustomJobConfig(plugin, plugin.getLogger());
@@ -42,9 +46,14 @@ public final class CustomJobModule {
         this.dynamics = new WorldDynamicsService(plugin, db, config, plugin.getLogger());
         this.dynamics.start();
 
+        // Tickets + economic regulator
+        this.tickets   = new JobTicketService(db, plugin.getLogger());
+        this.regulator = new EconomicRegulator(plugin, db, store, config, plugin.getLogger());
+        this.regulator.start();
+
         // Wire everything into the service
         this.service.attachExtensions(dynamics, bossBarService, actionBarService,
-                fxService, titlesService, comboTracker);
+                fxService, titlesService, comboTracker, tickets, regulator);
 
         this.gui      = new CustomJobGui(service);
         this.command  = new CustomJobCommand(service, gui);
@@ -62,15 +71,18 @@ public final class CustomJobModule {
         }
     }
 
-    public CustomJobService          getService()  { return service; }
-    public CustomJobStore            getStore()    { return store; }
-    public CustomJobConfig           getConfig()   { return config; }
-    public WorldDynamicsService      getDynamics() { return dynamics; }
-    public JobBossBarService         getBossBar()  { return bossBarService; }
+    public CustomJobService          getService()   { return service; }
+    public CustomJobStore            getStore()     { return store; }
+    public CustomJobConfig           getConfig()    { return config; }
+    public WorldDynamicsService      getDynamics()  { return dynamics; }
+    public JobBossBarService         getBossBar()   { return bossBarService; }
+    public JobTicketService          getTickets()   { return tickets; }
+    public EconomicRegulator         getRegulator() { return regulator; }
 
     public void shutdown() {
         if (bossBarService != null) bossBarService.shutdown();
         if (dynamics != null) dynamics.stop();
+        if (regulator != null) regulator.stop();
         service.cleanup();
     }
 }
