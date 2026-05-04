@@ -86,6 +86,65 @@ export const api = {
       method: 'POST', body: JSON.stringify({ mode }),
     }),
 
+  // Custom Jobs (métiers SunAntiCheat)
+  customJobsList:    () => request<any[]>('/api/custom-jobs/list'),
+  customJobsDynamics: () => request<any>('/api/custom-jobs/dynamics'),
+  customJobsMarket:   () => request<any>('/api/custom-jobs/market'),
+  customJobsLeaderboard: (jobId: string) => request<any[]>(`/api/custom-jobs/leaderboard/${encodeURIComponent(jobId)}`),
+  // Admin controls
+  customJobsAdminToggle: (system: string, enabled: boolean) =>
+    request<any>('/api/custom-jobs/admin/dynamics/toggle', {
+      method: 'PATCH', body: JSON.stringify({ system, enabled }),
+    }),
+  customJobsAdminTriggerEvent: (id: string) =>
+    request<any>('/api/custom-jobs/admin/dynamics/event/trigger', {
+      method: 'POST', body: JSON.stringify({ id }),
+    }),
+  customJobsAdminRefreshBulletin: () =>
+    request<any>('/api/custom-jobs/admin/dynamics/bulletin/refresh', { method: 'POST' }),
+  customJobsAdminReloadDynamics: () =>
+    request<any>('/api/custom-jobs/admin/dynamics/reload', { method: 'POST' }),
+  customJobsAdminClearHeatmap: () =>
+    request<{ cleared: boolean }>('/api/custom-jobs/admin/heatmap', { method: 'DELETE' }),
+  customJobsAdminToggleJob: (jobId: string, enabled: boolean) =>
+    request<{ id: string; enabled: boolean }>(
+      `/api/custom-jobs/admin/job/${encodeURIComponent(jobId)}/enabled`,
+      { method: 'PATCH', body: JSON.stringify({ enabled }) },
+    ),
+  customJobsAdminGetSlots: () =>
+    request<Record<string, number>>('/api/custom-jobs/admin/slots'),
+  customJobsAdminPutSlots: (rank: string, slots: number) =>
+    request<Record<string, number>>('/api/custom-jobs/admin/slots', {
+      method: 'PUT', body: JSON.stringify({ rank, slots }),
+    }),
+  // Tickets
+  customJobsAdminListTickets: () =>
+    request<any[]>('/api/custom-jobs/admin/tickets'),
+  customJobsAdminGrantTicket: (playerName: string, type: string, durationHours: number) =>
+    request<any>('/api/custom-jobs/admin/tickets', {
+      method: 'POST', body: JSON.stringify({ playerName, type, durationHours }),
+    }),
+  customJobsAdminRevokeTicket: (id: number) =>
+    request<{ revoked: boolean }>(`/api/custom-jobs/admin/tickets/${id}`, { method: 'DELETE' }),
+  // Regulator
+  customJobsAdminRegulator: () =>
+    request<{
+      enabled: boolean; aggressiveness: number;
+      multipliers: Record<string, number>; shares: Record<string, number>;
+      frozen: Record<string, number>; last_tick_at: number
+    }>('/api/custom-jobs/admin/regulator'),
+  customJobsAdminRegulatorPatch: (body: { enabled?: boolean; aggressiveness?: number; tickNow?: boolean }) =>
+    request<any>('/api/custom-jobs/admin/regulator', {
+      method: 'PATCH', body: JSON.stringify(body),
+    }),
+  customJobsAdminRegulatorHistory: (days = 7) =>
+    request<Array<{ ts: number; job_id: string; share: number; multiplier: number }>>(
+      `/api/custom-jobs/admin/regulator/history?days=${days}`),
+  customJobsAdminRegulatorFreeze: (jobId: string, multiplier: number) =>
+    request<any>('/api/custom-jobs/admin/regulator/freeze', {
+      method: 'PUT', body: JSON.stringify({ jobId, multiplier }),
+    }),
+
   // Sanctions (kick / ban / mute / warn modernes)
   sanctionsList: (params: Record<string, any> = {}) => {
     const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]))).toString()

@@ -1,0 +1,130 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  SunAntiCheat — Mécaniques de monde dynamique pour le système de métiers
+#
+#  Cette configuration ajoute une couche vivante au système : les métiers ne
+#  donnent plus une récompense fixe, mais varient en fonction de la saison,
+#  de la météo, du cycle jour/nuit, de l'activité dans le chunk, et du
+#  bulletin du jour. Des évènements aléatoires viennent ponctuer les sessions.
+#
+#  Tous les multiplicateurs se cumulent multiplicativement.
+#  Exemple : Hiver(x2) + Pluie(x1.3) + Bulletin(x1.5) = x3.9 sur le job
+# ─────────────────────────────────────────────────────────────────────────────
+
+dynamics:
+  enabled: true
+
+  # ── SAISONS ────────────────────────────────────────────────────────────────
+  # Bonus rotatifs basés sur le mois système. Les clés correspondent à l'id
+  # du métier dans jobs.yml. Toute clé absente = x1.0 (pas de bonus).
+  seasons:
+    enabled: true
+    multipliers:
+      winter:
+        woodcutter: 2.0
+        miner:      1.5
+        farmer:     0.5
+      spring:
+        farmer:     2.0
+        woodcutter: 1.0
+      summer:
+        fisherman:  1.5
+        farmer:     1.5
+      autumn:
+        hunter:     2.0
+        farmer:     1.5
+        woodcutter: 1.3
+
+  # ── MÉTÉO ──────────────────────────────────────────────────────────────────
+  # États possibles : clear (beau temps), rain (pluie), storm (orage)
+  weather:
+    enabled: true
+    rain:
+      fisherman:  2.0
+      farmer:     1.3
+    storm:
+      hunter:     1.5
+      fisherman:  2.5
+    clear:
+      farmer:     1.1
+
+  # ── CYCLE JOUR / NUIT ──────────────────────────────────────────────────────
+  # Détecté à partir de world.getTime() : night = 13000–22999
+  time:
+    enabled: true
+    night:
+      hunter:     3.0
+      miner:      1.2
+    day:
+      farmer:     1.2
+      fisherman:  1.1
+
+  # ── HEATMAP (anti-surexploitation locale) ─────────────────────────────────
+  # Si un même chunk reçoit plus de N actions du même métier en X minutes,
+  # un malus est appliqué à TOUTES les actions sur ce chunk pendant Y heures.
+  # Force naturellement la diversification géographique et casse les fermes.
+  heatmap:
+    enabled: true
+    chunk-action-threshold: 200
+    overuse-multiplier:     0.5
+    window-minutes:         60
+    cooldown-hours:         6
+
+  # ── ÉVÈNEMENTS ALÉATOIRES ─────────────────────────────────────────────────
+  # Toutes les `interval-minutes`, un type est tiré (pondéré par `weight`).
+  # Le premier joueur à effectuer une action liée à `target-job` consomme
+  # l'évènement et reçoit la récompense bonus. Si personne ne répond avant
+  # `duration-seconds`, l'évènement expire silencieusement.
+  events:
+    enabled: true
+    interval-minutes: 30
+    types:
+      golden_vein:
+        weight: 100
+        message: "&6✦ &eUn &6&lFilon Doré&e est apparu ! &7Le premier mineur l'extrait remporte le jackpot !"
+        reward-money: 500
+        reward-xp:    1000
+        target-job:   miner
+        duration-seconds: 600
+
+      forest_blessing:
+        weight: 80
+        message: "&2✦ &aLes &2&lForêts Bénies&a se réveillent — récolte vite du bois !"
+        reward-money: 300
+        reward-xp:    700
+        target-job:   woodcutter
+        duration-seconds: 600
+
+      fishing_frenzy:
+        weight: 90
+        message: "&3✦ &bUne &3&lFrénésie de Pêche&b agite les eaux ! Premier pêcheur, premier servi."
+        reward-money: 250
+        reward-xp:    600
+        target-job:   fisherman
+        duration-seconds: 600
+
+      monster_invasion:
+        weight: 70
+        message: "&c✦ &4&lInvasion&c — premier chasseur à abattre un monstre rare gagne le butin !"
+        reward-money: 600
+        reward-xp:    1200
+        target-job:   hunter
+        duration-seconds: 600
+
+      golden_harvest:
+        weight: 80
+        message: "&6✦ &eLes &6&lChamps Dorés&e brillent — premier fermier qui récolte triomphe !"
+        reward-money: 300
+        reward-xp:    700
+        target-job:   farmer
+        duration-seconds: 600
+
+  # ── BULLETIN QUOTIDIEN ─────────────────────────────────────────────────────
+  # Chaque jour à `refresh-hour` (heure serveur), un métier est tiré au sort
+  # comme « demande forte du jour » et reçoit un bonus aléatoire compris entre
+  # bonus-multiplier-min et bonus-multiplier-max.
+  bulletin:
+    enabled: true
+    refresh-hour: 4
+    bonus-multiplier-min: 1.2
+    bonus-multiplier-max: 1.8
+    message: "&6📰 &eBulletin du jour : &6&l{job}&e — demande forte (&a×{mult}&e sur tous les gains)"

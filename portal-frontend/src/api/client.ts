@@ -53,17 +53,50 @@ export type DailyClaimResult = {
 
 export type CustomJob = {
   id: string; name: string; description?: string | null; icon?: string | null
-  max_level: number; actions?: string[]
+  max_level: number; actions?: string[]; enabled?: boolean
 }
+export type SlotsSnapshot = { used: number; max: number; rank: string }
+export type JoinResponse  = { ok: boolean; reason: string; used: number; max: number; rank: string }
+export type PrestigeResponse = { ok: boolean; reason: string; level?: number; xp?: number; prestige_stars?: number }
+export type ActiveTicket = { id: number; type: string; expires_at: number; granted_by: string; granted_at: number }
 export type PlayerJobProgress = {
   job_id: string; xp: number; level: number; total_earned: number
   job_name: string; max_level: number; xp_to_next: number
+  prestige_stars?: number
 }
 export type VipPlan = {
   id: string; displayName: string; description?: string | null
   icon?: string | null; color?: string | null
   priceEur: number; durationDays: number; perks?: string[]; order?: number
 }
+
+export type JobDynamicsSnapshot = {
+  enabled: boolean
+  season?: { key: string; label: string; icon: string }
+  bulletin?: { job_id: string | null; multiplier: number; refreshed_at: number }
+  active_events?: Array<{
+    id: string; target_job: string | null
+    reward_xp: number; reward_money: number
+    started_at: number; ends_at: number
+  }>
+}
+
+export type JobTimelinePoint = { day_ts: number; xp: number; money: number; actions: number }
+export type JobTopTarget     = { target: string; actions: number; xp: number; money: number }
+export type JobForecast = {
+  level: number; xp: number; xp_per_hour: number
+  hours_to_next?: number; hours_to_max?: number
+}
+export type JobTimelineResponse = {
+  uuid: string; job_id: string; days: number
+  timeline: JobTimelinePoint[]
+  targets:  JobTopTarget[]
+  xp_per_hour: number
+  forecast?: JobForecast
+}
+
+export type JobHeatmapEntry  = { job_id: string; actions: number; xp: number; money: number }
+export type JobHeatmapResponse = { uuid: string; days: number; by_job: JobHeatmapEntry[] }
 
 export const api = {
   requestPin: (username: string) =>
@@ -92,6 +125,54 @@ export const api = {
 
   customJobsPlayer: (uuid: string) =>
     get<PlayerJobProgress[]>(`/api/custom-jobs/player/${uuid}`),
+
+  jobDynamics: () =>
+    get<JobDynamicsSnapshot>('/api/custom-jobs/dynamics'),
+
+  jobTimeline: (uuid: string, jobId: string, days = 30) =>
+    get<JobTimelineResponse>(`/api/custom-jobs/player/${uuid}/timeline?job=${encodeURIComponent(jobId)}&days=${days}`),
+
+  jobHeatmap: (uuid: string, days = 7) =>
+    get<JobHeatmapResponse>(`/api/custom-jobs/player/${uuid}/heatmap?days=${days}`),
+
+  jobSlots: (token: string) =>
+    get<SlotsSnapshot>('/api/custom-jobs/me/slots', token),
+
+  jobJoin: async (token: string, jobId: string): Promise<JoinResponse> => {
+    const res = await fetch('/api/custom-jobs/me/join', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw { status: res.status, ...data }
+    return data as JoinResponse
+  },
+
+  jobLeave: async (token: string, jobId: string): Promise<JoinResponse> => {
+    const res = await fetch('/api/custom-jobs/me/leave', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw { status: res.status, ...data }
+    return data as JoinResponse
+  },
+
+  jobPrestige: async (token: string, jobId: string): Promise<PrestigeResponse> => {
+    const res = await fetch('/api/custom-jobs/me/prestige', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw { status: res.status, ...data }
+    return data as PrestigeResponse
+  },
+
+  myTickets: (token: string) =>
+    get<ActiveTicket[]>('/api/custom-jobs/me/tickets', token),
 
   vipPlans: () =>
     get<VipPlan[]>(`${BASE}/vip/plans`),

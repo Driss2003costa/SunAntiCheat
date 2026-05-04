@@ -12,14 +12,21 @@ import { api } from '../api/client'
  *  - Catalogue : liste de tous les jobs (config Jobs Reborn) avec stats
  */
 
-type Tab = 'overview' | 'active' | 'history' | 'catalog'
+type Tab = 'overview' | 'active' | 'history' | 'catalog' | 'custom-jobs' | 'dynamics' | 'tickets' | 'regulator'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Vue générale', icon: '📊' },
-  { id: 'active',   label: 'Joueurs actifs',  icon: '👥' },
-  { id: 'history',  label: 'Historique',  icon: '📜' },
-  { id: 'catalog',  label: 'Catalogue',   icon: '💼' },
+const TABS: { id: Tab; label: string; icon: string; section?: string }[] = [
+  { id: 'overview',    label: 'Vue générale',   icon: '📊' },
+  { id: 'active',      label: 'Joueurs actifs', icon: '👥' },
+  { id: 'history',     label: 'Historique',     icon: '📜' },
+  { id: 'catalog',     label: 'Catalogue',      icon: '💼' },
+  { id: 'custom-jobs', label: 'Métiers Custom', icon: '⚒️',  section: 'Custom' },
+  { id: 'dynamics',    label: 'Dynamiques',     icon: '🌍',  section: 'Custom' },
+  { id: 'tickets',     label: 'Tickets',        icon: '🎫',  section: 'Custom' },
+  { id: 'regulator',   label: 'Régulateur',     icon: '⚖️',  section: 'Custom' },
 ]
+
+const REBORN_TABS: Tab[] = ['overview', 'active', 'history', 'catalog']
+const REBORN_PANEL_KEY = 'jobs.reborn.panel.enabled'
 
 const PERIOD_OPTIONS = [
   { days: 1,  label: '24h' },
@@ -81,7 +88,11 @@ const EVENT_COLORS: Record<string, string> = {
 }
 
 export default function Jobs() {
-  const [tab, setTab] = useState<Tab>('overview')
+  const [rebornEnabled, setRebornEnabled] = useState<boolean>(() => {
+    const v = localStorage.getItem(REBORN_PANEL_KEY)
+    return v === null ? true : v === '1'
+  })
+  const [tab, setTab] = useState<Tab>(rebornEnabled ? 'overview' : 'custom-jobs')
   const [days, setDays] = useState(7)
   const [overview, setOverview] = useState<any>(null)
   const [active, setActive] = useState<any>(null)
@@ -89,7 +100,14 @@ export default function Jobs() {
   const [historyFilter, setHistoryFilter] = useState({ player: '', job: '' })
   const [loading, setLoading] = useState(false)
 
+  const toggleReborn = (next: boolean) => {
+    setRebornEnabled(next)
+    localStorage.setItem(REBORN_PANEL_KEY, next ? '1' : '0')
+    if (!next && REBORN_TABS.includes(tab)) setTab('custom-jobs')
+  }
+
   const refresh = async () => {
+    if (!rebornEnabled && REBORN_TABS.includes(tab)) return
     setLoading(true)
     try {
       if (tab === 'overview' || tab === 'catalog') {
@@ -130,6 +148,12 @@ export default function Jobs() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link to="/jobs/roadmap"
+                className="px-3 py-2 rounded text-xs font-medium hover:opacity-80 transition"
+                style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.4)', color: 'var(--primary)' }}>
+            🗂️ Roadmap
+          </Link>
+          <RebornSwitch enabled={rebornEnabled} onToggle={toggleReborn} />
           {(tab === 'overview' || tab === 'catalog') && (
             <div className="flex gap-1 rounded p-1" style={{ background: 'var(--surface-2)' }}>
               {PERIOD_OPTIONS.map(p => (
@@ -153,8 +177,29 @@ export default function Jobs() {
         </div>
       </div>
 
+      {/* Bandeau si Jobs Reborn désactivé manuellement */}
+      {!rebornEnabled && (
+        <div className="rounded-xl p-4 flex items-center justify-between gap-3"
+             style={{ background: 'rgba(100,116,139,0.12)', border: '1px solid rgba(100,116,139,0.3)' }}>
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">🚫</div>
+            <div>
+              <div className="font-bold" style={{ color: 'var(--text)' }}>Panel Jobs Reborn désactivé</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Les onglets Vue générale, Joueurs actifs, Historique et Catalogue sont masqués. Les Métiers Custom restent disponibles.
+              </div>
+            </div>
+          </div>
+          <button onClick={() => toggleReborn(true)}
+                  className="px-3 py-2 rounded text-sm font-medium"
+                  style={{ background: 'var(--primary)', color: 'white' }}>
+            Réactiver
+          </button>
+        </div>
+      )}
+
       {/* Bandeau si Jobs Reborn pas installé */}
-      {installed === false && (
+      {rebornEnabled && installed === false && (
         <div className="rounded-xl p-4 flex items-center gap-3"
              style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)' }}>
           <div className="text-2xl">⚠️</div>
@@ -168,25 +213,34 @@ export default function Jobs() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-                  className="px-4 py-2 text-sm font-medium border-b-2 transition"
-                  style={{
-                    color: tab === t.id ? 'var(--primary)' : 'var(--text-muted)',
-                    borderColor: tab === t.id ? 'var(--primary)' : 'transparent',
-                  }}>
-            {t.icon} {t.label}
-          </button>
+      <div className="flex gap-1 border-b items-center" style={{ borderColor: 'var(--border)' }}>
+        {TABS.filter(t => rebornEnabled || !REBORN_TABS.includes(t.id)).map((t, i, arr) => (
+          <>
+            {i > 0 && t.section && !arr[i-1].section && (
+              <div key={`sep-${i}`} className="h-5 w-px mx-1" style={{ background: 'var(--border)' }} />
+            )}
+            <button key={t.id} onClick={() => setTab(t.id)}
+                    className="px-4 py-2 text-sm font-medium border-b-2 transition"
+                    style={{
+                      color: tab === t.id ? 'var(--primary)' : 'var(--text-muted)',
+                      borderColor: tab === t.id ? 'var(--primary)' : 'transparent',
+                    }}>
+              {t.icon} {t.label}
+            </button>
+          </>
         ))}
       </div>
 
-      {tab === 'overview' && <OverviewTab data={overview} days={days}/>}
-      {tab === 'active'   && <ActiveTab data={active} />}
-      {tab === 'history'  && <HistoryTab data={history} onRefresh={refresh}
-                                          filter={historyFilter}
-                                          onFilterChange={f => { setHistoryFilter(f); refreshHistory(f) }} />}
-      {tab === 'catalog'  && <CatalogTab data={overview} days={days} />}
+      {rebornEnabled && tab === 'overview'    && <OverviewTab data={overview} days={days}/>}
+      {rebornEnabled && tab === 'active'      && <ActiveTab data={active} />}
+      {rebornEnabled && tab === 'history'     && <HistoryTab data={history} onRefresh={refresh}
+                                            filter={historyFilter}
+                                            onFilterChange={f => { setHistoryFilter(f); refreshHistory(f) }} />}
+      {rebornEnabled && tab === 'catalog'     && <CatalogTab data={overview} days={days} />}
+      {tab === 'custom-jobs' && <CustomJobsTab />}
+      {tab === 'dynamics'    && <DynamicsTab />}
+      {tab === 'tickets'     && <TicketsTab />}
+      {tab === 'regulator'   && <RegulatorTab />}
     </div>
   )
 }
@@ -707,6 +761,26 @@ function Loading() {
   </div>
 }
 
+function RebornSwitch({ enabled, onToggle }: { enabled: boolean; onToggle: (next: boolean) => void }) {
+  return (
+    <button onClick={() => onToggle(!enabled)}
+            title={enabled ? 'Cliquer pour désactiver le panel Jobs Reborn' : 'Cliquer pour réactiver le panel Jobs Reborn'}
+            className="flex items-center gap-2 px-3 py-2 rounded text-xs font-medium transition"
+            style={{
+              background: enabled ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.15)',
+              border: `1px solid ${enabled ? 'rgba(16,185,129,0.4)' : 'rgba(100,116,139,0.4)'}`,
+              color: enabled ? '#10b981' : 'var(--text-muted)',
+            }}>
+      <span className="relative inline-block w-8 h-4 rounded-full transition"
+            style={{ background: enabled ? '#10b981' : '#64748b' }}>
+        <span className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all"
+              style={{ left: enabled ? 'calc(100% - 14px)' : '2px' }}/>
+      </span>
+      Jobs Reborn {enabled ? 'ON' : 'OFF'}
+    </button>
+  )
+}
+
 function Kpi({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
   return (
     <div className="rounded-xl p-4"
@@ -726,6 +800,453 @@ function Stat({ label, value, color }: { label: string; value: string; color: st
     <div>
       <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
       <div className="font-bold" style={{ color }}>{value}</div>
+    </div>
+  )
+}
+
+// ── Custom Jobs Tab ───────────────────────────────────────────────────────────
+function CustomJobsTab() {
+  const [jobs, setJobs] = useState<any[]>([])
+  const [slots, setSlots] = useState<Record<string, number>>({})
+  const [loading, setLoading] = useState(true)
+  const [openJob, setOpenJob] = useState<string | null>(null)
+  const [busyJob, setBusyJob] = useState<string | null>(null)
+
+  const refresh = async () => {
+    try {
+      const [j, s] = await Promise.all([
+        api.customJobsList(),
+        api.customJobsAdminGetSlots().catch(() => ({})),
+      ])
+      setJobs(j)
+      setSlots(s)
+    } finally { setLoading(false) }
+  }
+
+  useEffect(() => { refresh() }, [])
+
+  const toggleJob = async (jobId: string, next: boolean) => {
+    setBusyJob(jobId)
+    try {
+      await api.customJobsAdminToggleJob(jobId, next)
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, enabled: next } : j))
+    } catch (e: any) {
+      alert('Erreur : ' + (e?.message ?? 'inconnue'))
+    } finally {
+      setBusyJob(null)
+    }
+  }
+
+  if (loading) return <Loading/>
+
+  return (
+    <div className="space-y-4">
+      <SlotsEditor slots={slots} onChange={setSlots}/>
+
+      {jobs.length === 0 ? (
+        <div className="rounded-xl p-12 text-center"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+          <div className="text-4xl mb-2">⚒️</div>
+          Aucun métier custom configuré — vérifier <code>jobs.yml</code>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          {jobs.map((j: any) => {
+            const enabled = j.enabled !== false
+            return (
+              <div key={j.id}
+                   className="rounded-xl p-4 transition flex flex-col gap-2"
+                   style={{
+                     background: 'var(--surface)',
+                     border: `1px solid ${enabled ? 'var(--border)' : 'rgba(239,68,68,0.4)'}`,
+                     opacity: enabled ? 1 : 0.7,
+                   }}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-base" style={{ color: 'var(--text)' }}>{j.name}</h3>
+                  <span className="text-xs px-2 py-0.5 rounded"
+                        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                    Niv max {j.max_level}
+                  </span>
+                </div>
+                {j.description && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{j.description}</p>}
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <Stat label="Joueurs" value={String(j.player_count ?? 0)} color="#3b82f6"/>
+                  <Stat label="Niv. moy." value={(j.avg_level ?? 0).toFixed(1)} color="#f59e0b"/>
+                  <Stat label="Total versé" value={fmtMoney(j.total_paid ?? 0)} color="#10b981"/>
+                </div>
+                {j.actions && Object.keys(j.actions).length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {Object.keys(j.actions).map((type: string) => (
+                      <span key={type} className="text-[10px] px-1.5 py-0.5 rounded font-mono"
+                            style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
+                        {type}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <button onClick={() => toggleJob(j.id, !enabled)}
+                          disabled={busyJob === j.id}
+                          className="flex-1 px-3 py-1.5 rounded text-xs font-medium transition"
+                          style={{
+                            background: enabled ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)',
+                            border: `1px solid ${enabled ? 'rgba(16,185,129,0.4)' : 'rgba(100,116,139,0.4)'}`,
+                            color: enabled ? '#10b981' : 'var(--text-muted)',
+                          }}>
+                    {busyJob === j.id ? '⏳' : enabled ? '✓ Activé' : '✖ Désactivé'}
+                  </button>
+                  <button onClick={() => setOpenJob(j.id)}
+                          className="px-3 py-1.5 rounded text-xs"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                    Classement →
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {openJob && <CustomJobLeaderboardModal jobId={openJob} jobs={jobs} onClose={() => setOpenJob(null)} />}
+    </div>
+  )
+}
+
+function SlotsEditor({ slots, onChange }: { slots: Record<string, number>; onChange: (s: Record<string, number>) => void }) {
+  const [newRank, setNewRank] = useState('')
+  const [newSlots, setNewSlots] = useState(2)
+  const [busy, setBusy] = useState(false)
+  const entries = Object.entries(slots).sort(([a], [b]) => a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b))
+
+  const updateSlot = async (rank: string, n: number) => {
+    setBusy(true)
+    try { onChange(await api.customJobsAdminPutSlots(rank, n)) }
+    finally { setBusy(false) }
+  }
+  const addRank = async () => {
+    if (!newRank.trim()) return
+    await updateSlot(newRank.trim().toLowerCase(), newSlots)
+    setNewRank('')
+    setNewSlots(2)
+  }
+  const removeRank = async (rank: string) => {
+    if (rank === 'default') return
+    if (!confirm(`Supprimer le rang "${rank}" ? Les joueurs reviendront au rang 'default'.`)) return
+    await updateSlot(rank, -1)
+  }
+
+  return (
+    <div className="rounded-xl p-4 space-y-3"
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold" style={{ color: 'var(--text)' }}>🎟️ Slots métiers par rang</h3>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Nombre de métiers qu'un joueur peut rejoindre selon son groupe LuckPerms
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+        {entries.map(([rank, n]) => (
+          <div key={rank} className="flex items-center gap-2 px-3 py-2 rounded"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+            <span className="flex-1 text-sm font-medium" style={{ color: 'var(--text)' }}>
+              {rank === 'default' ? '⭐ default' : rank}
+            </span>
+            <input type="number" min={0} max={50}
+                   defaultValue={n}
+                   disabled={busy}
+                   onBlur={(e) => {
+                     const v = parseInt(e.target.value, 10)
+                     if (!isNaN(v) && v !== n) updateSlot(rank, Math.max(0, v))
+                   }}
+                   className="w-14 px-2 py-1 rounded text-sm text-center"
+                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+            {rank !== 'default' && (
+              <button onClick={() => removeRank(rank)}
+                      title="Supprimer ce rang"
+                      className="w-7 h-7 rounded text-xs"
+                      style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>×</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+        <input type="text" placeholder="Nom du rang LuckPerms (ex: vip)"
+               value={newRank}
+               onChange={(e) => setNewRank(e.target.value)}
+               className="flex-1 px-3 py-1.5 rounded text-sm"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+        <input type="number" min={0} max={50} value={newSlots}
+               onChange={(e) => setNewSlots(Math.max(0, parseInt(e.target.value, 10) || 0))}
+               className="w-16 px-2 py-1.5 rounded text-sm text-center"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+        <button onClick={addRank}
+                disabled={!newRank.trim() || busy}
+                className="px-3 py-1.5 rounded text-sm font-medium"
+                style={{ background: 'var(--primary)', color: 'white', opacity: !newRank.trim() ? 0.5 : 1 }}>
+          + Ajouter
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function CustomJobLeaderboardModal({ jobId, jobs, onClose }: { jobId: string; jobs: any[]; onClose: () => void }) {
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const job = jobs.find(j => j.id === jobId)
+
+  useEffect(() => {
+    api.customJobsLeaderboard(jobId).then(setRows).catch(() => {}).finally(() => setLoading(false))
+  }, [jobId])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+         onClick={onClose}>
+      <div className="w-full max-w-xl max-h-[80vh] overflow-y-auto rounded-2xl p-6 space-y-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+           onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
+            ⚒️ {job?.name ?? jobId} — Classement
+          </h2>
+          <button onClick={onClose} className="text-2xl" style={{ color: 'var(--text-muted)' }}>×</button>
+        </div>
+        {loading ? <Loading/> : rows.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>Aucun joueur dans ce métier.</p>
+        ) : (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            {rows.map((r: any, i: number) => (
+              <div key={r.uuid} className="px-4 py-2.5 flex items-center gap-3 text-sm"
+                   style={{ borderBottom: '1px solid var(--border)', background: i === 0 ? 'rgba(245,158,11,0.07)' : undefined }}>
+                <span className="w-6 text-right font-bold"
+                      style={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7f32' : 'var(--text-muted)' }}>
+                  {i + 1}
+                </span>
+                <span className="flex-1 font-medium" style={{ color: 'var(--text)' }}>{r.uuid}</span>
+                <span style={{ color: '#f59e0b' }}>Niv. {r.level}</span>
+                <span className="font-bold" style={{ color: '#10b981' }}>{fmtMoney(r.total_earned)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Dynamics Tab ──────────────────────────────────────────────────────────────
+const SUBSYSTEM_LABELS: Record<string, { label: string; icon: string; desc: string }> = {
+  global:   { label: 'Global',          icon: '🌍', desc: 'Active/désactive tout le système de dynamiques' },
+  seasons:  { label: 'Saisons',         icon: '🍂', desc: 'Multiplicateurs par saison (hiver, été…)' },
+  weather:  { label: 'Météo',           icon: '🌧', desc: 'Bonus/malus selon la météo en jeu' },
+  time:     { label: 'Cycle jour/nuit', icon: '🌙', desc: 'Bonus la nuit (Chasseur ×3, etc.)' },
+  heatmap:  { label: 'Heatmap',         icon: '🔥', desc: 'Malus anti-surexploitation par chunk' },
+  events:   { label: 'Évènements',      icon: '⚡', desc: 'Évènements aléatoires (Filon Doré, etc.)' },
+  bulletin: { label: 'Bulletin',        icon: '📰', desc: 'Demande forte du jour (+20-80%)' },
+}
+
+function DynamicsTab() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const load = () => {
+    setLoading(true)
+    api.customJobsDynamics().then(setData).catch(() => setData(null)).finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const toggle = async (system: string, enabled: boolean) => {
+    setBusy(system)
+    try {
+      const res = await api.customJobsAdminToggle(system, enabled)
+      setData((prev: any) => prev ? { ...prev, enabled: res.states?.global ?? prev.enabled, subsystems: res.states ?? prev.subsystems } : prev)
+    } catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const triggerEvent = async (id: string) => {
+    if (!confirm(`Déclencher l'évènement "${id}" maintenant ?`)) return
+    setBusy('event-' + id)
+    try { await api.customJobsAdminTriggerEvent(id); load() }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const refreshBulletin = async () => {
+    if (!confirm('Forcer un nouveau bulletin du jour ? Le job en cours changera.')) return
+    setBusy('bulletin')
+    try { const res = await api.customJobsAdminRefreshBulletin(); setData((p: any) => p ? { ...p, bulletin: res } : p) }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const clearHeatmap = async () => {
+    if (!confirm('Vider TOUTE la heatmap ? Les malus de surexploitation seront réinitialisés.')) return
+    setBusy('heatmap-clear')
+    try { await api.customJobsAdminClearHeatmap(); alert('✓ Heatmap vidée.') }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  const reloadConfig = async () => {
+    setBusy('reload')
+    try { const res = await api.customJobsAdminReloadDynamics(); setData(res); alert('✓ dynamics.yml rechargé + overrides réinitialisés.') }
+    catch (e: any) { alert('Erreur : ' + e.message) } finally { setBusy(null) }
+  }
+
+  if (loading) return <Loading/>
+  if (!data) return (
+    <div className="rounded-xl p-12 text-center"
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+      <div className="text-4xl mb-2">🔧</div>
+      Module Custom Jobs non disponible
+    </div>
+  )
+
+  const subsystems: Record<string, boolean> = data.subsystems ?? {}
+
+  return (
+    <div className="space-y-5">
+
+      {/* Action bar */}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={reloadConfig} disabled={busy === 'reload'}
+                className="px-3 py-2 rounded-lg text-sm font-medium transition"
+                style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+          {busy === 'reload' ? '⏳' : '↺ Recharger dynamics.yml'}
+        </button>
+        <button onClick={clearHeatmap} disabled={busy === 'heatmap-clear'}
+                className="px-3 py-2 rounded-lg text-sm font-medium transition"
+                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+          {busy === 'heatmap-clear' ? '⏳' : '🗑 Vider heatmap'}
+        </button>
+        <button onClick={load} className="px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+          ↻ Refresh
+        </button>
+      </div>
+
+      {/* Subsystem toggles */}
+      <div className="rounded-xl overflow-hidden"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 font-semibold text-sm border-b"
+             style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          ⚙️ Sous-systèmes — overrides en mémoire (réinitialisés au reload)
+        </div>
+        {Object.entries(SUBSYSTEM_LABELS).map(([key, meta]) => {
+          const enabled = subsystems[key] ?? true
+          const isBusy  = busy === key
+          return (
+            <div key={key} className="px-5 py-3 flex items-center gap-4"
+                 style={{ borderBottom: '1px solid var(--border)' }}>
+              <span className="text-xl w-6 text-center">{meta.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{meta.label}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{meta.desc}</p>
+              </div>
+              <button
+                disabled={isBusy}
+                onClick={() => toggle(key, !enabled)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition"
+                style={{
+                  background: enabled ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.1)',
+                  color: enabled ? '#10b981' : '#ef4444',
+                  border: `1px solid ${enabled ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)'}`,
+                  minWidth: 90,
+                }}>
+                {isBusy ? '⏳' : enabled ? '✓ Actif' : '✗ Inactif'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Current state : season + bulletin */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="font-bold mb-2 text-sm" style={{ color: 'var(--text)' }}>🍂 Saison courante</h3>
+          {data.season ? (
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{data.season.icon}</span>
+              <div>
+                <p className="font-bold" style={{ color: 'var(--text)' }}>{data.season.label}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{data.season.key}</p>
+              </div>
+            </div>
+          ) : <p style={{ color: 'var(--text-muted)' }}>—</p>}
+        </div>
+
+        <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-sm" style={{ color: 'var(--text)' }}>📰 Bulletin du jour</h3>
+            <button onClick={refreshBulletin} disabled={busy === 'bulletin'}
+                    className="text-xs px-2 py-1 rounded"
+                    style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}>
+              {busy === 'bulletin' ? '⏳' : '↺ Nouveau tirage'}
+            </button>
+          </div>
+          {data.bulletin?.job_id ? (
+            <div>
+              <p className="font-bold" style={{ color: '#f59e0b' }}>
+                {data.bulletin.job_id}
+                <span className="font-mono ml-2" style={{ color: '#10b981' }}>×{(data.bulletin.multiplier ?? 1).toFixed(1)}</span>
+              </p>
+              {data.bulletin.refreshed_at > 0 && (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Rafraîchi {timeAgo(data.bulletin.refreshed_at)}
+                </p>
+              )}
+            </div>
+          ) : <p style={{ color: 'var(--text-muted)' }}>—</p>}
+        </div>
+      </div>
+
+      {/* Active events */}
+      <div className="rounded-xl overflow-hidden"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-5 py-3 font-semibold text-sm border-b flex items-center justify-between"
+             style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--surface-2)' }}>
+          <span>⚡ Évènements actifs ({(data.active_events ?? []).length})</span>
+          <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>Force-trigger ci-dessous</span>
+        </div>
+        {(data.active_events ?? []).length === 0 ? (
+          <p className="px-5 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>Aucun évènement en cours.</p>
+        ) : (data.active_events as any[]).map((ev: any) => (
+          <div key={ev.id} className="px-5 py-3 flex items-center gap-4"
+               style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="flex-1">
+              <p className="font-bold text-sm" style={{ color: '#f59e0b' }}>{ev.id}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Job cible : {ev.target_job ?? 'global'} · Expire {timeAgo(ev.ends_at)}
+              </p>
+            </div>
+            <div className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>
+              <div>+{ev.reward_xp} XP</div>
+              <div style={{ color: '#10b981' }}>+{ev.reward_money} $</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Trigger buttons */}
+      {data.event_templates !== undefined && (
+        <div className="rounded-xl p-4 space-y-2"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="font-bold text-sm mb-3" style={{ color: 'var(--text)' }}>⚡ Force-trigger un évènement</h3>
+          <div className="flex flex-wrap gap-2">
+            {['golden_vein','forest_blessing','fishing_frenzy','monster_invasion','golden_harvest'].map(id => (
+              <button key={id} onClick={() => triggerEvent(id)} disabled={busy === 'event-' + id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
+                {busy === 'event-' + id ? '⏳' : id.replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Si un évènement du même job est déjà actif, le trigger sera ignoré.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -755,6 +1276,324 @@ function SimpleLineChart({ data }: { data: { labels: string[]; data: number[] } 
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ── Tickets tab ─────────────────────────────────────────────────────────────
+
+const TICKET_TYPES = [
+  { id: 'extra_slot',     label: '+1 slot métier',  icon: '🎟️', desc: 'Permet de rejoindre un métier de plus' },
+  { id: 'xp_boost_25',    label: '+25% XP / argent', icon: '✨', desc: 'Bonus multiplicatif sur tous les gains' },
+  { id: 'bypass_heatmap', label: 'Bypass heatmap',   icon: '🔥', desc: 'Ignore la pénalité de zone surexploitée' },
+]
+
+function TicketsTab() {
+  const [list, setList] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [form, setForm] = useState({ playerName: '', type: 'xp_boost_25', durationHours: 24 })
+
+  const refresh = () => {
+    setLoading(true)
+    api.customJobsAdminListTickets().then(setList).catch(() => {}).finally(() => setLoading(false))
+  }
+  useEffect(() => { refresh() }, [])
+
+  const grant = async () => {
+    if (!form.playerName.trim()) return
+    setBusy(true)
+    try {
+      await api.customJobsAdminGrantTicket(form.playerName.trim(), form.type, form.durationHours)
+      setForm({ ...form, playerName: '' })
+      refresh()
+    } catch (e: any) { alert('Erreur : ' + (e?.message ?? 'inconnue')) }
+    finally { setBusy(false) }
+  }
+  const revoke = async (id: number) => {
+    if (!confirm('Révoquer ce ticket ?')) return
+    await api.customJobsAdminRevokeTicket(id)
+    refresh()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl p-4 space-y-3"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <h3 className="font-bold" style={{ color: 'var(--text)' }}>🎫 Émettre un ticket</h3>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Distribue un bonus temporaire à un joueur (vote, crate, événement). Survit aux reboots.
+        </p>
+        <div className="grid grid-cols-12 gap-2">
+          <input type="text" placeholder="Nom du joueur"
+                 value={form.playerName}
+                 onChange={e => setForm({ ...form, playerName: e.target.value })}
+                 className="col-span-4 px-3 py-2 rounded text-sm"
+                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+          <select value={form.type}
+                  onChange={e => setForm({ ...form, type: e.target.value })}
+                  className="col-span-4 px-3 py-2 rounded text-sm"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            {TICKET_TYPES.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+          </select>
+          <input type="number" min={1} max={720}
+                 value={form.durationHours}
+                 onChange={e => setForm({ ...form, durationHours: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                 className="col-span-2 px-3 py-2 rounded text-sm text-center"
+                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+          <button onClick={grant} disabled={busy || !form.playerName.trim()}
+                  className="col-span-2 px-3 py-2 rounded text-sm font-medium"
+                  style={{ background: 'var(--primary)', color: 'white', opacity: !form.playerName.trim() ? 0.5 : 1 }}>
+            + Émettre
+          </button>
+        </div>
+        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          {TICKET_TYPES.find(t => t.id === form.type)?.desc} · durée en heures
+        </p>
+      </div>
+
+      <div className="rounded-xl p-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold" style={{ color: 'var(--text)' }}>Tickets actifs ({list.length})</h3>
+          <button onClick={refresh} className="text-xs" style={{ color: 'var(--text-muted)' }}>↻</button>
+        </div>
+        {loading ? <Loading/> : list.length === 0 ? (
+          <p className="text-sm py-6 text-center" style={{ color: 'var(--text-muted)' }}>Aucun ticket actif.</p>
+        ) : (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            <table className="w-full text-sm">
+              <thead style={{ background: 'var(--surface-2)' }}>
+                <tr style={{ color: 'var(--text-muted)' }}>
+                  <th className="text-left px-3 py-2 text-xs">Joueur</th>
+                  <th className="text-left px-3 py-2 text-xs">Type</th>
+                  <th className="text-left px-3 py-2 text-xs">Expire</th>
+                  <th className="text-left px-3 py-2 text-xs">Émis par</th>
+                  <th className="px-3 py-2 text-xs"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map(t => {
+                  const meta = TICKET_TYPES.find(tt => tt.id === t.type)
+                  const remH = Math.max(0, Math.round((t.expires_at - Date.now()) / 3_600_000))
+                  return (
+                    <tr key={t.id} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td className="px-3 py-2 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{t.uuid.slice(0, 8)}…</td>
+                      <td className="px-3 py-2">{meta?.icon} {meta?.label ?? t.type}</td>
+                      <td className="px-3 py-2 text-xs" style={{ color: remH < 6 ? '#ef4444' : 'var(--text-muted)' }}>
+                        dans {remH}h
+                      </td>
+                      <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>{t.granted_by}</td>
+                      <td className="px-3 py-2 text-right">
+                        <button onClick={() => revoke(t.id)}
+                                className="text-xs px-2 py-1 rounded"
+                                style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                          Révoquer
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Regulator tab ───────────────────────────────────────────────────────────
+
+function RegulatorTab() {
+  const [state, setState] = useState<any>(null)
+  const [history, setHistory] = useState<any[]>([])
+  const [jobs, setJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const refresh = async () => {
+    setLoading(true)
+    try {
+      const [s, h, j] = await Promise.all([
+        api.customJobsAdminRegulator(),
+        api.customJobsAdminRegulatorHistory(7),
+        api.customJobsList(),
+      ])
+      setState(s); setHistory(h); setJobs(j)
+    } finally { setLoading(false) }
+  }
+  useEffect(() => { refresh() }, [])
+
+  const patch = async (body: any) => {
+    setBusy(true)
+    try { await api.customJobsAdminRegulatorPatch(body); await refresh() }
+    finally { setBusy(false) }
+  }
+  const freeze = async (jobId: string, mult: number) => {
+    setBusy(true)
+    try { await api.customJobsAdminRegulatorFreeze(jobId, mult); await refresh() }
+    finally { setBusy(false) }
+  }
+
+  if (loading || !state) return <Loading/>
+
+  const lastTickStr = state.last_tick_at
+    ? new Date(state.last_tick_at).toLocaleTimeString('fr-FR')
+    : 'jamais'
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="rounded-xl p-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+              ⚖️ Régulateur économique
+              <span className="text-xs px-2 py-0.5 rounded"
+                    style={{
+                      background: state.enabled ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)',
+                      color: state.enabled ? '#10b981' : 'var(--text-muted)',
+                    }}>
+                {state.enabled ? 'ACTIF' : 'INACTIF'}
+              </span>
+            </h3>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Auto-ajuste les payouts par métier selon la distribution de joueurs · dernier tick : {lastTickStr}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => patch({ enabled: !state.enabled })} disabled={busy}
+                    className="px-3 py-2 rounded text-xs font-medium"
+                    style={{
+                      background: state.enabled ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                      color: state.enabled ? '#ef4444' : '#10b981',
+                      border: `1px solid ${state.enabled ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)'}`,
+                    }}>
+              {state.enabled ? '⏸ Désactiver' : '▶ Activer'}
+            </button>
+            <button onClick={() => patch({ tickNow: true })} disabled={busy}
+                    className="px-3 py-2 rounded text-xs"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              ↻ Forcer tick
+            </button>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+            <span>Agressivité</span>
+            <span className="font-mono">{(state.aggressiveness * 100).toFixed(0)}%</span>
+          </div>
+          <input type="range" min={0} max={100} value={state.aggressiveness * 100}
+                 onChange={e => setState({ ...state, aggressiveness: parseInt(e.target.value, 10) / 100 })}
+                 onMouseUp={e => patch({ aggressiveness: parseInt((e.target as HTMLInputElement).value, 10) / 100 })}
+                 className="w-full"/>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            0% = aucun effet · 100% = correction maximale (multiplier 0.7x à 1.4x selon distribution)
+          </p>
+        </div>
+      </div>
+
+      {/* Per-job state */}
+      <div className="rounded-xl p-4"
+           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <h3 className="font-bold mb-3" style={{ color: 'var(--text)' }}>Multiplicateurs actuels</h3>
+        {jobs.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Aucun métier.</p>
+        ) : (
+          <div className="space-y-2">
+            {jobs.map((j: any) => {
+              const mult  = state.multipliers[j.id] ?? 1.0
+              const share = state.shares[j.id] ?? 0
+              const frozen = state.frozen[j.id]
+              const color = mult > 1.05 ? '#10b981' : mult < 0.95 ? '#ef4444' : 'var(--text-muted)'
+              return (
+                <div key={j.id} className="flex items-center gap-3 px-3 py-2 rounded"
+                     style={{ background: 'var(--surface-2)' }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{j.name}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                      {(share * 100).toFixed(1)}% de la pop · {j.player_count ?? 0} joueurs
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-bold" style={{ color }}>
+                      ×{mult.toFixed(2)}
+                    </span>
+                    {frozen != null && (
+                      <span className="text-[10px] font-bold text-orange-400 bg-orange-500/15 px-1.5 py-0.5 rounded">
+                        🔒 {frozen.toFixed(2)}
+                      </span>
+                    )}
+                    <input type="number" step={0.05} min={0.7} max={1.4}
+                           defaultValue={frozen ?? mult}
+                           onBlur={e => {
+                             const v = parseFloat(e.target.value)
+                             if (!isNaN(v)) freeze(j.id, v)
+                           }}
+                           title="Freeze à cette valeur"
+                           className="w-16 px-1 py-0.5 rounded text-xs text-center"
+                           style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+                    {frozen != null && (
+                      <button onClick={() => freeze(j.id, -1)}
+                              title="Libérer"
+                              className="text-xs px-1.5 py-0.5 rounded"
+                              style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>×</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* History sparklines */}
+      {history.length > 0 && (
+        <div className="rounded-xl p-4"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h3 className="font-bold mb-3" style={{ color: 'var(--text)' }}>Historique 7j (par métier)</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {jobs.map((j: any) => (
+              <RegulatorSparkline key={j.id} jobName={j.name}
+                                  data={history.filter(h => h.job_id === j.id)}/>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RegulatorSparkline({ jobName, data }: { jobName: string; data: { ts: number; multiplier: number }[] }) {
+  if (data.length === 0) return (
+    <div className="rounded p-2 text-xs"
+         style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+      {jobName} — pas de données
+    </div>
+  )
+  const min = 0.7, max = 1.4
+  const points = data.map((d, i) => {
+    const x = (i / Math.max(1, data.length - 1)) * 100
+    const y = 100 - ((d.multiplier - min) / (max - min)) * 100
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const last = data[data.length - 1].multiplier
+  const color = last > 1.05 ? '#10b981' : last < 0.95 ? '#ef4444' : '#94a3b8'
+  return (
+    <div className="rounded p-2"
+         style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>{jobName}</span>
+        <span className="text-xs font-mono font-bold" style={{ color }}>×{last.toFixed(2)}</span>
+      </div>
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="w-full h-8">
+        <line x1={0} y1={(100 - ((1.0 - min) / (max - min)) * 100) * 0.3} x2={100} y2={(100 - ((1.0 - min) / (max - min)) * 100) * 0.3}
+              stroke="var(--border)" strokeDasharray="2 2" strokeWidth="0.3"/>
+        <polyline fill="none" stroke={color} strokeWidth="1" points={points}
+                  vectorEffect="non-scaling-stroke" transform="scale(1, 0.3)"/>
+      </svg>
     </div>
   )
 }
