@@ -174,18 +174,66 @@ const CARDS: Card[] = [
     desc: 'Queries timeline 30j peuvent ralentir sur grosse base.', tags: ['B','D'], complexity: 'S' },
 ]
 
-interface Overrides { columnByCard: Record<string, Column>; archived: Record<string, true> }
+interface CardMeta { notes?: string; dueDate?: string; assignee?: string }
+interface Overrides {
+  columnByCard: Record<string, Column>
+  archived:     Record<string, true>
+  meta:         Record<string, CardMeta>
+}
 const STORAGE_KEY = 'jobs.roadmap.v1'
+const EMPTY_OVERRIDES: Overrides = { columnByCard: {}, archived: {}, meta: {} }
 
 function loadOverrides(): Overrides {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { columnByCard: {}, archived: {} }
+    if (!raw) return EMPTY_OVERRIDES
     const p = JSON.parse(raw)
-    return { columnByCard: p.columnByCard ?? {}, archived: p.archived ?? {} }
-  } catch { return { columnByCard: {}, archived: {} } }
+    return {
+      columnByCard: p.columnByCard ?? {},
+      archived:     p.archived     ?? {},
+      meta:         p.meta         ?? {},
+    }
+  } catch { return EMPTY_OVERRIDES }
 }
 function saveOverrides(o: Overrides) { localStorage.setItem(STORAGE_KEY, JSON.stringify(o)) }
+
+function downloadJSON(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename
+  document.body.appendChild(a); a.click()
+  document.body.removeChild(a); URL.revokeObjectURL(url)
+}
+function pickJSONFile(): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/json'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) return reject('no_file')
+      const reader = new FileReader()
+      reader.onload  = () => { try { resolve(JSON.parse(String(reader.result))) } catch (e) { reject(e) } }
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(file)
+    }
+    input.click()
+  })
+}
+function initials(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map(p => p[0] ?? '').join('').toUpperCase() || '?'
+}
+function dueChip(dueDate?: string): { label: string; color: string } | null {
+  if (!dueDate) return null
+  const due = new Date(dueDate).getTime()
+  if (isNaN(due)) return null
+  const days = Math.ceil((due - Date.now()) / 86_400_000)
+  if (days < 0)  return { label: `J+${-days}`,  color: '#ef4444' }
+  if (days === 0) return { label: 'Aujourd\'hui', color: '#f59e0b' }
+  if (days <= 7) return { label: `J-${days}`,   color: '#f59e0b' }
+  return { label: `J-${days}`, color: '#10b981' }
+}
 
 export default function JobsRoadmap() {
   const [overrides, setOverrides] = useState<Overrides>(loadOverrides)
@@ -219,9 +267,45 @@ export default function JobsRoadmap() {
     const next = { ...overrides.archived }; delete next[cardId]
     setOverrides({ ...overrides, archived: next })
   }
+  const updateMeta = (cardId: string, patch: Partial<CardMeta>) => {
+    setOverrides(o => {
+      const current = o.meta[cardId] ?? {}
+      const merged: CardMeta = { ...current, ...patch }
+      // Strip empty fields so the override stays clean
+      const clean: CardMeta = {}
+      if (merged.notes?.trim())    clean.notes    = merged.notes.trim()
+      if (merged.dueDate)          clean.dueDate  = merged.dueDate
+      if (merged.assignee?.trim()) clean.assignee = merged.assignee.trim()
+      const nextMeta = { ...o.meta }
+      if (Object.keys(clean).length === 0) delete nextMeta[cardId]
+      else                                  nextMeta[cardId] = clean
+      return { ...o, meta: nextMeta }
+    })
+  }
   const resetAll = () => {
-    if (!confirm('Réinitialiser toutes les surcharges (déplacements + archives) ?')) return
-    setOverrides({ columnByCard: {}, archived: {} })
+    if (!confirm('Réinitialiser TOUT (déplacements, archives, notes, dates, assignations) ?')) return
+    setOverrides(EMPTY_OVERRIDES)
+  }
+  const exportJSON = () => {
+    downloadJSON(`roadmap-jobs-${new Date().toISOString().slice(0, 10)}.json`, {
+      version: 1,
+      exported_at: Date.now(),
+      overrides,
+    })
+  }
+  const importJSON = async () => {
+    try {
+      const data = await pickJSONFile() as any
+      if (!data?.overrides) { alert('Fichier invalide : champ "overrides" manquant'); return }
+      if (!confirm('Importer ce fichier ? Tes overrides actuels seront remplacés.')) return
+      setOverrides({
+        columnByCard: data.overrides.columnByCard ?? {},
+        archived:     data.overrides.archived     ?? {},
+        meta:         data.overrides.meta         ?? {},
+      })
+    } catch (e) {
+      alert('Erreur d\'import : ' + e)
+    }
   }
 
   return (
@@ -252,6 +336,18 @@ export default function JobsRoadmap() {
                            color: showArchived ? 'white' : 'var(--text-muted)',
                            border: '1px solid var(--border)' }}>
             {showArchived ? '👁 Archivées' : 'Voir archivées'}
+          </button>
+          <button onClick={exportJSON}
+                  title="Sauvegarder un fichier JSON (notes, dates, assignations…)"
+                  className="px-3 py-2 rounded text-xs"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            ⬇ Export
+          </button>
+          <button onClick={importJSON}
+                  title="Restaurer depuis un fichier JSON"
+                  className="px-3 py-2 rounded text-xs"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            ⬆ Import
           </button>
           <button onClick={resetAll}
                   className="px-3 py-2 rounded text-xs"
@@ -312,10 +408,12 @@ export default function JobsRoadmap() {
                   </div>
                 ) : colCards.map(c => (
                   <CardView key={c.id} card={c}
+                            meta={overrides.meta[c.id]}
                             archived={!!overrides.archived[c.id]}
                             onDragStart={() => setDraggedId(c.id)}
                             onDragEnd={() => setDraggedId(null)}
-                            onArchive={() => showArchived ? restoreCard(c.id) : archiveCard(c.id)}/>
+                            onArchive={() => showArchived ? restoreCard(c.id) : archiveCard(c.id)}
+                            onUpdateMeta={(p) => updateMeta(c.id, p)}/>
                 ))}
               </div>
             </div>
@@ -343,23 +441,29 @@ function FilterChip({ children, active, onClick, bg, color }: {
   )
 }
 
-function CardView({ card, archived, onDragStart, onDragEnd, onArchive }: {
-  card: Card; archived: boolean
+function CardView({ card, meta, archived, onDragStart, onDragEnd, onArchive, onUpdateMeta }: {
+  card: Card; meta?: CardMeta; archived: boolean
   onDragStart: () => void; onDragEnd: () => void; onArchive: () => void
+  onUpdateMeta: (patch: Partial<CardMeta>) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [editing,  setEditing]  = useState(false)
+  const due = dueChip(meta?.dueDate)
+  const hasMeta = !!(meta?.notes || meta?.dueDate || meta?.assignee)
+
   return (
-    <div draggable
+    <div draggable={!editing}
          onDragStart={onDragStart}
          onDragEnd={onDragEnd}
-         className="rounded-lg p-2.5 cursor-grab active:cursor-grabbing transition hover:shadow-lg"
+         className="rounded-lg p-2.5 transition hover:shadow-lg"
          style={{
            background: 'var(--surface-2)',
-           border: '1px solid var(--border)',
+           border: `1px solid ${editing ? 'var(--primary)' : 'var(--border)'}`,
            opacity: archived ? 0.6 : 1,
+           cursor: editing ? 'auto' : 'grab',
          }}>
       <div className="flex items-start justify-between gap-1">
-        <p className="text-xs font-semibold leading-snug flex-1"
+        <p className="text-xs font-semibold leading-snug flex-1 cursor-pointer"
            style={{ color: 'var(--text)' }}
            onClick={() => card.desc && setExpanded(!expanded)}>
           {card.title}
@@ -369,18 +473,85 @@ function CardView({ card, archived, onDragStart, onDragEnd, onArchive }: {
             </span>
           )}
         </p>
-        <button onClick={(e) => { e.stopPropagation(); onArchive() }}
-                title={archived ? 'Restaurer' : 'Archiver'}
-                className="text-xs leading-none p-0.5"
-                style={{ color: 'var(--text-muted)' }}>
-          {archived ? '↩' : '✕'}
-        </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button onClick={(e) => { e.stopPropagation(); setEditing(!editing); setExpanded(true) }}
+                  title="Notes / date / assignation"
+                  className="text-[10px] leading-none p-0.5"
+                  style={{ color: editing ? 'var(--primary)' : (hasMeta ? '#f59e0b' : 'var(--text-muted)') }}>
+            {hasMeta ? '✎●' : '✎'}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onArchive() }}
+                  title={archived ? 'Restaurer' : 'Archiver'}
+                  className="text-xs leading-none p-0.5"
+                  style={{ color: 'var(--text-muted)' }}>
+            {archived ? '↩' : '✕'}
+          </button>
+        </div>
       </div>
 
       {expanded && card.desc && (
         <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           {card.desc}
         </p>
+      )}
+
+      {/* Meta chips (read-only when not editing) */}
+      {!editing && hasMeta && (
+        <div className="mt-2 space-y-1">
+          {meta?.notes && (
+            <p className="text-[10px] leading-snug px-2 py-1 rounded"
+               style={{ background: 'rgba(245,158,11,0.08)', color: '#fbbf24', borderLeft: '2px solid #f59e0b' }}>
+              📝 {meta.notes}
+            </p>
+          )}
+          <div className="flex items-center gap-1 flex-wrap">
+            {due && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                    style={{ background: `${due.color}20`, color: due.color, border: `1px solid ${due.color}40` }}>
+                ⏱ {due.label}
+              </span>
+            )}
+            {meta?.assignee && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1"
+                    style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--primary)' }}>
+                <span className="w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[8px] font-black"
+                      style={{ background: 'var(--primary)', color: 'white' }}>
+                  {initials(meta.assignee)}
+                </span>
+                {meta.assignee}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Editor */}
+      {editing && (
+        <div className="mt-2 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+          <textarea placeholder="Notes…"
+                    defaultValue={meta?.notes ?? ''}
+                    onBlur={(e) => onUpdateMeta({ notes: e.target.value })}
+                    rows={2}
+                    className="w-full text-[10px] px-2 py-1 rounded resize-none"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+          <div className="grid grid-cols-2 gap-1">
+            <input type="date"
+                   defaultValue={meta?.dueDate ?? ''}
+                   onBlur={(e) => onUpdateMeta({ dueDate: e.target.value || undefined })}
+                   className="text-[10px] px-2 py-1 rounded"
+                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+            <input type="text" placeholder="Assigné à…"
+                   defaultValue={meta?.assignee ?? ''}
+                   onBlur={(e) => onUpdateMeta({ assignee: e.target.value })}
+                   className="text-[10px] px-2 py-1 rounded"
+                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+          </div>
+          <button onClick={() => setEditing(false)}
+                  className="w-full text-[10px] py-1 rounded"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            Fermer
+          </button>
+        </div>
       )}
 
       <div className="flex items-center gap-1 mt-2 flex-wrap">
