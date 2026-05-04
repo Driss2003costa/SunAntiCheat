@@ -8,16 +8,17 @@ import {
 } from '../api/client'
 import Navbar from '../components/Navbar'
 import MinecraftIcon from '../components/MinecraftIcon'
+import SunBackground from '../components/SunBackground'
+
+const BG     = '#080d19'
+const CARD   = 'rgba(15,22,40,0.85)'
+const BORDER = 'rgba(251,191,36,0.12)'
+const GOLD   = '#fbbf24'
+const TEXT   = '#f1f5f9'
+const MUTED  = '#64748b'
 
 function fmtEarned(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
-}
-
-const SEASON_GRADIENT: Record<string, string> = {
-  winter: 'from-cyan-500/20 to-blue-700/10  border-cyan-500/30',
-  spring: 'from-green-500/20 to-emerald-700/10 border-green-500/30',
-  summer: 'from-yellow-500/20 to-orange-700/10 border-yellow-500/30',
-  autumn: 'from-orange-500/20 to-red-700/10  border-orange-500/30',
 }
 
 export default function Career() {
@@ -80,7 +81,8 @@ export default function Career() {
       await loadAll(profile.uuid)
     } catch (e: any) {
       const reason = e?.reason ?? ''
-      const msg = reason === 'NO_SLOT'    ? 'Tu as atteint ta limite de métiers.'
+      const msg = e?.status === 401       ? 'Session expirée, reconnecte-toi.'
+                : reason === 'NO_SLOT'    ? 'Tu as atteint ta limite de métiers.'
                 : reason === 'DISABLED'   ? 'Ce métier est désactivé.'
                 : reason === 'ALREADY_IN' ? 'Tu es déjà dans ce métier.'
                 : reason === 'NOT_FOUND'  ? 'Métier introuvable.'
@@ -100,16 +102,21 @@ export default function Career() {
       setToast({ kind: 'ok', msg: 'Métier quitté.' })
       setSlots({ used: r.used, max: r.max, rank: r.rank })
       await loadAll(profile.uuid)
-    } catch {
-      setToast({ kind: 'err', msg: 'Action impossible.' })
+    } catch (e: any) {
+      if (e?.status === 401) {
+        setToast({ kind: 'err', msg: 'Session expirée, reconnecte-toi.' })
+      } else {
+        setToast({ kind: 'err', msg: 'Action impossible.' })
+      }
     } finally {
       setBusyJob(null)
     }
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center pb-20">
-      <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex items-center justify-center pb-20" style={{ background: BG }}>
+      <div className="w-10 h-10 rounded-full border-2 animate-spin"
+           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
       <Navbar />
     </div>
   )
@@ -121,69 +128,65 @@ export default function Career() {
   const joinedIds      = new Set(progress.map(p => p.job_id))
   const inactiveJobs   = jobs.filter(j => !joinedIds.has(j.id))
 
-  const seasonKey  = dynamics?.season?.key ?? ''
-  const seasonGrad = SEASON_GRADIENT[seasonKey] ?? 'from-gray-700/20 to-gray-900/10 border-gray-700/30'
   const bulletinJob = dynamics?.bulletin?.job_id
     ? jobs.find(j => j.id === dynamics.bulletin?.job_id)
     : null
   const activeEvents = dynamics?.active_events ?? []
 
-  // 7-day actions per job (for "favorite jobs" quick stat)
   const actionsByJob = new Map<string, number>()
   heatmap?.by_job.forEach(e => actionsByJob.set(e.job_id, e.actions))
 
   return (
-    <div className="min-h-screen bg-gray-950 pb-24">
+    <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
+      <SunBackground />
 
-      {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/25 via-green-900/10 to-gray-950" />
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
+      {/* ── HEADER ──────────────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden z-10">
+        <div className="absolute inset-0 pointer-events-none"
+             style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%,rgba(251,191,36,0.14),transparent)' }} />
 
         <div className="relative px-5 pt-12 pb-6 max-w-screen-sm mx-auto">
           <div className="flex items-center gap-3 mb-4">
             <span className="text-3xl">📈</span>
             <div>
-              <h1 className="text-2xl font-black text-white">Carrière</h1>
-              <p className="text-sm text-gray-400">{profile.username}</p>
+              <h1 className="text-2xl font-black" style={{ color: TEXT }}>Carrière</h1>
+              <p className="text-sm" style={{ color: MUTED }}>{profile.username}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            <MiniStat icon="🏅" label="Métiers actifs"  value={String(activeProgress.length)} color="text-emerald-400" />
-            <MiniStat icon="⚡" label="Niveau total"    value={String(totalLevel)}             color="text-yellow-400" />
-            <MiniStat icon="💰" label="Total gagné"     value={fmtEarned(totalEarned)}         color="text-blue-400" />
+            <MiniStat icon="🏅" label="Métiers actifs"  value={String(activeProgress.length)} />
+            <MiniStat icon="⚡" label="Niveau total"    value={String(totalLevel)} />
+            <MiniStat icon="💰" label="Total gagné"     value={fmtEarned(totalEarned)} />
           </div>
         </div>
       </div>
 
-      <div className="px-4 pt-4 space-y-4 max-w-screen-sm mx-auto">
+      <div className="px-4 pt-4 space-y-4 max-w-screen-sm mx-auto relative z-10">
 
         {/* Slots banner */}
         {slots && (() => {
           const full = slots.used >= slots.max
-          const pct  = slots.max > 0 ? Math.min(100, Math.round(slots.used / slots.max * 100)) : 100
           const free = Math.max(0, slots.max - slots.used)
           return (
-            <div className="rounded-2xl px-4 py-3"
+            <div className="rounded-2xl px-4 py-3 backdrop-blur-sm"
                  style={{
-                   background: full ? 'rgba(249,115,22,0.07)' : 'rgba(255,255,255,0.03)',
-                   border: `1px solid ${full ? 'rgba(249,115,22,0.3)' : 'rgba(255,255,255,0.07)'}`,
+                   background: full ? 'rgba(249,115,22,0.07)' : CARD,
+                   border: `1px solid ${full ? 'rgba(249,115,22,0.3)' : BORDER}`,
                  }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🎟️</span>
-                  <span className="text-xs text-gray-500 uppercase tracking-widest">Slots métiers</span>
+                  <span className="text-xs uppercase tracking-widest" style={{ color: MUTED }}>Slots métiers</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded"
-                        style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7280' }}>
+                        style={{ background: 'rgba(251,191,36,0.08)', color: MUTED }}>
                     {slots.rank}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold" style={{ color: full ? '#fb923c' : '#fff' }}>
+                  <span className="text-sm font-bold" style={{ color: full ? '#fb923c' : GOLD }}>
                     {slots.used}
-                    <span className="text-gray-600 font-normal mx-0.5">/</span>
+                    <span style={{ color: MUTED, fontWeight: 400 }} className="mx-0.5">/</span>
                     {slots.max}
                   </span>
                   {full ? (
@@ -193,32 +196,27 @@ export default function Career() {
                     </span>
                   ) : (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+                          style={{ background: 'rgba(251,191,36,0.15)', color: GOLD, border: `1px solid ${BORDER}` }}>
                       {free} libre{free > 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
               </div>
-              {/* Segmented slots bar */}
               <div className="flex gap-1">
                 {Array.from({ length: slots.max }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-full transition-all duration-300"
-                    style={{
-                      height: 6,
-                      background: i < slots.used
-                        ? full
-                          ? 'linear-gradient(90deg,#f97316,#fb923c)'
-                          : 'linear-gradient(90deg,#10b981,#34d399)'
-                        : 'rgba(255,255,255,0.08)',
-                    }}
-                  />
+                  <div key={i} className="flex-1 rounded-full transition-all duration-300"
+                       style={{
+                         height: 5,
+                         background: i < slots.used
+                           ? full
+                             ? 'linear-gradient(90deg,#f97316,#fb923c)'
+                             : 'linear-gradient(90deg,#f59e0b,#fbbf24)'
+                           : 'rgba(255,255,255,0.06)',
+                       }} />
                 ))}
-                {/* If used > max, show overflow */}
                 {slots.used > slots.max && Array.from({ length: slots.used - slots.max }).map((_, i) => (
                   <div key={`over-${i}`} className="flex-1 rounded-full"
-                       style={{ height: 6, background: '#ef4444' }} />
+                       style={{ height: 5, background: '#ef4444' }} />
                 ))}
               </div>
             </div>
@@ -227,8 +225,10 @@ export default function Career() {
 
         {/* Active tickets */}
         {tickets.length > 0 && (
-          <div className="bg-gradient-to-br from-purple-500/15 to-pink-500/10 border border-purple-500/30 rounded-2xl px-4 py-3">
-            <p className="text-xs font-semibold text-purple-300 uppercase tracking-widest mb-2">🎫 Tickets actifs</p>
+          <div className="rounded-2xl px-4 py-3 backdrop-blur-sm"
+               style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)' }}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-2"
+               style={{ color: '#a78bfa' }}>🎫 Tickets actifs</p>
             <div className="flex flex-wrap gap-2">
               {tickets.map(t => {
                 const remainingMs = t.expires_at - Date.now()
@@ -238,7 +238,8 @@ export default function Career() {
                   t.type === 'xp_boost_25'    ? '+25% XP' :
                   t.type === 'bypass_heatmap' ? 'Bypass heatmap' : t.type
                 return (
-                  <span key={t.id} className="text-[11px] font-semibold text-purple-200 bg-purple-500/20 border border-purple-500/40 rounded-full px-2.5 py-1">
+                  <span key={t.id} className="text-[11px] font-semibold rounded-full px-2.5 py-1"
+                        style={{ color: '#c4b5fd', background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)' }}>
                     {label} · {remainingH}h
                   </span>
                 )
@@ -247,65 +248,66 @@ export default function Career() {
           </div>
         )}
 
-        {/* ── World Dynamics card ───────────────────────────────────────── */}
+        {/* World Dynamics */}
         {dynamics?.enabled && (
-          <section className={`bg-gradient-to-br ${seasonGrad} border rounded-2xl overflow-hidden`}>
-            <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+          <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
+                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <div className="px-5 py-3 flex items-center justify-between"
+                 style={{ borderBottom: `1px solid ${BORDER}` }}>
               <div className="flex items-center gap-2">
                 <span>🌍</span>
-                <span className="text-sm font-semibold text-white">Monde dynamique</span>
+                <span className="text-sm font-semibold" style={{ color: TEXT }}>Monde dynamique</span>
               </div>
-              <span className="text-[10px] text-gray-400">en direct</span>
+              <span className="text-[10px]" style={{ color: MUTED }}>en direct</span>
             </div>
 
             <div className="px-5 py-4 grid grid-cols-2 gap-3">
-              {/* Season tile */}
               {dynamics.season && (
-                <div className="bg-black/40 rounded-xl border border-white/5 p-3">
+                <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${BORDER}` }}>
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{dynamics.season.icon}</span>
                     <div>
-                      <p className="text-[10px] text-gray-400 uppercase tracking-wider">Saison</p>
-                      <p className="text-sm font-bold text-white">{dynamics.season.label}</p>
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: MUTED }}>Saison</p>
+                      <p className="text-sm font-bold" style={{ color: TEXT }}>{dynamics.season.label}</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Bulletin tile */}
               {bulletinJob ? (
-                <div className="bg-black/40 rounded-xl border border-yellow-500/20 p-3">
+                <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(251,191,36,0.3)' }}>
                   <div className="flex items-center gap-2">
                     <span className="text-xl">📰</span>
                     <div className="min-w-0">
-                      <p className="text-[10px] text-yellow-400 uppercase tracking-wider">Demande</p>
-                      <p className="text-sm font-bold text-white truncate">
-                        {bulletinJob.name} <span className="text-yellow-400 font-mono ml-1">×{(dynamics.bulletin?.multiplier ?? 1).toFixed(1)}</span>
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: GOLD }}>Demande</p>
+                      <p className="text-sm font-bold truncate" style={{ color: TEXT }}>
+                        {bulletinJob.name}
+                        <span className="font-mono ml-1" style={{ color: GOLD }}>×{(dynamics.bulletin?.multiplier ?? 1).toFixed(1)}</span>
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-black/30 rounded-xl border border-white/5 p-3 opacity-60">
+                <div className="rounded-xl p-3 opacity-50" style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${BORDER}` }}>
                   <div className="flex items-center gap-2">
                     <span className="text-xl">📰</span>
                     <div>
-                      <p className="text-[10px] text-gray-400 uppercase tracking-wider">Bulletin</p>
-                      <p className="text-xs text-gray-500">À venir</p>
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: MUTED }}>Bulletin</p>
+                      <p className="text-xs" style={{ color: MUTED }}>À venir</p>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Active events */}
             {activeEvents.length > 0 && (
               <div className="px-5 pb-4">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">Évènements en cours</p>
+                <p className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: MUTED }}>Évènements en cours</p>
                 <div className="flex flex-wrap gap-1.5">
                   {activeEvents.map(ev => (
                     <span key={ev.id}
-                      className="text-[10px] font-semibold text-orange-300 bg-orange-500/15 border border-orange-500/30 rounded-full px-2 py-0.5">
+                      className="text-[10px] font-semibold rounded-full px-2 py-0.5"
+                      style={{ color: '#fdba74', background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)' }}>
                       ⚡ {ev.id} {ev.target_job ? `· ${ev.target_job}` : ''}
                     </span>
                   ))}
@@ -317,17 +319,18 @@ export default function Career() {
 
         {/* Module unavailable */}
         {unavailable && (
-          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-8 text-center">
+          <div className="rounded-2xl p-8 text-center backdrop-blur-sm"
+               style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             <span className="text-4xl block mb-3">🔧</span>
-            <p className="text-sm font-semibold text-white">Module hors ligne</p>
-            <p className="text-xs text-gray-500 mt-1">Le système de métiers n'est pas disponible pour le moment.</p>
+            <p className="text-sm font-semibold" style={{ color: TEXT }}>Module hors ligne</p>
+            <p className="text-xs mt-1" style={{ color: MUTED }}>Le système de métiers n'est pas disponible pour le moment.</p>
           </div>
         )}
 
         {/* Active jobs */}
         {activeProgress.length > 0 && (
           <section>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 px-0.5">Mes métiers</p>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3 px-0.5" style={{ color: MUTED }}>Mes métiers</p>
             <div className="space-y-3">
               {activeProgress.map(prog => {
                 const job       = jobs.find(j => j.id === prog.job_id)
@@ -337,63 +340,68 @@ export default function Career() {
                 const recent7   = actionsByJob.get(prog.job_id) ?? 0
 
                 return (
-                  <div
-                    key={prog.job_id}
-                    className={`w-full text-left bg-gray-900 rounded-2xl border overflow-hidden transition-colors hover:border-emerald-500/40 cursor-pointer ${
-                      isHot ? 'border-yellow-500/40' : 'border-gray-800'
-                    }`}
-                  >
+                  <div key={prog.job_id}
+                    className="rounded-2xl overflow-hidden cursor-pointer backdrop-blur-sm transition-all"
+                    style={{
+                      background: CARD,
+                      border: `1px solid ${isHot ? 'rgba(251,191,36,0.4)' : BORDER}`,
+                      boxShadow: isHot ? '0 0 20px rgba(251,191,36,0.06)' : 'none',
+                    }}>
                     <div className="flex items-center gap-3 p-4"
                          onClick={() => navigate(`/career/job/${prog.job_id}`)}>
-                      <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${
-                        isHot ? 'bg-yellow-500/15 border-yellow-500/30' : 'bg-emerald-500/10 border-emerald-500/20'
-                      }`}>
+                      <div className="w-12 h-12 rounded-xl border flex items-center justify-center shrink-0"
+                           style={{
+                             background: isHot ? 'rgba(251,191,36,0.12)' : 'rgba(16,185,129,0.08)',
+                             border: `1px solid ${isHot ? 'rgba(251,191,36,0.3)' : 'rgba(16,185,129,0.2)'}`,
+                           }}>
                         <MinecraftIcon icon={job?.icon} size={32} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-2">
-                          <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
+                          <p className="text-sm font-bold truncate flex items-center gap-1.5" style={{ color: TEXT }}>
                             {prog.job_name}
-                            {isHot && <span className="text-[10px] font-bold text-yellow-400">★ DEMANDE</span>}
+                            {isHot && <span className="text-[10px] font-bold" style={{ color: GOLD }}>★ DEMANDE</span>}
                           </p>
-                          <span className={`text-xs font-black shrink-0 ${isMax ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                          <span className="text-xs font-black shrink-0" style={{ color: isMax ? GOLD : '#34d399' }}>
                             Niv.&nbsp;{prog.level}{isMax ? ' ✦' : `/${prog.max_level}`}
                           </span>
                         </div>
                         {prog.total_earned > 0 && (
-                          <p className="text-xs text-gray-500 mt-0.5">
+                          <p className="text-xs mt-0.5" style={{ color: MUTED }}>
                             {fmtEarned(prog.total_earned)} gagnés
-                            {recent7 > 0 && <span className="text-gray-600"> · {recent7} actions cette semaine</span>}
+                            {recent7 > 0 && <span style={{ color: '#475569' }}> · {recent7} actions cette semaine</span>}
                           </p>
                         )}
                       </div>
-                      <span className="text-gray-600 text-sm shrink-0">›</span>
+                      <span className="text-sm shrink-0" style={{ color: MUTED }}>›</span>
                     </div>
 
                     {/* XP bar */}
                     <div onClick={() => navigate(`/career/job/${prog.job_id}`)}>
                       {!isMax ? (
                         <div className="px-4 pb-3">
-                          <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
+                          <div className="flex justify-between text-[10px] mb-1.5" style={{ color: MUTED }}>
                             <span>Vers niveau {prog.level + 1}</span>
                             <span className="font-mono">{xpPct}%</span>
                           </div>
-                          <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
                             <div
-                              className={`h-full rounded-full transition-all ${
-                                isHot
-                                  ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
-                                  : 'bg-gradient-to-r from-emerald-600 to-emerald-400'
-                              }`}
-                              style={{ width: `${xpPct}%` }}
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${xpPct}%`,
+                                background: isHot
+                                  ? 'linear-gradient(90deg,#d97706,#fbbf24)'
+                                  : 'linear-gradient(90deg,#f59e0b,#fb923c)',
+                              }}
                             />
                           </div>
                         </div>
                       ) : (
                         <div className="px-4 pb-3">
-                          <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
+                          <div className="flex items-center gap-2 rounded-xl px-3 py-2"
+                               style={{ background: 'rgba(251,191,36,0.08)', border: `1px solid rgba(251,191,36,0.2)` }}>
                             <span className="text-base">⭐</span>
-                            <p className="text-xs text-yellow-400 font-semibold">Niveau maximum atteint !</p>
+                            <p className="text-xs font-semibold" style={{ color: GOLD }}>Niveau maximum atteint !</p>
                           </div>
                         </div>
                       )}
@@ -404,11 +412,13 @@ export default function Career() {
                         type="button"
                         disabled={busyJob === prog.job_id}
                         onClick={() => handleLeave(prog.job_id)}
-                        className={`w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
-                          busyJob === prog.job_id
-                            ? 'border-gray-800 text-gray-600 bg-gray-900 cursor-wait'
-                            : 'border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20'
-                        }`}>
+                        className="w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors"
+                        style={{
+                          background: busyJob === prog.job_id ? 'rgba(239,68,68,0.04)' : 'rgba(239,68,68,0.08)',
+                          border: 'rgba(239,68,68,0.3) 1px solid',
+                          color: busyJob === prog.job_id ? MUTED : '#f87171',
+                          cursor: busyJob === prog.job_id ? 'wait' : 'pointer',
+                        }}>
                         {busyJob === prog.job_id ? '…' : '✖ Quitter ce métier'}
                       </button>
                     </div>
@@ -419,13 +429,14 @@ export default function Career() {
           </section>
         )}
 
-        {/* Not started yet prompt */}
+        {/* Not started yet */}
         {!unavailable && activeProgress.length === 0 && jobs.length > 0 && (
-          <div className="flex items-center gap-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4">
+          <div className="flex items-center gap-4 rounded-2xl p-4 backdrop-blur-sm"
+               style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)' }}>
             <span className="text-3xl shrink-0">🌱</span>
             <div>
-              <p className="text-sm font-semibold text-emerald-300">Tu n'as pas encore de métier actif</p>
-              <p className="text-xs text-gray-500 mt-0.5">Rejoins le serveur et utilise /métiers pour commencer.</p>
+              <p className="text-sm font-semibold" style={{ color: '#6ee7b7' }}>Tu n'as pas encore de métier actif</p>
+              <p className="text-xs mt-0.5" style={{ color: MUTED }}>Rejoins le serveur et utilise /métiers pour commencer.</p>
             </div>
           </div>
         )}
@@ -433,55 +444,54 @@ export default function Career() {
         {/* Available jobs */}
         {inactiveJobs.length > 0 && (
           <section>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 px-0.5">
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3 px-0.5" style={{ color: MUTED }}>
               {activeProgress.length > 0 ? 'Autres métiers disponibles' : 'Métiers disponibles'}
             </p>
             <div className="grid grid-cols-2 gap-3">
               {inactiveJobs.map(job => {
-                const isHot     = bulletinJob?.id === job.id
-                const disabled  = job.enabled === false
-                const noSlot    = !!slots && slots.used >= slots.max
-                const canJoin   = !disabled && !noSlot && busyJob !== job.id
+                const isHot    = bulletinJob?.id === job.id
+                const disabled = job.enabled === false
+                const noSlot   = !!slots && slots.used >= slots.max
+                const canJoin  = !disabled && !noSlot && busyJob !== job.id
                 const joinLabel = disabled ? 'Désactivé'
                                 : noSlot   ? 'Slots pleins'
                                 : busyJob === job.id ? '…' : '➕ Rejoindre'
                 return (
                   <div key={job.id}
-                    className={`bg-gray-900 rounded-2xl border p-4 flex flex-col transition-colors ${
-                      disabled ? 'opacity-60 border-gray-800' :
-                      isHot    ? 'border-yellow-500/40' : 'border-gray-800'
-                    }`}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/career/job/${job.id}`)}
+                    className="rounded-2xl p-4 flex flex-col backdrop-blur-sm"
+                    style={{
+                      background: CARD,
+                      border: `1px solid ${disabled ? 'rgba(255,255,255,0.06)' : isHot ? 'rgba(251,191,36,0.35)' : BORDER}`,
+                      opacity: disabled ? 0.6 : 1,
+                    }}>
+                    <button type="button" onClick={() => navigate(`/career/job/${job.id}`)}
                       className="text-left flex-1 flex flex-col">
                       <div className="flex items-center justify-between">
                         <MinecraftIcon icon={job.icon} size={36} />
                         {disabled
-                          ? <span className="text-[10px] font-bold text-gray-500">⏸ OFF</span>
-                          : isHot && <span className="text-[10px] font-bold text-yellow-400">★</span>}
+                          ? <span className="text-[10px] font-bold" style={{ color: MUTED }}>⏸ OFF</span>
+                          : isHot && <span className="text-[10px] font-bold" style={{ color: GOLD }}>★</span>}
                       </div>
-                      <p className="text-sm font-bold text-white leading-tight mt-2">{job.name}</p>
+                      <p className="text-sm font-bold leading-tight mt-2" style={{ color: TEXT }}>{job.name}</p>
                       {job.description && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 flex-1">{job.description}</p>
+                        <p className="text-xs mt-1 line-clamp-2 flex-1" style={{ color: MUTED }}>{job.description}</p>
                       )}
                       <div className="flex items-center justify-between mt-3 mb-3">
-                        <span className="text-[10px] text-gray-600">Niv. max : {job.max_level}</span>
+                        <span className="text-[10px]" style={{ color: '#475569' }}>Niv. max : {job.max_level}</span>
                         {job.actions && job.actions.length > 0 && (
-                          <span className="text-[10px] text-gray-600">{job.actions.length} action{job.actions.length > 1 ? 's' : ''}</span>
+                          <span className="text-[10px]" style={{ color: '#475569' }}>{job.actions.length} action{job.actions.length > 1 ? 's' : ''}</span>
                         )}
                       </div>
                     </button>
 
-                    <button
-                      type="button"
-                      disabled={!canJoin}
-                      onClick={() => handleJoin(job.id)}
-                      className={`w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
-                        canJoin
-                          ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20'
-                          : 'border-gray-800 text-gray-600 bg-gray-900/60 cursor-not-allowed'
-                      }`}>
+                    <button type="button" disabled={!canJoin} onClick={() => handleJoin(job.id)}
+                      className="w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors"
+                      style={{
+                        background: canJoin ? 'rgba(251,191,36,0.12)' : 'rgba(255,255,255,0.03)',
+                        border: canJoin ? `1px solid rgba(251,191,36,0.3)` : '1px solid rgba(255,255,255,0.06)',
+                        color: canJoin ? GOLD : MUTED,
+                        cursor: canJoin ? 'pointer' : 'not-allowed',
+                      }}>
                       {joinLabel}
                     </button>
                   </div>
@@ -491,23 +501,30 @@ export default function Career() {
           </section>
         )}
 
-        {/* Empty state — no jobs at all */}
+        {/* Empty state */}
         {!unavailable && jobs.length === 0 && (
-          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-10 text-center">
+          <div className="rounded-2xl p-10 text-center backdrop-blur-sm"
+               style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             <span className="text-5xl block mb-3">💼</span>
-            <p className="text-sm font-semibold text-white">Aucun métier configuré</p>
-            <p className="text-xs text-gray-500 mt-1">Reviens plus tard pour découvrir les métiers disponibles.</p>
+            <p className="text-sm font-semibold" style={{ color: TEXT }}>Aucun métier configuré</p>
+            <p className="text-xs mt-1" style={{ color: MUTED }}>Reviens plus tard pour découvrir les métiers disponibles.</p>
           </div>
         )}
       </div>
 
       {toast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 animate-fade-in">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
           <div className={`px-4 py-2 rounded-full text-xs font-semibold shadow-lg border ${
             toast.kind === 'ok'
-              ? 'bg-emerald-500/95 text-black border-emerald-300'
-              : 'bg-red-500/95 text-white border-red-300'
-          }`}>
+              ? 'text-gray-900'
+              : 'text-white'
+          }`}
+               style={{
+                 background: toast.kind === 'ok'
+                   ? 'linear-gradient(135deg,#f59e0b,#fb923c)'
+                   : 'rgba(239,68,68,0.95)',
+                 borderColor: toast.kind === 'ok' ? '#fbbf24' : '#f87171',
+               }}>
             {toast.kind === 'ok' ? '✔ ' : '⚠ '}{toast.msg}
           </div>
         </div>
@@ -518,12 +535,13 @@ export default function Career() {
   )
 }
 
-function MiniStat({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+function MiniStat({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div className="bg-black/30 border border-gray-800/80 rounded-xl p-3 text-center backdrop-blur">
+    <div className="rounded-xl p-3 text-center backdrop-blur-sm"
+         style={{ background: 'rgba(15,22,40,0.8)', border: '1px solid rgba(251,191,36,0.12)' }}>
       <span className="text-xl leading-none">{icon}</span>
-      <p className="text-[10px] text-gray-500 mt-1 leading-none">{label}</p>
-      <p className={`text-sm font-black mt-1 leading-none truncate ${color}`}>{value}</p>
+      <p className="text-[10px] mt-1 leading-none" style={{ color: '#64748b' }}>{label}</p>
+      <p className="text-sm font-black mt-1 leading-none truncate" style={{ color: '#fbbf24' }}>{value}</p>
     </div>
   )
 }

@@ -37,6 +37,18 @@ public final class QuestStore {
         this.questsStorage = new Persistence(blobs, "quests", new File(dir, "quests.json"));
         this.progressStorage = new Persistence(blobs, "quests_progress", new File(dir, "quests-progress.json"));
         load();
+        startExpiryScheduler();
+    }
+
+    private void startExpiryScheduler() {
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            for (Quest q : new ArrayList<>(quests.values())) {
+                if (q.isExpired()) {
+                    logger.info("[Dashboard/Quests] Suppression de la quête expirée : " + q.getId() + " (" + q.getTitle() + ")");
+                    delete(q.getId());
+                }
+            }
+        }, 20L * 60, 20L * 60); // delay 60s, period 60s
     }
 
     public Collection<Quest> all() { return new ArrayList<>(quests.values()); }
