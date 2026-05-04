@@ -337,15 +337,14 @@ export default function Career() {
                 const recent7   = actionsByJob.get(prog.job_id) ?? 0
 
                 return (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/career/job/${prog.job_id}`)}
+                  <div
                     key={prog.job_id}
-                    className={`w-full text-left bg-gray-900 rounded-2xl border overflow-hidden transition-colors hover:border-emerald-500/40 ${
+                    className={`w-full text-left bg-gray-900 rounded-2xl border overflow-hidden transition-colors hover:border-emerald-500/40 cursor-pointer ${
                       isHot ? 'border-yellow-500/40' : 'border-gray-800'
                     }`}
                   >
-                    <div className="flex items-center gap-3 p-4">
+                    <div className="flex items-center gap-3 p-4"
+                         onClick={() => navigate(`/career/job/${prog.job_id}`)}>
                       <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${
                         isHot ? 'bg-yellow-500/15 border-yellow-500/30' : 'bg-emerald-500/10 border-emerald-500/20'
                       }`}>
@@ -372,48 +371,48 @@ export default function Career() {
                     </div>
 
                     {/* XP bar */}
-                    {!isMax ? (
-                      <div className="px-4 pb-3">
-                        <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
-                          <span>Vers niveau {prog.level + 1}</span>
-                          <span className="font-mono">{xpPct}%</span>
+                    <div onClick={() => navigate(`/career/job/${prog.job_id}`)}>
+                      {!isMax ? (
+                        <div className="px-4 pb-3">
+                          <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
+                            <span>Vers niveau {prog.level + 1}</span>
+                            <span className="font-mono">{xpPct}%</span>
+                          </div>
+                          <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                isHot
+                                  ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
+                                  : 'bg-gradient-to-r from-emerald-600 to-emerald-400'
+                              }`}
+                              style={{ width: `${xpPct}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              isHot
-                                ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
-                                : 'bg-gradient-to-r from-emerald-600 to-emerald-400'
-                            }`}
-                            style={{ width: `${xpPct}%` }}
-                          />
+                      ) : (
+                        <div className="px-4 pb-3">
+                          <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
+                            <span className="text-base">⭐</span>
+                            <p className="text-xs text-yellow-400 font-semibold">Niveau maximum atteint !</p>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="px-4 pb-3">
-                        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
-                          <span className="text-base">⭐</span>
-                          <p className="text-xs text-yellow-400 font-semibold">Niveau maximum atteint !</p>
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     <div className="px-4 pb-4">
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); handleLeave(prog.job_id) }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleLeave(prog.job_id) } }}
-                        aria-disabled={busyJob === prog.job_id}
-                        className={`block w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
+                      <button
+                        type="button"
+                        disabled={busyJob === prog.job_id}
+                        onClick={() => handleLeave(prog.job_id)}
+                        className={`w-full text-center text-xs font-semibold rounded-xl px-3 py-2 border transition-colors ${
                           busyJob === prog.job_id
                             ? 'border-gray-800 text-gray-600 bg-gray-900 cursor-wait'
                             : 'border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20'
                         }`}>
                         {busyJob === prog.job_id ? '…' : '✖ Quitter ce métier'}
-                      </span>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
