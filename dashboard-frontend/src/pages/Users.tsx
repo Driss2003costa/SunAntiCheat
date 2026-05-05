@@ -47,6 +47,7 @@ export default function Users() {
   const [newRole, setNewRole]     = useState<Role>('MOD')
   const [newCustomRoleId, setNewCustomRoleId] = useState<string>('')   // '' = aucun
   const [resetPw, setResetPw]     = useState('')
+  const [renameVal, setRenameVal] = useState('')
   const [ownPw, setOwnPw]         = useState({ current: '', next: '', confirm: '' })
   const [saving, setSaving]       = useState(false)
   const [msg, setMsg]             = useState('')
@@ -104,7 +105,20 @@ export default function Users() {
     try {
       await api.userResetPassword(editing.username, resetPw)
       flash(`✅ Mot de passe de "${editing.username}" réinitialisé.`)
-      setEditing(null); setResetPw('')
+      setEditing(null); setResetPw(''); setRenameVal('')
+    } catch (e: any) { flash(e.message, true) } finally { setSaving(false) }
+  }
+
+  // ── Renommer ───────────────────────────────────────────────────────────────
+  const doRename = async () => {
+    if (!editing) return
+    if (!renameVal.trim() || renameVal.trim() === editing.username) { flash('Entrez un nouveau nom différent.', true); return }
+    if (!confirm(`Renommer "${editing.username}" → "${renameVal.trim()}" ?`)) return
+    setSaving(true)
+    try {
+      await api.userRename(editing.username, renameVal.trim())
+      flash(`✅ Compte renommé en "${renameVal.trim()}".`)
+      setEditing(null); setRenameVal(''); load()
     } catch (e: any) { flash(e.message, true) } finally { setSaving(false) }
   }
 
@@ -274,7 +288,7 @@ export default function Users() {
 
       {/* ── Modal : Modifier (rôle + reset pw) ──────────────────────────── */}
       {editing && (
-        <Modal title={`Modifier — ${editing.username}`} onClose={() => setEditing(null)}>
+        <Modal title={`Modifier — ${editing.username}`} onClose={() => { setEditing(null); setRenameVal('') }}>
           <div className="space-y-5">
             <div>
               <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Rôle de base (hiérarchie)</label>
@@ -325,8 +339,22 @@ export default function Users() {
                 🔑 Réinitialiser
               </button>
             </div>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+              <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                Renommer le compte
+              </label>
+              <input placeholder={`Nouveau nom (actuellement : ${editing.username})`}
+                     value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                     className="w-full px-3 py-2 rounded-lg mb-2" style={inp}/>
+              <button onClick={doRename}
+                      disabled={saving || !renameVal.trim() || renameVal.trim() === editing.username}
+                      className="w-full py-2 rounded-lg font-medium disabled:opacity-40"
+                      style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+                ✏️ Renommer
+              </button>
+            </div>
           </div>
-          <button onClick={() => setEditing(null)} className="mt-4 w-full py-2 rounded-lg" style={ghost}>Fermer</button>
+          <button onClick={() => { setEditing(null); setRenameVal('') }} className="mt-4 w-full py-2 rounded-lg" style={ghost}>Fermer</button>
         </Modal>
       )}
 

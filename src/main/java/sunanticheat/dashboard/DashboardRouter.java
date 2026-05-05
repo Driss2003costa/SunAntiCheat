@@ -624,6 +624,7 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/users/") && path.endsWith("/role")   && PATCH(method))  { userHandler.changeRole(ex, jwt, users, id(path, "/api/users/", "/role")); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/custom-role") && PATCH(method)) { userHandler.changeCustomRole(ex, jwt, users, id(path, "/api/users/", "/custom-role")); return; }
         if (path.startsWith("/api/users/") && path.endsWith("/password") && POST(method)) { userHandler.resetPassword(ex, jwt, users, id(path, "/api/users/", "/password")); return; }
+        if (path.startsWith("/api/users/") && path.endsWith("/rename")   && PATCH(method)) { userHandler.rename(ex, jwt, users, id(path, "/api/users/", "/rename")); return; }
         if (path.startsWith("/api/users/")           && DELETE(method)) { userHandler.delete(ex, jwt, users, id(path, "/api/users/")); return; }
 
         // ── GeoIP ─────────────────────────────────────────────────────────────

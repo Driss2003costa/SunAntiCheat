@@ -320,6 +320,8 @@ export const api = {
     request<any>(`/api/users/${encodeURIComponent(username)}/password`, { method: 'POST', body: JSON.stringify({ newPassword }) }),
   userDelete:         (username: string) =>
     request<any>(`/api/users/${encodeURIComponent(username)}`, { method: 'DELETE' }),
+  userRename:         (username: string, newUsername: string) =>
+    request<any>(`/api/users/${encodeURIComponent(username)}/rename`, { method: 'PATCH', body: JSON.stringify({ newUsername }) }),
   userChangeOwnPassword: (currentPassword: string, newPassword: string) =>
     request<any>('/api/users/me/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
 

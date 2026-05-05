@@ -178,6 +178,25 @@ public final class UserStore {
         return null;
     }
 
+    public synchronized String rename(String oldUsername, String newUsername) {
+        if (newUsername == null || newUsername.isBlank()) return "Le nouveau nom est requis.";
+        if (newUsername.length() < 3 || newUsername.length() > 32)
+            return "Le nom doit faire entre 3 et 32 caractères.";
+        if (!newUsername.matches("[a-zA-Z0-9_-]+"))
+            return "Caractères autorisés : lettres, chiffres, _ et -.";
+        String oldKey = oldUsername.toLowerCase();
+        String newKey = newUsername.toLowerCase();
+        StoredUser u = users.get(oldKey);
+        if (u == null) return "Utilisateur introuvable.";
+        if (!oldKey.equals(newKey) && users.containsKey(newKey))
+            return "Ce nom d'utilisateur est déjà pris.";
+        users.remove(oldKey);
+        u.username = newUsername;
+        users.put(newKey, u);
+        save();
+        return null;
+    }
+
     public String delete(String username, String requestedBy) {
         String key = username.toLowerCase();
         if (!users.containsKey(key)) return "Utilisateur introuvable.";

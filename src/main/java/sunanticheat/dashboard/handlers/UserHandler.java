@@ -124,6 +124,24 @@ public final class UserHandler {
         HttpHelper.json(ex, 200, Map.of("ok", true));
     }
 
+    /** PATCH /api/users/{username}/rename — renommer un compte (ADMIN seulement) */
+    @SuppressWarnings("unchecked")
+    public void rename(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String target) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.USERS_MANAGE)) return;
+
+        Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+        String newUsername = body != null ? (String) body.get("newUsername") : null;
+        if (newUsername == null || newUsername.isBlank()) { HttpHelper.error(ex, 400, "newUsername requis"); return; }
+
+        String err = store.rename(target, newUsername.trim());
+        if (err != null) { HttpHelper.error(ex, 400, err); return; }
+
+        refreshUsersMap(users);
+        HttpHelper.json(ex, 200, Map.of("ok", true, "newUsername", newUsername.trim()));
+    }
+
     /** DELETE /api/users/{username} — supprimer un compte (ADMIN seulement) */
     public void delete(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String target) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
