@@ -185,6 +185,14 @@ public final class DashboardRouter implements HttpHandler {
                 return;
             }
 
+            // ── Routes portail joueur (/api/custom-jobs/me/...) ───────────────
+            // Auth gérée en interne via playerJwt (token joueur 30 jours).
+            // Ne pas faire passer par le pare-feu VIEWER (JWT admin).
+            if (path.startsWith("/api/custom-jobs/me/")) {
+                dispatch(exchange, path, method);
+                return;
+            }
+
             // ── Pare-feu VIEWER ────────────────────────────────────────────────
             // Les VIEWER ne peuvent pas effectuer d'actions d'écriture,
             // sauf les routes explicitement autorisées ci-dessous.
@@ -566,10 +574,22 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/custom-jobs/admin/tickets")                   && POST(method))   { customJobsApiHandler.adminGrantTicket(ex);      return; }
         if (path.matches("/api/custom-jobs/admin/tickets/\\d+")          && DELETE(method)) { customJobsApiHandler.adminRevokeTicket(ex);     return; }
         // Economic regulator
+        if (eq(path, "/api/custom-jobs/admin/player/join")                && POST(method))   { customJobsApiHandler.adminForceJoin(ex);        return; }
+        if (eq(path, "/api/custom-jobs/admin/player/leave")               && POST(method))   { customJobsApiHandler.adminForceLeave(ex);       return; }
         if (eq(path, "/api/custom-jobs/admin/regulator")                 && GET(method))    { customJobsApiHandler.adminRegulatorState(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/regulator")                 && PATCH(method))  { customJobsApiHandler.adminRegulatorPatch(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/regulator/history")         && GET(method))    { customJobsApiHandler.adminRegulatorHistory(ex); return; }
         if (eq(path, "/api/custom-jobs/admin/regulator/freeze")          && PUT(method))    { customJobsApiHandler.adminRegulatorFreeze(ex);  return; }
+
+        // ── Shop de crates public ─────────────────────────────────────────────
+        if (eq(path, "/api/public/crates/shop")                                        && GET(method))  { publicCrateShopHandler.listShop(ex); return; }
+        if (eq(path, "/api/public/player/me/crates/buy")                               && POST(method)) { publicCrateShopHandler.buy(ex); return; }
+        if (eq(path, "/api/public/player/me/crates/keys")                              && GET(method))  { publicCrateShopHandler.myKeys(ex); return; }
+        if (path.startsWith("/api/public/player/me/crates/keys/") && path.endsWith("/claim") && POST(method)) {
+            String crateId = path.substring("/api/public/player/me/crates/keys/".length(),
+                    path.length() - "/claim".length());
+            publicCrateShopHandler.claim(ex, crateId); return;
+        }
 
         // ── VIP routes PUBLIQUES (sans auth — webhooks + page d'achat) ───────
         if (eq(path, "/api/public/vip/plans")           && GET(method))   { vipPublicHandler.listPublicPlans(ex); return; }

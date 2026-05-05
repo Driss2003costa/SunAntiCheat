@@ -730,6 +730,103 @@ public final class CustomJobsApiHandler {
         }
     }
 
+    /**
+     * POST /api/custom-jobs/admin/player/join
+     * Body : { "playerName": "Steve", "jobId": "mineur" }
+     * Force-joins a player to a job, bypassing slot limits.
+     */
+    public void adminForceJoin(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String playerName = (String) body.get("playerName");
+            String jobId      = (String) body.get("jobId");
+            if (playerName == null || jobId == null) {
+                HttpHelper.error(ex, 400, "Missing 'playerName' or 'jobId'"); return;
+            }
+
+            // Resolve UUID: prefer online player, fall back to offline cache
+            String uuid;
+            Player online = Bukkit.getPlayerExact(playerName);
+            if (online != null) {
+                uuid = online.getUniqueId().toString();
+            } else {
+                @SuppressWarnings("deprecation")
+                org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(playerName);
+                if (!op.hasPlayedBefore() && op.getFirstPlayed() == 0) {
+                    HttpHelper.json(ex, 404, Map.of("ok", false, "reason", "PLAYER_NOT_FOUND")); return;
+                }
+                uuid = op.getUniqueId().toString();
+            }
+
+            CustomJobService svc = module.getService();
+            CustomJobService.JoinResult r = svc.forceJoin(uuid, jobId);
+
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("ok", r == CustomJobService.JoinResult.OK);
+            resp.put("reason", r.name());
+            resp.put("playerName", playerName);
+            resp.put("jobId", jobId);
+            HttpHelper.json(ex, r == CustomJobService.JoinResult.OK ? 200 : 409, resp);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/custom-jobs/admin/player/leave
+     * Body : { "playerName": "Steve", "jobId": "mineur" }
+     * Force-removes a player from a job.
+     */
+    public void adminForceLeave(HttpExchange ex) throws IOException {
+        DashboardUser user = HttpHelper.authenticate(ex, jwt, users);
+        if (user == null) return;
+        if (!HttpHelper.requireAdmin(ex, user)) return;
+
+        CustomJobModule module = jobModule();
+        if (module == null) { HttpHelper.json(ex, 503, Map.of("error", "module_unavailable")); return; }
+
+        try {
+            var body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
+            String playerName = (String) body.get("playerName");
+            String jobId      = (String) body.get("jobId");
+            if (playerName == null || jobId == null) {
+                HttpHelper.error(ex, 400, "Missing 'playerName' or 'jobId'"); return;
+            }
+
+            String uuid;
+            Player online = Bukkit.getPlayerExact(playerName);
+            if (online != null) {
+                uuid = online.getUniqueId().toString();
+            } else {
+                @SuppressWarnings("deprecation")
+                org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(playerName);
+                if (!op.hasPlayedBefore() && op.getFirstPlayed() == 0) {
+                    HttpHelper.json(ex, 404, Map.of("ok", false, "reason", "PLAYER_NOT_FOUND")); return;
+                }
+                uuid = op.getUniqueId().toString();
+            }
+
+            CustomJobService svc = module.getService();
+            boolean ok = svc.tryLeave(uuid, jobId);
+
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("ok", ok);
+            resp.put("reason", ok ? "OK" : "NOT_IN_JOB");
+            resp.put("playerName", playerName);
+            resp.put("jobId", jobId);
+            HttpHelper.json(ex, ok ? 200 : 409, resp);
+        } catch (Exception e) {
+            HttpHelper.error(ex, 400, "Invalid body: " + e.getMessage());
+        }
+    }
+
     private String portalUuid(HttpExchange ex) throws IOException {
         String header = ex.getRequestHeaders().getFirst("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {

@@ -36,6 +36,8 @@ import sunanticheat.dashboard.announcements.SunAnnCommand;
 import sunanticheat.dashboard.chat.ToxicChatListener;
 import sunanticheat.dashboard.chat.ToxicChatStore;
 import sunanticheat.dashboard.crates.CrateListener;
+import sunanticheat.dashboard.crates.CratePendingClaimListener;
+import sunanticheat.dashboard.crates.CratePendingClaimStore;
 import sunanticheat.dashboard.crates.CrateStore;
 import sunanticheat.dashboard.dailyreward.DailyRewardListener;
 import sunanticheat.dashboard.dailyreward.DailyRewardStore;
@@ -368,6 +370,8 @@ public final class DashboardModule {
         // Crates & Daily Rewards
         CrateListener crateListener = new CrateListener(plugin, crateStore);
         CrateHandler crateHandler = new CrateHandler(plugin, crateStore, crateListener);
+        CratePendingClaimStore cratePendingClaimStore = new CratePendingClaimStore(
+                plugin.getDataFolder(), plugin.getLogger(), blobs);
         DailyRewardListener dailyRewardListener = new DailyRewardListener(plugin, dailyRewardStore, economy);
         DailyRewardHandler dailyRewardHandler = new DailyRewardHandler(dailyRewardStore);
 
@@ -431,6 +435,8 @@ public final class DashboardModule {
         Bukkit.getPluginManager().registerEvents(new QuestListener(questStore), plugin);
         Bukkit.getPluginManager().registerEvents(crateListener, plugin);
         Bukkit.getPluginManager().registerEvents(new sunanticheat.dashboard.crates.CrateAnimationListener(), plugin);
+        Bukkit.getPluginManager().registerEvents(
+                new CratePendingClaimListener(plugin, crateStore, cratePendingClaimStore, crateListener), plugin);
         Bukkit.getPluginManager().registerEvents(dailyRewardListener, plugin);
 
         // Commandes /crate et /daily
@@ -498,6 +504,9 @@ public final class DashboardModule {
                 dailyRewardStore, playerJwtUtil, plugin, dailyRewardListener);
         PublicLeaderboardHandler publicLeaderboardHandler = new PublicLeaderboardHandler(plugin);
         CustomJobsApiHandler customJobsApiHandler = new CustomJobsApiHandler(plugin, jwtUtil, users, playerJwtUtil);
+        PublicCrateShopHandler publicCrateShopHandler = new PublicCrateShopHandler(
+                crateStore, cratePendingClaimStore, crateListener,
+                playerJwtUtil, playerAccountStore, shopStore, economy, plugin);
 
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,

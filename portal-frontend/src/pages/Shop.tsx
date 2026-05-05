@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, getToken, clearToken, type PlayerProfile, type VipPlan } from '../api/client'
+import { api, getToken, clearToken, type PlayerProfile, type VipPlan, type CrateShopEntry } from '../api/client'
 import Navbar from '../components/Navbar'
 import SunBackground from '../components/SunBackground'
 
@@ -22,10 +22,14 @@ export default function Shop() {
   const navigate = useNavigate()
   const [profile,      setProfile]      = useState<PlayerProfile | null>(null)
   const [plans,        setPlans]        = useState<VipPlan[]>([])
+  const [crates,       setCrates]       = useState<CrateShopEntry[]>([])
   const [loading,      setLoading]      = useState(true)
   const [checkoutPlan, setCheckoutPlan] = useState<VipPlan | null>(null)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
   const [checkoutErr,  setCheckoutErr]  = useState('')
+  const [crateBusy,    setCrateBusy]    = useState<string | null>(null)
+  const [crateMsg,     setCrateMsg]     = useState<{ id: string; msg: string; ok: boolean } | null>(null)
+  const [localBalance, setLocalBalance] = useState<number | null>(null)
 
   useEffect(() => {
     const token = getToken()
@@ -34,13 +38,32 @@ export default function Shop() {
     Promise.all([
       api.me(token),
       api.vipPlans().catch(() => [] as VipPlan[]),
-    ]).then(([p, pl]) => {
+      api.crateShop().catch(() => [] as CrateShopEntry[]),
+    ]).then(([p, pl, cr]) => {
       setProfile(p)
+      setLocalBalance((p as PlayerProfile).balance ?? null)
       setPlans((pl as VipPlan[]).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
+      setCrates(cr as CrateShopEntry[])
     }).catch(e => {
       if (e.status === 401) { clearToken(); navigate('/login', { replace: true }) }
     }).finally(() => setLoading(false))
   }, [navigate])
+
+  async function buyCrate(crate: CrateShopEntry) {
+    const token = getToken()
+    if (!token || !profile) return
+    setCrateBusy(crate.id)
+    setCrateMsg(null)
+    try {
+      const res = await api.crateBuy(token, crate.id, 1)
+      setLocalBalance(res.newBalance)
+      setCrateMsg({ id: crate.id, msg: res.free ? 'Clé offerte (admin) !' : res.message, ok: true })
+    } catch (e: any) {
+      setCrateMsg({ id: crate.id, msg: e.error || e.message || 'Erreur lors de l\'achat', ok: false })
+    } finally {
+      setCrateBusy(null)
+    }
+  }
 
   async function startCheckout(plan: VipPlan, gateway: 'STRIPE' | 'PAYPAL') {
     if (!profile) return
@@ -86,10 +109,10 @@ export default function Shop() {
                 <p className="text-sm" style={{ color: MUTED }}>Avantages & VIP</p>
               </div>
             </div>
-            {profile.balance != null && (
+            {localBalance != null && (
               <div className="text-right pb-1">
                 <p className="text-xl font-black" style={{ color: GOLD }}>
-                  {fmtBalance(profile.balance)} <span className="text-base">$</span>
+                  {fmtBalance(localBalance)} <span className="text-base">$</span>
                 </p>
                 <p className="text-xs" style={{ color: MUTED }}>Ton solde</p>
               </div>
@@ -194,6 +217,69 @@ export default function Shop() {
             <p className="text-sm font-semibold" style={{ color: TEXT }}>Aucun plan VIP configuré</p>
             <p className="text-xs mt-1" style={{ color: MUTED }}>Les offres VIP seront disponibles prochainement.</p>
           </div>
+        )}
+
+        {/* Crates shop */}
+        {crates.length > 0 && (
+          <section>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3 px-0.5" style={{ color: MUTED }}>
+              Caisses
+            </p>
+            <div className="space-y-3">
+              {crates.map(crate => {
+                const c = crate.color ?? GOLD
+                const isBusy = crateBusy === crate.id
+                const msg = crateMsg?.id === crate.id ? crateMsg : null
+                return (
+                  <div key={crate.id} className="rounded-2xl overflow-hidden backdrop-blur-sm"
+                       style={{ background: CARD, border: `1px solid ${c}30` }}>
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-3xl"
+                           style={{ background: `${c}18`, border: `1px solid ${c}35` }}>
+                        📦
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-bold" style={{ color: TEXT }}>{crate.displayName}</p>
+                        {crate.description && (
+                          <p className="text-xs mt-0.5" style={{ color: MUTED }}>{crate.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        {crate.price > 0 ? (
+                          <>
+                            <p className="text-xl font-black" style={{ color: c }}>
+                              {fmtBalance(crate.price)} <span className="text-sm">$</span>
+                            </p>
+                            <p className="text-[10px]" style={{ color: MUTED }}>par clé</p>
+                          </>
+                        ) : (
+                          <p className="text-sm font-bold" style={{ color: '#4ade80' }}>Gratuit</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="px-4 pb-4 space-y-2">
+                      {msg && (
+                        <p className={`text-xs text-center py-1.5 rounded-lg ${msg.ok ? 'text-green-400' : 'text-red-400'}`}
+                           style={{ background: msg.ok ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)' }}>
+                          {msg.ok ? '✓' : '✗'} {msg.msg}
+                        </p>
+                      )}
+                      <button
+                        onClick={() => buyCrate(crate)}
+                        disabled={isBusy}
+                        className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 text-gray-900"
+                        style={{ background: `linear-gradient(135deg,${c},${c}cc)`, boxShadow: `0 4px 20px ${c}25` }}>
+                        {isBusy ? 'Achat en cours…' : crate.price > 0
+                          ? `Acheter — ${fmtBalance(crate.price)} $`
+                          : 'Obtenir gratuitement'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
         )}
 
         {/* In-game economy */}

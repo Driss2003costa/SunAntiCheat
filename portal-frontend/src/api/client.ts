@@ -91,6 +91,29 @@ export type VipPlan = {
   priceEur: number; durationDays: number; perks?: string[]; order?: number
 }
 
+export type CrateShopIcon = {
+  material: string | null
+  itemAdderId: string | null
+}
+export type CrateShopEntry = {
+  id: string; name: string; displayName: string; description: string | null
+  icon: CrateShopIcon; color: string | null
+  price: number; priceType: string
+}
+export type CrateKeyEntry = {
+  crateId: string; displayName: string
+  icon: CrateShopIcon; color: string | null
+  count: number; pendingClaim: boolean
+}
+export type CrateBuyResult = {
+  ok: boolean; crateId: string; count: number
+  totalPrice: number; free: boolean; newBalance: number; message: string
+}
+export type CrateClaimResult = {
+  ok: boolean; crateId: string; count: number
+  deliveredNow: boolean; message: string
+}
+
 export type JobDynamicsSnapshot = {
   enabled: boolean
   season?: { key: string; label: string; icon: string }
@@ -176,6 +199,18 @@ export const api = {
 
   dailyClaim: (token: string) =>
     authPost<DailyClaimResult>(`${BASE}/player/me/daily/claim`, token, {}),
+
+  crateShop: () =>
+    get<CrateShopEntry[]>(`${BASE}/crates/shop`),
+
+  crateBuy: (token: string, crateId: string, count = 1) =>
+    authPost<CrateBuyResult>(`${BASE}/player/me/crates/buy`, token, { crateId, count }),
+
+  crateKeys: (token: string) =>
+    get<CrateKeyEntry[]>(`${BASE}/player/me/crates/keys`, token),
+
+  crateClaim: (token: string, crateId: string, count?: number) =>
+    authPost<CrateClaimResult>(`${BASE}/player/me/crates/keys/${encodeURIComponent(crateId)}/claim`, token, count != null ? { count } : {}),
 }
 
 // ── Social types ──────────────────────────────────────────────────────────────

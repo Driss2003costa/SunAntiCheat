@@ -131,6 +131,15 @@ export const api = {
     }),
   customJobsAdminRevokeTicket: (id: number) =>
     request<{ revoked: boolean }>(`/api/custom-jobs/admin/tickets/${id}`, { method: 'DELETE' }),
+  // Admin force join / leave
+  customJobsAdminForceJoin: (playerName: string, jobId: string) =>
+    request<{ ok: boolean; reason: string }>('/api/custom-jobs/admin/player/join', {
+      method: 'POST', body: JSON.stringify({ playerName, jobId }),
+    }),
+  customJobsAdminForceLeave: (playerName: string, jobId: string) =>
+    request<{ ok: boolean; reason: string }>('/api/custom-jobs/admin/player/leave', {
+      method: 'POST', body: JSON.stringify({ playerName, jobId }),
+    }),
   // Regulator
   customJobsAdminRegulator: () =>
     request<{

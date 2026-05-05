@@ -931,7 +931,92 @@ function CustomJobsTab() {
         </div>
       )}
 
+      <AdminForceJobPanel jobs={jobs} />
+
       {openJob && <CustomJobLeaderboardModal jobId={openJob} jobs={jobs} onClose={() => setOpenJob(null)} />}
+    </div>
+  )
+}
+
+function AdminForceJobPanel({ jobs }: { jobs: any[] }) {
+  const [playerName, setPlayerName] = useState('')
+  const [jobId,      setJobId]      = useState('')
+  const [busy,       setBusy]       = useState(false)
+  const [result,     setResult]     = useState<{ ok: boolean; msg: string } | null>(null)
+
+  if (jobs.length === 0) return null
+
+  const handleJoin = async () => {
+    if (!playerName.trim() || !jobId) return
+    setBusy(true); setResult(null)
+    try {
+      const r = await api.customJobsAdminForceJoin(playerName.trim(), jobId)
+      setResult({ ok: r.ok, msg: r.ok ? `✓ ${playerName} a rejoint ${jobId}` : `✗ ${r.reason}` })
+    } catch (e: any) {
+      setResult({ ok: false, msg: '✗ ' + (e?.message ?? 'Erreur') })
+    } finally { setBusy(false) }
+  }
+
+  const handleLeave = async () => {
+    if (!playerName.trim() || !jobId) return
+    setBusy(true); setResult(null)
+    try {
+      const r = await api.customJobsAdminForceLeave(playerName.trim(), jobId)
+      setResult({ ok: r.ok, msg: r.ok ? `✓ ${playerName} a quitté ${jobId}` : `✗ ${r.reason}` })
+    } catch (e: any) {
+      setResult({ ok: false, msg: '✗ ' + (e?.message ?? 'Erreur') })
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="rounded-xl p-5 space-y-3"
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-lg">🔧</span>
+        <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>Assigner / Retirer un métier (admin)</span>
+      </div>
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="flex flex-col gap-1 flex-1 min-w-32">
+          <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Pseudo joueur</label>
+          <input
+            value={playerName}
+            onChange={e => setPlayerName(e.target.value)}
+            placeholder="Steve"
+            className="px-3 py-2 rounded text-sm"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          />
+        </div>
+        <div className="flex flex-col gap-1 flex-1 min-w-40">
+          <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Métier</label>
+          <select
+            value={jobId}
+            onChange={e => setJobId(e.target.value)}
+            className="px-3 py-2 rounded text-sm"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          >
+            <option value="">— Choisir —</option>
+            {jobs.map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={handleJoin} disabled={busy || !playerName.trim() || !jobId}
+                  className="px-4 py-2 rounded text-sm font-semibold disabled:opacity-40"
+                  style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981' }}>
+            {busy ? '⏳' : '➕ Rejoindre'}
+          </button>
+          <button onClick={handleLeave} disabled={busy || !playerName.trim() || !jobId}
+                  className="px-4 py-2 rounded text-sm font-semibold disabled:opacity-40"
+                  style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#f87171' }}>
+            {busy ? '⏳' : '✖ Retirer'}
+          </button>
+        </div>
+      </div>
+      {result && (
+        <p className="text-xs font-medium"
+           style={{ color: result.ok ? '#10b981' : '#f87171' }}>
+          {result.msg}
+        </p>
+      )}
     </div>
   )
 }
