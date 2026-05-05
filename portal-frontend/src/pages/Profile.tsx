@@ -3,34 +3,21 @@ import { useNavigate, Link } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
-
-const BG     = '#080d19'
-const CARD   = 'rgba(15,22,40,0.8)'
-const BORDER = 'rgba(251,191,36,0.12)'
-const GOLD   = '#fbbf24'
-const TEXT   = '#f1f5f9'
-const MUTED  = '#64748b'
+import CompassRose from '../components/codex/CompassRose'
+import WaxSeal from '../components/codex/WaxSeal'
+import RuneIcon from '../components/codex/RuneIcon'
+import Flourish from '../components/codex/Flourish'
 
 function fmtDate(ts: number | null | undefined) {
   if (!ts) return '—'
   return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-function roleBadge(role: string) {
-  const map: Record<string, { bg: string; color: string; border: string }> = {
-    PLAYER:    { bg: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: 'rgba(255,255,255,0.1)' },
-    VIP:       { bg: 'rgba(251,191,36,0.15)',  color: GOLD,      border: 'rgba(251,191,36,0.35)' },
-    MODERATOR: { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa', border: 'rgba(59,130,246,0.35)' },
-    ADMIN:     { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.35)' },
+function roleSeal(role: string): { color: 'gold' | 'silver' | 'red' | 'bronze' | 'jade' } {
+  const map: Record<string, 'gold' | 'silver' | 'red' | 'bronze' | 'jade'> = {
+    VIP: 'gold', MODERATOR: 'silver', ADMIN: 'red', PLAYER: 'bronze',
   }
-  return map[role] ?? map.PLAYER
-}
-
-function sanctionColor(type: string) {
-  const map: Record<string, string> = {
-    BAN: '#f87171', MUTE: '#fb923c', WARN: GOLD, KICK: '#60a5fa',
-  }
-  return map[type] ?? '#94a3b8'
+  return { color: map[role] ?? 'bronze' }
 }
 
 function fmtBalance(n: number) {
@@ -130,53 +117,53 @@ export default function Profile() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center pb-20" style={{ background: BG }}>
+    <div className="min-h-screen flex items-center justify-center pb-20" style={{ background: '#080d19' }}>
       <div className="w-10 h-10 rounded-full border-2 animate-spin"
-           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
+           style={{ borderColor: 'rgba(240,169,59,0.2)', borderTopColor: '#F0A93B' }} />
       <Navbar />
     </div>
   )
 
   if (error || !profile) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 pb-28" style={{ background: BG }}>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 pb-28" style={{ background: '#080d19' }}>
       <p className="text-red-400 text-center">{error || 'Profil introuvable.'}</p>
-      <Link to="/login" className="text-sm" style={{ color: GOLD }}>Retour à la connexion</Link>
+      <Link to="/login" className="text-sm" style={{ color: 'var(--gold)' }}>Retour à la connexion</Link>
       <Navbar />
     </div>
   )
 
   const sanctions = profile.active_sanctions ?? []
-  const rb = roleBadge(profile.role)
+  const sealColor = roleSeal(profile.role).color
 
   return (
-    <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
+    <div className="min-h-screen pb-24 relative" style={{ background: '#080d19' }}>
       <PageAura theme="profile" />
+      <CompassRose size={360} opacity={0.03} className="absolute top-0 left-[-80px] pointer-events-none z-0" />
 
       {/* ── HERO ──────────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden z-10">
+      <div className="relative z-10">
         <div className="absolute inset-0 pointer-events-none"
-             style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%,rgba(251,191,36,0.18),transparent)' }} />
+             style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%,rgba(139,92,246,0.12),transparent)' }} />
 
         <div className="relative px-5 pt-12 pb-6 max-w-screen-sm mx-auto">
           {/* Top bar */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-8 codex-reveal codex-reveal-1">
             <div className="flex items-center gap-2">
-              <span className="text-xl">☀️</span>
-              <span className="text-sm font-bold" style={{ color: TEXT }}>SunAntiCheat</span>
+              <RuneIcon rune="sun" size={18} color="var(--gold)" />
+              <span className="text-sm font-bold font-codex-display" style={{ color: 'var(--ivory)' }}>SunAntiCheat</span>
             </div>
             <button onClick={logout}
-              className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}`, color: MUTED }}>
+              className="text-xs px-3 py-1.5 rounded-lg transition-colors font-codex-body"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(240,169,59,0.15)', color: 'var(--parchment-shade)' }}>
               Déconnexion
             </button>
           </div>
 
           {/* Avatar + name */}
-          <div className="flex items-end gap-5">
+          <div className="flex items-end gap-5 codex-reveal codex-reveal-2">
             <div className="relative shrink-0">
-              {/* Halo */}
-              <div className="absolute inset-0 rounded-2xl blur-xl pointer-events-none"
-                   style={{ background: 'radial-gradient(circle,rgba(251,191,36,0.25),transparent)', transform: 'scale(1.3)' }} />
+              <div className="absolute inset-0 blur-2xl pointer-events-none rounded-2xl"
+                   style={{ background: 'radial-gradient(circle,rgba(139,92,246,0.3),transparent)', transform: 'scale(1.4)' }} />
               <img
                 src={`https://mc-heads.net/body/${profile.username}/100`}
                 alt={profile.username}
@@ -185,30 +172,29 @@ export default function Profile() {
                   const img = e.target as HTMLImageElement
                   img.src = `https://mc-heads.net/avatar/${profile.username}/80`
                   img.className = 'relative w-20 h-20 rounded-2xl'
-                  img.style.cssText = `border: 2px solid rgba(251,191,36,0.3)`
+                  img.style.cssText = `border: 2px solid rgba(240,169,59,0.3)`
                 }}
               />
               <span className={`absolute bottom-1 right-0 w-3.5 h-3.5 rounded-full border-2 ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`}
-                    style={{ borderColor: BG }} />
+                    style={{ borderColor: '#080d19' }} />
             </div>
 
-            {/* Name + badges */}
             <div className="flex-1 min-w-0 mb-2">
-              <h1 className="text-3xl font-black leading-none mb-2 truncate" style={{ color: TEXT }}>{profile.username}</h1>
-              <div className="flex items-center flex-wrap gap-2 mb-2">
-                <span className="text-xs px-2.5 py-1 rounded-full font-semibold border"
-                      style={{ background: rb.bg, color: rb.color, borderColor: rb.border }}>
-                  {profile.role}
-                </span>
+              <h1 className="text-3xl font-black leading-none mb-2 truncate font-codex-display" style={{ color: 'var(--ivory)' }}>
+                {profile.username}
+              </h1>
+              <div className="flex items-center flex-wrap gap-2 mb-3">
+                <WaxSeal color={sealColor} label={profile.role.slice(0, 3)} size={32} rotate={-2} />
                 <span className={`text-xs flex items-center gap-1`}
-                      style={{ color: profile.online ? '#4ade80' : MUTED }}>
+                      style={{ color: profile.online ? '#4ade80' : 'var(--parchment-shade)' }}>
                   <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`} />
                   {profile.online ? 'En ligne' : 'Hors ligne'}
                 </span>
               </div>
               {!bioEditing && (
-                <p className="text-sm italic leading-relaxed" style={{ color: bio ? '#cbd5e1' : MUTED }}>
-                  {bio ? `"${bio}"` : 'Aucune biographie…'}
+                <p className="text-sm italic leading-relaxed font-codex-lyric"
+                   style={{ color: bio ? 'var(--ivory-dim)' : 'var(--parchment-shade)' }}>
+                  {bio ? `« ${bio} »` : 'Nulle biographie…'}
                 </p>
               )}
             </div>
@@ -216,26 +202,26 @@ export default function Profile() {
 
           {/* Bio editor */}
           {bioEditing && (
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-2 codex-reveal codex-reveal-1">
               <textarea
                 value={bio}
                 onChange={e => setBio(e.target.value.slice(0, 160))}
                 rows={2}
                 placeholder="Présente-toi en quelques mots…"
-                className="w-full rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none backdrop-blur"
-                style={{ background: 'rgba(15,22,40,0.9)', border: `1px solid rgba(251,191,36,0.3)`, color: TEXT }}
+                className="w-full rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none font-codex-body"
+                style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(240,169,59,0.3)', color: 'var(--ivory)' }}
               />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs" style={{ color: MUTED }}>{bio.length}/160</span>
+                <span className="text-xs font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>{bio.length}/160</span>
                 <div className="flex gap-2">
                   <button onClick={() => { setBioEditing(false); setBioError('') }}
-                    className="text-xs px-3 py-1.5 rounded-lg border"
-                    style={{ borderColor: BORDER, color: MUTED }}>
+                    className="text-xs px-3 py-1.5 rounded-lg border font-codex-body"
+                    style={{ borderColor: 'rgba(240,169,59,0.2)', color: 'var(--parchment-shade)' }}>
                     Annuler
                   </button>
                   <button onClick={saveBio} disabled={bioSaving}
-                    className="text-xs text-gray-900 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)' }}>
+                    className="text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 font-codex-display"
+                    style={{ background: 'linear-gradient(135deg,var(--amber),var(--ember))', color: 'var(--ink-deep)' }}>
                     {bioSaving ? 'Enregistrement…' : 'Enregistrer'}
                   </button>
                 </div>
@@ -245,29 +231,34 @@ export default function Profile() {
           )}
 
           {/* Action buttons */}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 codex-reveal codex-reveal-3">
             {!bioEditing && (
               <button onClick={() => setBioEditing(true)}
-                className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: 'rgba(251,191,36,0.08)', border: `1px solid ${BORDER}`, color: MUTED }}>
-                ✏️ Modifier la bio
+                className="text-xs px-3 py-1.5 rounded-lg transition-colors font-codex-body codex-underline"
+                style={{ background: 'rgba(240,169,59,0.06)', border: '1px solid rgba(240,169,59,0.18)', color: 'var(--parchment-shade)' }}>
+                ✎ Modifier la bio
               </button>
             )}
             <a href={`/portal/player/${profile.username}`} target="_blank" rel="noreferrer"
-              className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-              style={{ background: 'rgba(251,191,36,0.08)', border: `1px solid ${BORDER}`, color: MUTED }}>
-              🔗 Profil public
+              className="text-xs px-3 py-1.5 rounded-lg transition-colors font-codex-body codex-underline"
+              style={{ background: 'rgba(240,169,59,0.06)', border: '1px solid rgba(240,169,59,0.18)', color: 'var(--parchment-shade)' }}>
+              ✦ Profil public
             </a>
           </div>
         </div>
       </div>
 
+      {/* Flourish separator */}
+      <div className="flex justify-center mb-1 relative z-10">
+        <Flourish variant="simple" color="rgba(240,169,59,0.3)" width={160} />
+      </div>
+
       {/* Stats strip */}
-      <div className="grid grid-cols-3 mx-0"
-           style={{ borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-        <StatCell icon="⏱️" label="Temps de jeu" value={profile.playtime_formatted ?? '—'} />
-        <StatCell icon="💰" label="Solde"         value={profile.balance != null ? fmtBalance(profile.balance) : '—'} />
-        <StatCell icon="👥" label="Amis"          value={friendCount != null ? String(friendCount) : '—'} />
+      <div className="grid grid-cols-3 mx-0 relative z-10 codex-reveal codex-reveal-3"
+           style={{ borderTop: '1px solid rgba(240,169,59,0.12)', borderBottom: '1px solid rgba(240,169,59,0.12)' }}>
+        <StatCell icon={<RuneIcon rune="compass" size={20} color="var(--gold)" />} label="Temps de jeu" value={profile.playtime_formatted ?? '—'} />
+        <StatCell icon={<RuneIcon rune="star"    size={20} color="var(--gold)" />} label="Solde"         value={profile.balance != null ? fmtBalance(profile.balance) : '—'} />
+        <StatCell icon={<RuneIcon rune="feather" size={20} color="var(--gold)" />} label="Amis"          value={friendCount != null ? String(friendCount) : '—'} />
       </div>
 
       {/* Content */}
@@ -275,16 +266,15 @@ export default function Profile() {
 
         {/* Daily reward */}
         {daily && daily.config?.enabled && (
-          <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
-                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+          <section className="codex-cartouche rounded-2xl overflow-hidden codex-reveal codex-reveal-3">
             <div className="px-5 py-3.5 flex items-center justify-between"
-                 style={{ borderBottom: `1px solid ${BORDER}` }}>
+                 style={{ borderBottom: '1px solid rgba(240,169,59,0.12)' }}>
               <div className="flex items-center gap-2">
-                <span>🎁</span>
-                <span className="text-sm font-semibold" style={{ color: TEXT }}>Récompense quotidienne</span>
+                <RuneIcon rune="sun" size={16} color="var(--gold)" />
+                <span className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>Récompense quotidienne</span>
               </div>
-              <span className="text-xs" style={{ color: MUTED }}>
-                Série : <span className="font-bold" style={{ color: GOLD }}>{daily.streak}</span>j
+              <span className="text-xs font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>
+                Série : <span className="font-bold" style={{ color: 'var(--gold)' }}>{daily.streak}</span>j
               </span>
             </div>
 
@@ -297,16 +287,16 @@ export default function Profile() {
                     className="flex flex-col items-center gap-1 rounded-xl p-1.5 border transition-all"
                     style={{
                       borderColor: isCurrent && daily.canClaim
-                        ? 'rgba(251,191,36,0.6)'
-                        : isDone ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.06)',
+                        ? 'rgba(240,169,59,0.6)'
+                        : 'rgba(255,255,255,0.06)',
                       background: isCurrent && daily.canClaim
-                        ? 'rgba(251,191,36,0.1)'
-                        : isDone ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.03)',
+                        ? 'rgba(240,169,59,0.1)'
+                        : 'rgba(255,255,255,0.03)',
                       opacity: isDone && !isCurrent ? 0.5 : 1,
                     }}>
-                    <span className="text-sm leading-none">{d.icon ?? '🎁'}</span>
-                    <span className="text-[10px] font-medium" style={{ color: MUTED }}>J{d.day}</span>
-                    {d.bonusCoins > 0 && <span className="text-[10px] font-bold leading-none" style={{ color: GOLD }}>{d.bonusCoins}$</span>}
+                    <span className="text-sm leading-none">{d.icon ?? '✦'}</span>
+                    <span className="text-[10px] font-medium font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>J{d.day}</span>
+                    {d.bonusCoins > 0 && <span className="text-[10px] font-bold leading-none font-codex-display" style={{ color: 'var(--gold)' }}>{d.bonusCoins}$</span>}
                     {isDone && <span className="text-green-400 text-[10px] leading-none">✓</span>}
                   </div>
                 )
@@ -317,23 +307,23 @@ export default function Profile() {
               {dailyResult ? (
                 <div className="rounded-xl p-3 text-center space-y-1"
                      style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
-                  <p className="text-sm font-semibold text-green-400">
-                    {dailyResult.icon ?? '🎁'} {dailyResult.displayName ?? `Jour ${dailyResult.day}`}
+                  <p className="text-sm font-semibold text-green-400 font-codex-display">
+                    {dailyResult.icon ?? '✦'} {dailyResult.displayName ?? `Jour ${dailyResult.day}`}
                   </p>
-                  {dailyResult.bonusCoins > 0 && <p className="text-xs" style={{ color: GOLD }}>+{dailyResult.bonusCoins} coins</p>}
-                  {dailyResult.itemsLabel && <p className="text-xs" style={{ color: MUTED }}>{dailyResult.itemsLabel}</p>}
-                  <p className="text-xs" style={{ color: MUTED }}>{dailyResult.message}</p>
+                  {dailyResult.bonusCoins > 0 && <p className="text-xs font-codex-rune" style={{ color: 'var(--gold)' }}>+{dailyResult.bonusCoins} coins</p>}
+                  {dailyResult.itemsLabel && <p className="text-xs font-codex-body" style={{ color: 'var(--parchment-shade)' }}>{dailyResult.itemsLabel}</p>}
+                  <p className="text-xs font-codex-body" style={{ color: 'var(--parchment-shade)' }}>{dailyResult.message}</p>
                 </div>
               ) : daily.canClaim ? (
                 <button onClick={claimDaily} disabled={dailyClaiming}
-                  className="w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 text-gray-900"
-                  style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', boxShadow: '0 4px 20px rgba(251,191,36,0.25)' }}>
-                  {dailyClaiming ? 'Réclamation…' : '🎁 Réclamer ma récompense'}
+                  className="w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 font-codex-display"
+                  style={{ background: 'linear-gradient(135deg,var(--amber),var(--ember))', color: 'var(--ink-deep)', boxShadow: '0 4px 20px rgba(240,169,59,0.25)' }}>
+                  {dailyClaiming ? 'Réclamation…' : '✦ Réclamer ma récompense'}
                 </button>
               ) : (
                 <div className="text-center py-1">
-                  <p className="text-xs" style={{ color: MUTED }}>Prochaine dans</p>
-                  <p className="text-sm font-semibold font-mono" style={{ color: TEXT }}>{cooldownLabel}</p>
+                  <p className="text-xs font-codex-body" style={{ color: 'var(--parchment-shade)' }}>Prochaine dans</p>
+                  <p className="text-sm font-semibold font-codex-rune" style={{ color: 'var(--ivory)' }}>{cooldownLabel}</p>
                 </div>
               )}
               {dailyError && <p className="text-xs text-red-400 text-center mt-2">{dailyError}</p>}
@@ -342,24 +332,23 @@ export default function Profile() {
         )}
 
         {/* Account info */}
-        <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
-                 style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-          <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
-            <span className="text-sm font-semibold" style={{ color: TEXT }}>Informations du compte</span>
+        <section className="codex-cartouche rounded-2xl overflow-hidden codex-reveal codex-reveal-4">
+          <div className="px-5 py-3.5" style={{ borderBottom: '1px solid rgba(240,169,59,0.12)' }}>
+            <span className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>Informations du compte</span>
           </div>
           <div>
-            <InfoRow label="UUID"              value={<span className="font-mono text-xs break-all" style={{ color: MUTED }}>{profile.uuid}</span>} />
-            <InfoRow label="Inscrit le"        value={fmtDate(profile.created_at)} />
+            <InfoRow label="UUID"               value={<span className="font-mono text-xs break-all" style={{ color: 'var(--parchment-shade)' }}>{profile.uuid}</span>} />
+            <InfoRow label="Inscrit le"         value={fmtDate(profile.created_at)} />
             <InfoRow label="Dernière connexion" value={fmtDate(profile.last_login)} />
           </div>
         </section>
 
         {/* Sanctions */}
         {sanctions.length > 0 && (
-          <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
+          <section className="rounded-2xl overflow-hidden codex-reveal codex-reveal-4"
                    style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)' }}>
             <div className="px-5 py-3.5" style={{ borderBottom: '1px solid rgba(239,68,68,0.15)' }}>
-              <span className="text-sm font-semibold text-red-400">Sanctions actives</span>
+              <span className="text-sm font-semibold text-red-400 font-codex-display">Sanctions actives</span>
             </div>
             <div>
               {sanctions.map(s => <SanctionRow key={s.id} s={s} />)}
@@ -368,20 +357,21 @@ export default function Profile() {
         )}
 
         {sanctions.length === 0 && (
-          <p className="text-center text-xs py-3" style={{ color: '#475569' }}>✓ Aucune sanction active</p>
+          <p className="text-center text-xs py-3 font-codex-body codex-reveal codex-reveal-4" style={{ color: 'rgba(71,85,105,1)' }}>
+            ✓ Aucune sanction active
+          </p>
         )}
 
-        {/* Referral section */}
+        {/* Referral */}
         {referral && (
-          <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
-                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-            <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
-              <span className="text-sm font-semibold" style={{ color: TEXT }}>🔗 Mon code de parrainage</span>
+          <section className="codex-cartouche rounded-2xl overflow-hidden codex-reveal codex-reveal-5">
+            <div className="px-5 py-3.5" style={{ borderBottom: '1px solid rgba(240,169,59,0.12)' }}>
+              <span className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>✦ Parchemin de parrainage</span>
             </div>
             <div className="px-5 py-4 space-y-3">
               <div className="flex items-center gap-3">
-                <code className="flex-1 rounded-xl px-4 py-2.5 text-sm font-mono font-bold tracking-widest text-center"
-                      style={{ background: 'rgba(251,191,36,0.08)', border: `1px solid rgba(251,191,36,0.25)`, color: GOLD }}>
+                <code className="flex-1 rounded-xl px-4 py-2.5 text-sm font-bold tracking-widest text-center font-codex-rune"
+                      style={{ background: 'rgba(240,169,59,0.08)', border: '1px solid rgba(240,169,59,0.25)', color: 'var(--gold)' }}>
                   {referral.code}
                 </code>
                 <button
@@ -389,24 +379,26 @@ export default function Profile() {
                     const link = `${window.location.origin}/portal?ref=${referral.code}`
                     navigator.clipboard.writeText(link).then(() => { setRefCopied(true); setTimeout(() => setRefCopied(false), 2000) })
                   }}
-                  className="text-xs px-3 py-2.5 rounded-xl font-semibold shrink-0 transition-all"
-                  style={{ background: refCopied ? 'rgba(16,185,129,0.15)' : 'rgba(251,191,36,0.12)',
-                           color: refCopied ? '#34d399' : GOLD,
-                           border: `1px solid ${refCopied ? 'rgba(16,185,129,0.3)' : 'rgba(251,191,36,0.3)'}` }}>
-                  {refCopied ? '✓ Copié !' : '📋 Copier le lien'}
+                  className="text-xs px-3 py-2.5 rounded-xl font-semibold shrink-0 transition-all font-codex-display"
+                  style={{
+                    background: refCopied ? 'rgba(16,185,129,0.15)' : 'rgba(240,169,59,0.12)',
+                    color: refCopied ? '#34d399' : 'var(--gold)',
+                    border: `1px solid ${refCopied ? 'rgba(16,185,129,0.3)' : 'rgba(240,169,59,0.3)'}`,
+                  }}>
+                  {refCopied ? '✓ Copié !' : '✎ Copier'}
                 </button>
               </div>
               <div className="flex gap-4 text-center">
                 <div className="flex-1 rounded-xl py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <p className="text-xl font-black" style={{ color: TEXT }}>{referral.total}</p>
-                  <p className="text-xs" style={{ color: MUTED }}>Inscrits</p>
+                  <p className="text-xl font-black font-codex-display" style={{ color: 'var(--ivory)' }}>{referral.total}</p>
+                  <p className="text-xs font-codex-body" style={{ color: 'var(--parchment-shade)' }}>Inscrits</p>
                 </div>
                 <div className="flex-1 rounded-xl py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <p className="text-xl font-black" style={{ color: GOLD }}>{referral.validated}</p>
-                  <p className="text-xs" style={{ color: MUTED }}>Validés</p>
+                  <p className="text-xl font-black font-codex-display" style={{ color: 'var(--gold)' }}>{referral.validated}</p>
+                  <p className="text-xs font-codex-body" style={{ color: 'var(--parchment-shade)' }}>Validés</p>
                 </div>
               </div>
-              <p className="text-xs text-center" style={{ color: MUTED }}>
+              <p className="text-xs text-center font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>
                 Partage ton lien — les parrainages sont validés après 24h d'activité du filleul.
               </p>
             </div>
@@ -419,13 +411,13 @@ export default function Profile() {
   )
 }
 
-function StatCell({ icon, label, value }: { icon: string; label: string; value: string }) {
+function StatCell({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-4" style={{ background: 'rgba(15,22,40,0.6)' }}>
-      <span className="text-2xl">{icon}</span>
+    <div className="flex items-center gap-3 px-4 py-4" style={{ background: 'rgba(15,22,40,0.6)' }}>
+      {icon}
       <div>
-        <p className="text-xs" style={{ color: '#64748b' }}>{label}</p>
-        <p className="text-base font-bold" style={{ color: '#f1f5f9' }}>{value}</p>
+        <p className="text-xs font-codex-body" style={{ color: 'var(--parchment-shade)' }}>{label}</p>
+        <p className="text-base font-bold font-codex-display" style={{ color: 'var(--ivory)' }}>{value}</p>
       </div>
     </div>
   )
@@ -433,10 +425,10 @@ function StatCell({ icon, label, value }: { icon: string; label: string; value: 
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3 gap-4"
-         style={{ borderBottom: '1px solid rgba(251,191,36,0.05)' }}>
-      <span className="text-sm shrink-0" style={{ color: '#64748b' }}>{label}</span>
-      <span className="text-sm text-right" style={{ color: '#f1f5f9' }}>{value}</span>
+    <div className="codex-row flex items-center justify-between px-5 py-3 gap-4"
+         style={{ borderBottom: '1px solid rgba(240,169,59,0.05)' }}>
+      <span className="text-sm shrink-0 font-codex-body" style={{ color: 'var(--parchment-shade)' }}>{label}</span>
+      <span className="text-sm text-right font-codex-body" style={{ color: 'var(--ivory)' }}>{value}</span>
     </div>
   )
 }
@@ -444,20 +436,20 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 function SanctionRow({ s }: { s: ActiveSanction }) {
   const fmtExpiry = (ts: number | null) =>
     ts ? new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent'
-  const color = {
-    BAN: '#f87171', MUTE: '#fb923c', WARN: '#fbbf24', KICK: '#60a5fa',
-  }[s.type] ?? '#94a3b8'
+  const color = { BAN: '#f87171', MUTE: '#fb923c', WARN: '#fbbf24', KICK: '#60a5fa' }[s.type] ?? '#94a3b8'
 
   return (
     <div className="px-5 py-3 flex items-start gap-3"
          style={{ borderBottom: '1px solid rgba(239,68,68,0.08)' }}>
-      <span className="text-xs font-bold px-2 py-0.5 rounded border shrink-0"
+      <span className="text-xs font-bold px-2 py-0.5 rounded border shrink-0 font-codex-rune"
             style={{ background: `${color}20`, color, borderColor: `${color}40` }}>
         {s.type}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm truncate" style={{ color: '#f1f5f9' }}>{s.reason || 'Aucune raison'}</p>
-        <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>Par {s.issued_by} · Expire : {fmtExpiry(s.expires_at)}</p>
+        <p className="text-sm truncate font-codex-body" style={{ color: 'var(--ivory)' }}>{s.reason || 'Aucune raison'}</p>
+        <p className="text-xs mt-0.5 font-codex-body" style={{ color: 'var(--parchment-shade)' }}>
+          Par {s.issued_by} · Expire : {fmtExpiry(s.expires_at)}
+        </p>
       </div>
     </div>
   )
