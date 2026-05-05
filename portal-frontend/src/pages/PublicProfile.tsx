@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import SunBackground from '../components/SunBackground'
+import SunSky from '../components/SunSky'
 
 const BG     = '#080d19'
 const CARD   = 'rgba(15,22,40,0.85)'
@@ -101,14 +101,9 @@ export default function PublicProfile() {
   }
 
   return (
-    <div className="min-h-screen relative pb-10" style={{ background: BG }}>
-      <SunBackground />
-
-      {/* Radial top */}
-      <div className="absolute inset-0 pointer-events-none z-0"
-           style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -5%,rgba(251,191,36,0.16),transparent)' }} />
-
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-8 space-y-4">
+    <SunSky variant="noon" twist={{ fogIntensity: 'light' }}>
+      <div className="min-h-screen relative pb-10">
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
 
         {/* Top bar */}
         <div className="flex items-center justify-between mb-2">
@@ -314,7 +309,8 @@ export default function PublicProfile() {
           </>
         )}
       </div>
-    </div>
+      </div>
+    </SunSky>
   )
 }
 

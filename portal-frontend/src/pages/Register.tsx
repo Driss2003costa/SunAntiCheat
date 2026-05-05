@@ -100,7 +100,7 @@ export default function Register() {
 
   if (step === 'success') {
     return (
-      <SunSky variant="dawn">
+      <SunSky variant="dawn" twist={{ starDensity: 'dense', cloudLayer: true }}>
         <Frame>
           <div className="text-center space-y-5 py-2">
             <div className="text-6xl animate-shimmer">🎉</div>
@@ -118,7 +118,7 @@ export default function Register() {
   }
 
   return (
-    <SunSky variant="dawn">
+    <SunSky variant="dawn" twist={{ starDensity: 'dense', cloudLayer: true }}>
       <Frame>
         {/* Referral banner — uniquement si le code vient de l'URL et est encore en cours de vérification */}
         {refCode && refValid === null && (

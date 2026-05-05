@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import SunBackground from '../components/SunBackground'
+import SunSky from '../components/SunSky'
 
 const BG     = '#080d19'
 const CARD   = 'rgba(15,22,40,0.85)'
@@ -45,14 +45,9 @@ export default function Leaderboard() {
   }, [])
 
   return (
-    <div className="min-h-screen pb-10 relative" style={{ background: BG }}>
-      <SunBackground />
-
-      {/* Golden radial top */}
-      <div className="absolute inset-0 pointer-events-none z-0"
-           style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -5%,rgba(251,191,36,0.18),transparent)' }} />
-
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-10 space-y-5">
+    <SunSky variant="noon" twist={{ cloudLayer: true, mountainMood: 'snowy' }}>
+      <div className="min-h-screen pb-10 relative">
+      <div className="max-w-2xl mx-auto px-4 py-10 space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -163,7 +158,8 @@ export default function Leaderboard() {
           </p>
         )}
       </div>
-    </div>
+      </div>
+    </SunSky>
   )
 }
 

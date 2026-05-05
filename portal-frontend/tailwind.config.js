@@ -72,6 +72,15 @@ export default {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%':      { transform: 'translateY(-6px)' },
         },
+        drift: {
+          '0%':   { transform: 'translateX(-15%)' },
+          '100%': { transform: 'translateX(115%)' },
+        },
+        riseUp: {
+          '0%':   { transform: 'translateY(0)', opacity: '0.6' },
+          '80%':  { opacity: '0.3' },
+          '100%': { transform: 'translateY(-120px)', opacity: '0' },
+        },
       },
     },
   },

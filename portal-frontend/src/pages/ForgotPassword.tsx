@@ -64,7 +64,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <SunSky variant="dawn">
+    <SunSky variant="dusk" twist={{ fogIntensity: 'light', sunOffset: { right: '5%', bottom: '15%' } }}>
       <div className="min-h-screen flex flex-col items-center justify-center p-5">
         <div className="w-full max-w-sm">
           <div className="text-center mb-7">
@@ -143,7 +143,7 @@ export default function ForgotPassword() {
           </div>
 
           <p className="text-center text-[11px] text-sand-300/40 mt-6 font-display italic">
-            « L'aube se lève sur ton aventure »
+            « Le crépuscule précède toujours une nouvelle aube »
           </p>
         </div>
       </div>
