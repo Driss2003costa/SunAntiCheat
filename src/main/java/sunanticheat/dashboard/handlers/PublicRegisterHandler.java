@@ -11,6 +11,9 @@ import sunanticheat.dashboard.portal.PlayerAccountStore;
 import sunanticheat.dashboard.portal.PlayerJwtUtil;
 import sunanticheat.dashboard.portal.RegisterPinService;
 import sunanticheat.dashboard.portal.RegisterPinService.VerifyResult;
+import sunanticheat.dashboard.quests.Quest;
+import sunanticheat.dashboard.quests.QuestStore;
+import sunanticheat.dashboard.social.ReferralStore;
 
 import java.io.IOException;
 import java.util.Map;
@@ -23,14 +26,19 @@ public final class PublicRegisterHandler {
     private final PlayerJwtUtil playerJwt;
     private final Plugin plugin;
     private final Logger logger;
+    private final ReferralStore referralStore;
+    private final QuestStore questStore;
 
     public PublicRegisterHandler(PlayerAccountStore accountStore, RegisterPinService pinService,
-                                  PlayerJwtUtil playerJwt, Plugin plugin, Logger logger) {
-        this.accountStore = accountStore;
-        this.pinService   = pinService;
-        this.playerJwt    = playerJwt;
-        this.plugin       = plugin;
-        this.logger       = logger;
+                                  PlayerJwtUtil playerJwt, Plugin plugin, Logger logger,
+                                  ReferralStore referralStore, QuestStore questStore) {
+        this.accountStore  = accountStore;
+        this.pinService    = pinService;
+        this.playerJwt     = playerJwt;
+        this.plugin        = plugin;
+        this.logger        = logger;
+        this.referralStore = referralStore;
+        this.questStore    = questStore;
     }
 
     /** POST /api/public/register/request */
@@ -121,6 +129,17 @@ public final class PublicRegisterHandler {
                 }
                 String hash = BCrypt.withDefaults().hashToString(12, password.toCharArray());
                 accountStore.createAccount(uuid, username, hash);
+
+                // Parrainage : enregistre l'usage si un code valide est présent
+                String refCode = body.get("ref_code");
+                if (refCode != null && !refCode.isBlank()) {
+                    boolean recorded = referralStore.recordUse(refCode.toUpperCase().trim(), uuid, ip(ex));
+                    if (recorded) logger.info("[Portal] Parrainage enregistré : " + username + " via " + refCode);
+                }
+
+                // Génère le code de parrainage du nouveau compte
+                referralStore.getOrCreateCode(uuid);
+
                 String token = playerJwt.generate(uuid, username, "PLAYER");
                 logger.info("[Portal] Compte créé : " + username + " (" + uuid + ")");
                 HttpHelper.json(ex, 200, Map.of(
@@ -163,6 +182,14 @@ public final class PublicRegisterHandler {
         String role = (String) account.get("role");
         accountStore.updateLastLogin(uuid);
         String token = playerJwt.generate(uuid, username, role);
+
+        // Validation du parrainage si le compte a plus de 24h
+        String referrerUuid = referralStore.validateIfReady(uuid);
+        if (referrerUuid != null) {
+            int count = referralStore.getValidatedCount(referrerUuid);
+            questStore.checkSocialQuest(referrerUuid, Quest.Type.REFERRAL_COUNT, count);
+            logger.info("[Portal] Parrainage validé : " + username + " → parrain " + referrerUuid + " (" + count + " filleul(s))");
+        }
 
         HttpHelper.json(ex, 200, Map.of(
             "token",    token,

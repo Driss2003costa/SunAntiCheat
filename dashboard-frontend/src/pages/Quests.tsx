@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { usePermission } from '../hooks/usePermission'
 
-const TYPES = ['BREAK_BLOCK', 'PLACE_BLOCK', 'KILL_ENTITY', 'KILL_PLAYER', 'CRAFT_ITEM', 'FISH_CATCH', 'PLAY_TIME']
+const TYPES = ['BREAK_BLOCK', 'PLACE_BLOCK', 'KILL_ENTITY', 'KILL_PLAYER', 'CRAFT_ITEM', 'FISH_CATCH', 'PLAY_TIME', 'FRIEND_COUNT', 'REFERRAL_COUNT']
 const ICONS = ['⭐', '⚔️', '⛏', '🏆', '🐟', '💰', '💎', '🔥', '🛡️', '🎯']
 
 export default function Quests() {

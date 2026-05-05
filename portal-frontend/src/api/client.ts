@@ -178,6 +178,27 @@ export const api = {
     authPost<DailyClaimResult>(`${BASE}/player/me/daily/claim`, token, {}),
 }
 
+// ── Social types ──────────────────────────────────────────────────────────────
+export type Friend = { uuid: string; username: string; since: number }
+export type FriendRequest = {
+  id: string; uuid: string; username: string
+  sender_uuid: string; receiver_uuid: string; created_at: number
+}
+export type FriendRelation = 'self' | 'friends' | 'request_sent' | 'request_received' | 'none'
+export type FriendRelationResult = {
+  relation: FriendRelation; friend_count: number; request_id?: string
+}
+export type Conversation = {
+  id: string; participant1: string; participant2: string
+  last_message_at: number; other_uuid: string; other_username: string
+  last_msg: string | null; unread: number
+}
+export type Message = {
+  id: string; conversation_id: string; sender_uuid: string
+  content: string; read_at: number | null; created_at: number
+}
+export type ReferralInfo = { code: string; total: number; validated: number }
+
 export function saveToken(token: string) { localStorage.setItem('portal_token', token) }
 export function getToken(): string | null  { return localStorage.getItem('portal_token') }
 export function clearToken()              { localStorage.removeItem('portal_token') }
