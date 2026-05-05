@@ -339,20 +339,22 @@ export default function Users() {
                 🔑 Réinitialiser
               </button>
             </div>
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-              <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                Renommer le compte
-              </label>
-              <input placeholder={`Nouveau nom (actuellement : ${editing.username})`}
-                     value={renameVal} onChange={e => setRenameVal(e.target.value)}
-                     className="w-full px-3 py-2 rounded-lg mb-2" style={inp}/>
-              <button onClick={doRename}
-                      disabled={saving || !renameVal.trim() || renameVal.trim() === editing.username}
-                      className="w-full py-2 rounded-lg font-medium disabled:opacity-40"
-                      style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
-                ✏️ Renommer
-              </button>
-            </div>
+            {editing.username !== me && (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Renommer le compte
+                </label>
+                <input placeholder={`Nouveau nom (actuellement : ${editing.username})`}
+                       value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                       className="w-full px-3 py-2 rounded-lg mb-2" style={inp}/>
+                <button onClick={doRename}
+                        disabled={saving || !renameVal.trim() || renameVal.trim() === editing.username}
+                        className="w-full py-2 rounded-lg font-medium disabled:opacity-40"
+                        style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+                  ✏️ Renommer
+                </button>
+              </div>
+            )}
           </div>
           <button onClick={() => { setEditing(null); setRenameVal('') }} className="mt-4 w-full py-2 rounded-lg" style={ghost}>Fermer</button>
         </Modal>

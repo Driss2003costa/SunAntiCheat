@@ -135,6 +135,8 @@ public final class UserHandler {
         String newUsername = body != null ? (String) body.get("newUsername") : null;
         if (newUsername == null || newUsername.isBlank()) { HttpHelper.error(ex, 400, "newUsername requis"); return; }
 
+        if (target.equalsIgnoreCase(u.username())) { HttpHelper.error(ex, 400, "Vous ne pouvez pas renommer votre propre compte."); return; }
+
         String err = store.rename(target, newUsername.trim());
         if (err != null) { HttpHelper.error(ex, 400, err); return; }
 
