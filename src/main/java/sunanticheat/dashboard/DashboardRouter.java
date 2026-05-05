@@ -173,6 +173,14 @@ public final class DashboardRouter implements HttpHandler {
                 return;
             }
 
+            // ── Routes portail joueur (/api/custom-jobs/me/...) ───────────────
+            // Auth gérée en interne via playerJwt (token joueur 30 jours).
+            // Ne pas faire passer par le pare-feu VIEWER (JWT admin).
+            if (path.startsWith("/api/custom-jobs/me/")) {
+                dispatch(exchange, path, method);
+                return;
+            }
+
             // ── Pare-feu VIEWER ────────────────────────────────────────────────
             // Les VIEWER ne peuvent pas effectuer d'actions d'écriture,
             // sauf les routes explicitement autorisées ci-dessous.
@@ -554,6 +562,8 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/custom-jobs/admin/tickets")                   && POST(method))   { customJobsApiHandler.adminGrantTicket(ex);      return; }
         if (path.matches("/api/custom-jobs/admin/tickets/\\d+")          && DELETE(method)) { customJobsApiHandler.adminRevokeTicket(ex);     return; }
         // Economic regulator
+        if (eq(path, "/api/custom-jobs/admin/player/join")                && POST(method))   { customJobsApiHandler.adminForceJoin(ex);        return; }
+        if (eq(path, "/api/custom-jobs/admin/player/leave")               && POST(method))   { customJobsApiHandler.adminForceLeave(ex);       return; }
         if (eq(path, "/api/custom-jobs/admin/regulator")                 && GET(method))    { customJobsApiHandler.adminRegulatorState(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/regulator")                 && PATCH(method))  { customJobsApiHandler.adminRegulatorPatch(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/regulator/history")         && GET(method))    { customJobsApiHandler.adminRegulatorHistory(ex); return; }
