@@ -8,6 +8,7 @@ import sunanticheat.dashboard.handlers.ViolationPointsHandler;
 import sunanticheat.dashboard.handlers.FriendHandler;
 import sunanticheat.dashboard.handlers.ChatHandler;
 import sunanticheat.dashboard.handlers.ReferralHandler;
+import sunanticheat.dashboard.handlers.PublicCrateShopHandler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -63,6 +64,7 @@ public final class DashboardRouter implements HttpHandler {
     private final PublicLeaderboardHandler publicLeaderboardHandler;
     private final CustomJobsApiHandler customJobsApiHandler;
     private final GeoIpHandler geoIpHandler;
+    private final PublicCrateShopHandler publicCrateShopHandler;
     private final FriendHandler friendHandler;
     private final ChatHandler chatHandler;
     private final ReferralHandler referralHandler;
@@ -111,6 +113,7 @@ public final class DashboardRouter implements HttpHandler {
                            PublicLeaderboardHandler publicLeaderboardHandler,
                            CustomJobsApiHandler customJobsApiHandler,
                            GeoIpHandler geoIpHandler,
+                           PublicCrateShopHandler publicCrateShopHandler,
                            FriendHandler friendHandler,
                            ChatHandler chatHandler,
                            ReferralHandler referralHandler) {
@@ -158,6 +161,7 @@ public final class DashboardRouter implements HttpHandler {
         this.publicLeaderboardHandler = publicLeaderboardHandler;
         this.customJobsApiHandler    = customJobsApiHandler;
         this.geoIpHandler            = geoIpHandler;
+        this.publicCrateShopHandler  = publicCrateShopHandler;
         this.friendHandler           = friendHandler;
         this.chatHandler             = chatHandler;
         this.referralHandler         = referralHandler;

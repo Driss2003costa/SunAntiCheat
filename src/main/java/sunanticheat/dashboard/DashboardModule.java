@@ -520,7 +520,7 @@ public final class DashboardModule {
                 playerLogHandler, altAccountHandler, vpHandler,
                 publicRegisterHandler, publicPlayerHandler, publicProfileHandler,
                 publicDailyHandler, publicLeaderboardHandler, customJobsApiHandler,
-                geoIpHandler, friendHandler, chatHandler, referralHandler);
+                geoIpHandler, publicCrateShopHandler, friendHandler, chatHandler, referralHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();
