@@ -49,4 +49,9 @@ public class Crate {
     public List<CrateItem> items = new ArrayList<>();
     public long totalOpens;
     public long createdAt;
+
+    // Shop public
+    public boolean purchasable = false;
+    public double price = 0.0;
+    public String priceType = "MONEY";
 }
