@@ -8,7 +8,7 @@ import {
 } from '../api/client'
 import Navbar from '../components/Navbar'
 import MinecraftIcon from '../components/MinecraftIcon'
-import SunBackground from '../components/SunBackground'
+import PageAura from '../components/PageAura'
 
 const BG     = '#080d19'
 const CARD   = 'rgba(15,22,40,0.85)'
@@ -138,7 +138,7 @@ export default function Career() {
 
   return (
     <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
-      <SunBackground />
+      <PageAura theme="career" />
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden z-10">

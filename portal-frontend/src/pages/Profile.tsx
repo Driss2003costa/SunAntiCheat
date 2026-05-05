@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
 import Navbar from '../components/Navbar'
-import SunBackground from '../components/SunBackground'
+import PageAura from '../components/PageAura'
 
 const BG     = '#080d19'
 const CARD   = 'rgba(15,22,40,0.8)'
@@ -150,7 +150,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
-      <SunBackground />
+      <PageAura theme="profile" />
 
       {/* ── HERO ──────────────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden z-10">

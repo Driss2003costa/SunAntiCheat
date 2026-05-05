@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
-import SunBackground from '../components/SunBackground'
+import PageAura from '../components/PageAura'
 
 const BG     = '#080d19'
 const CARD   = 'rgba(15,22,40,0.85)'
@@ -268,7 +268,7 @@ export default function Messages() {
 
   return (
     <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
-      <SunBackground />
+      <PageAura theme="messages" />
       <div className="relative z-10 px-4 pt-10 max-w-screen-sm mx-auto">
 
         {!activeConv ? (

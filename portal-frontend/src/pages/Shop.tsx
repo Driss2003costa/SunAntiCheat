@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type VipPlan, type CrateShopEntry } from '../api/client'
 import Navbar from '../components/Navbar'
-import SunBackground from '../components/SunBackground'
+import PageAura from '../components/PageAura'
 
 const BG     = '#080d19'
 const CARD   = 'rgba(15,22,40,0.8)'
@@ -94,7 +94,7 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
-      <SunBackground />
+      <PageAura theme="shop" />
 
       {/* Header */}
       <div className="relative overflow-hidden z-10">

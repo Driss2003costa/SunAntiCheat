@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
-import SunBackground from '../components/SunBackground'
+import PageAura from '../components/PageAura'
 
 const BG     = '#080d19'
 const CARD   = 'rgba(15,22,40,0.85)'
@@ -134,7 +134,7 @@ export default function Friends() {
 
   return (
     <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
-      <SunBackground />
+      <PageAura theme="friends" />
 
       <div className="relative z-10 px-4 pt-10 max-w-screen-sm mx-auto">
         <h1 className="text-2xl font-black mb-6" style={{ color: TEXT }}>👥 Amis</h1>
