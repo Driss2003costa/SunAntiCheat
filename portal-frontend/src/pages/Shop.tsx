@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type VipPlan, type CrateShopEntry } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
-import WaxSeal from '../components/codex/WaxSeal'
-import RuneIcon from '../components/codex/RuneIcon'
-import Flourish from '../components/codex/Flourish'
-import CompassRose from '../components/codex/CompassRose'
+
+const GLASS  = 'rgba(255,255,255,0.05)'
+const BORDER = 'rgba(255,255,255,0.08)'
+const GOLD   = '#fbbf24'
+const TEXT   = '#f1f5f9'
+const MUTED  = '#64748b'
 
 function fmtBalance(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
@@ -31,7 +33,6 @@ export default function Shop() {
   useEffect(() => {
     const token = getToken()
     if (!token) { navigate('/login', { replace: true }); return }
-
     Promise.all([
       api.me(token),
       api.vipPlans().catch(() => [] as VipPlan[]),
@@ -47,18 +48,15 @@ export default function Shop() {
   }, [navigate])
 
   async function buyCrate(crate: CrateShopEntry) {
-    const token = getToken()
-    if (!token || !profile) return
+    const token = getToken(); if (!token || !profile) return
     setCrateBusy(crate.id); setCrateMsg(null)
     try {
       const res = await api.crateBuy(token, crate.id, 1)
       setLocalBalance(res.newBalance)
-      setCrateMsg({ id: crate.id, msg: res.free ? 'Clé offerte (admin) !' : res.message, ok: true })
+      setCrateMsg({ id: crate.id, msg: res.free ? 'Clé offerte !' : res.message, ok: true })
     } catch (e: any) {
       setCrateMsg({ id: crate.id, msg: e.error || e.message || "Erreur lors de l'achat", ok: false })
-    } finally {
-      setCrateBusy(null)
-    }
+    } finally { setCrateBusy(null) }
   }
 
   async function startCheckout(plan: VipPlan, gateway: 'STRIPE' | 'PAYPAL') {
@@ -80,135 +78,94 @@ export default function Shop() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center pb-20" style={{ background: '#080d19' }}>
-      <div className="w-10 h-10 rounded-full border-2 animate-spin"
-           style={{ borderColor: 'rgba(240,169,59,0.2)', borderTopColor: '#F0A93B' }} />
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#080d19' }}>
+      <div className="w-8 h-8 rounded-full border-2 animate-spin"
+           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
       <Navbar />
     </div>
   )
   if (!profile) return null
 
   return (
-    <div className="min-h-screen pb-24 relative" style={{ background: '#080d19' }}>
+    <div className="min-h-screen pb-24" style={{ background: '#080d19' }}>
       <PageAura theme="shop" />
-      <CompassRose size={400} opacity={0.035} className="absolute top-[-60px] left-[-90px] pointer-events-none z-0" />
 
       {/* Header */}
-      <div className="relative z-10">
-        <div className="absolute inset-0 pointer-events-none"
-             style={{ background: 'radial-gradient(ellipse 80% 55% at 50% -5%,rgba(240,169,59,0.14),transparent)' }} />
-        <div className="relative px-5 pt-12 pb-6 max-w-screen-sm mx-auto codex-reveal codex-reveal-1">
-          <div className="flex items-end justify-between">
-            <div className="flex items-center gap-3">
-              <RuneIcon rune="crown" size={28} color="var(--gold)" />
-              <div>
-                <h1 className="text-2xl font-black font-codex-display" style={{ color: 'var(--ivory)' }}>Marché des Étoiles</h1>
-                <p className="text-sm font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>Avantages & Privilèges</p>
-              </div>
-            </div>
-            {localBalance != null && (
-              <div className="text-right pb-1">
-                <p className="text-xl font-black font-codex-display" style={{ color: 'var(--gold)' }}>
-                  {fmtBalance(localBalance)} <span className="text-base" style={{ color: 'var(--gold-soft)' }}>$</span>
-                </p>
-                <p className="text-xs font-codex-body" style={{ color: 'var(--parchment-shade)' }}>Ton trésor</p>
-              </div>
-            )}
+      <div className="relative z-10 px-5 pt-12 pb-6 max-w-screen-sm mx-auto">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: TEXT }}>Boutique</h1>
+            <p className="text-sm mt-0.5" style={{ color: MUTED }}>VIP & avantages</p>
           </div>
+          {localBalance != null && (
+            <div className="text-right">
+              <p className="text-xl font-bold" style={{ color: GOLD }}>{fmtBalance(localBalance)} $</p>
+              <p className="text-xs" style={{ color: MUTED }}>Ton solde</p>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="px-4 pt-2 space-y-5 max-w-screen-sm mx-auto relative z-10">
 
         {/* VIP Plans */}
         {plans.length > 0 && (
-          <section className="codex-reveal codex-reveal-2">
-            <div className="flex items-center gap-3 mb-3">
-              <Flourish variant="simple" color="rgba(240,169,59,0.4)" width={40} />
-              <p className="text-xs font-semibold uppercase tracking-widest font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>
-                Distinctions VIP
-              </p>
-              <Flourish variant="simple" color="rgba(240,169,59,0.4)" width={40} />
-            </div>
-            <div className="space-y-4">
-              {plans.map((plan, idx) => {
-                const planColor = plan.color ?? '#F0A93B'
-                const sealVariant: 'gold' | 'silver' | 'bronze' = idx === 0 ? 'gold' : idx === 1 ? 'silver' : 'bronze'
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: MUTED }}>Abonnements VIP</p>
+            <div className="space-y-3">
+              {plans.map(plan => {
+                const c = plan.color ?? GOLD
                 return (
-                  <div key={plan.id} className="codex-cartouche rounded-2xl overflow-hidden codex-flare"
-                       style={{ borderColor: `${planColor}35` }}>
-
-                    {/* Accent top bar */}
-                    <div style={{ height: 2, background: `linear-gradient(90deg,transparent,${planColor},transparent)` }} />
-
-                    {/* Plan header */}
-                    <div className="flex items-center gap-4 p-4"
-                         style={{ borderBottom: '1px solid rgba(240,169,59,0.08)' }}>
-                      <WaxSeal color={sealVariant} label={plan.icon ?? '★'} size={48} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-base font-bold font-codex-display" style={{ color: 'var(--ivory)' }}>{plan.displayName}</p>
-                        {plan.description && (
-                          <p className="text-xs mt-0.5 font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>{plan.description}</p>
-                        )}
+                  <div key={plan.id} className="rounded-2xl overflow-hidden"
+                       style={{ background: GLASS, border: `1px solid ${c}30`, backdropFilter: 'blur(12px)' }}>
+                    {/* Top accent */}
+                    <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${c}, transparent)` }} />
+                    <div className="p-4">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-2xl"
+                             style={{ background: `${c}15`, border: `1px solid ${c}25` }}>
+                          {plan.icon ?? '⭐'}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold" style={{ color: TEXT }}>{plan.displayName}</p>
+                          {plan.description && <p className="text-xs mt-0.5" style={{ color: MUTED }}>{plan.description}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-2xl font-bold" style={{ color: c }}>{fmtPrice(plan.priceEur)} €</p>
+                          <p className="text-[10px]" style={{ color: MUTED }}>{plan.durationDays} jour{plan.durationDays > 1 ? 's' : ''}</p>
+                        </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-2xl font-black font-codex-display" style={{ color: planColor }}>
-                          {fmtPrice(plan.priceEur)}&nbsp;<span className="text-sm">€</span>
-                        </p>
-                        <p className="text-[10px] font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>
-                          {plan.durationDays}j
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Perks */}
-                    {plan.perks && plan.perks.length > 0 && (
-                      <div className="px-4 py-3 space-y-1.5"
-                           style={{ borderBottom: '1px solid rgba(240,169,59,0.06)' }}>
-                        {plan.perks.map((perk, i) => (
-                          <div key={i} className="flex items-start gap-2">
-                            <span className="text-xs mt-0.5 shrink-0 font-codex-display" style={{ color: 'var(--gold)' }}>✦</span>
-                            <p className="text-xs font-codex-body" style={{ color: 'var(--ivory-dim)' }}>{perk}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Checkout */}
-                    <div className="p-4 space-y-2">
+                      {plan.perks && plan.perks.length > 0 && (
+                        <div className="space-y-1.5 mb-4 pb-3 border-b" style={{ borderColor: `${c}18` }}>
+                          {plan.perks.map((perk, i) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <span className="text-xs shrink-0 mt-0.5" style={{ color: c }}>✦</span>
+                              <p className="text-xs" style={{ color: '#cbd5e1' }}>{perk}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {checkoutPlan?.id === plan.id ? (
                         <div className="space-y-2">
-                          <p className="text-xs text-center mb-3 font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>
-                            Choisir le mode de paiement
-                          </p>
+                          <p className="text-xs text-center mb-3" style={{ color: MUTED }}>Mode de paiement</p>
                           <div className="grid grid-cols-2 gap-2">
                             <button onClick={() => startCheckout(plan, 'STRIPE')} disabled={checkoutBusy}
-                              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm disabled:opacity-50 text-white transition-colors font-codex-display"
+                              className="py-3 rounded-xl font-bold text-sm text-white disabled:opacity-50"
                               style={{ background: 'linear-gradient(135deg,#4f46e5,#6366f1)' }}>
-                              ✦ Carte
+                              💳 Carte
                             </button>
                             <button onClick={() => startCheckout(plan, 'PAYPAL')} disabled={checkoutBusy}
-                              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm disabled:opacity-50 text-white transition-colors font-codex-display"
+                              className="py-3 rounded-xl font-bold text-sm text-white disabled:opacity-50"
                               style={{ background: 'linear-gradient(135deg,#0070ba,#003087)' }}>
-                              ✦ PayPal
+                              PayPal
                             </button>
                           </div>
                           <button onClick={() => { setCheckoutPlan(null); setCheckoutErr('') }}
-                            className="w-full py-2 text-xs transition-colors font-codex-body"
-                            style={{ color: 'var(--parchment-shade)' }}>
-                            Annuler
-                          </button>
+                            className="w-full py-2 text-xs" style={{ color: MUTED }}>Annuler</button>
                           {checkoutErr && <p className="text-xs text-red-400 text-center">{checkoutErr}</p>}
                         </div>
                       ) : (
                         <button onClick={() => { setCheckoutPlan(plan); setCheckoutErr('') }}
-                          className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98] font-codex-display"
-                          style={{
-                            background: `linear-gradient(135deg,var(--amber),var(--ember))`,
-                            color: 'var(--ink-deep)',
-                            boxShadow: '0 4px 20px rgba(240,169,59,0.25)',
-                          }}>
-                          Acquérir — {fmtPrice(plan.priceEur)} €
+                          className="w-full py-3 rounded-xl font-bold text-sm active:scale-[0.98] transition-all text-gray-900"
+                          style={{ background: `linear-gradient(135deg,#f59e0b,#fb923c)`, boxShadow: '0 4px 20px rgba(251,191,36,0.2)' }}>
+                          Acheter — {fmtPrice(plan.priceEur)} €
                         </button>
                       )}
                     </div>
@@ -216,75 +173,58 @@ export default function Shop() {
                 )
               })}
             </div>
-          </section>
-        )}
-
-        {plans.length === 0 && (
-          <div className="codex-cartouche rounded-2xl p-10 text-center codex-reveal codex-reveal-2">
-            <RuneIcon rune="crown" size={40} color="rgba(240,169,59,0.3)" className="mx-auto mb-3" />
-            <p className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>Aucun plan VIP configuré</p>
-            <p className="text-xs mt-1 font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>
-              Les privilèges seront proclamés prochainement.
-            </p>
           </div>
         )}
 
-        {/* Crates shop */}
+        {plans.length === 0 && (
+          <div className="rounded-2xl p-10 text-center mb-6"
+               style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
+            <span className="text-4xl block mb-3">⭐</span>
+            <p className="text-sm font-semibold" style={{ color: TEXT }}>Aucun plan VIP configuré</p>
+            <p className="text-xs mt-1" style={{ color: MUTED }}>Les offres seront disponibles prochainement.</p>
+          </div>
+        )}
+
+        {/* Crates */}
         {crates.length > 0 && (
-          <section className="codex-reveal codex-reveal-3">
-            <div className="flex items-center gap-3 mb-3">
-              <Flourish variant="simple" color="rgba(240,169,59,0.4)" width={40} />
-              <p className="text-xs font-semibold uppercase tracking-widest font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>
-                Coffres du Trésor
-              </p>
-              <Flourish variant="simple" color="rgba(240,169,59,0.4)" width={40} />
-            </div>
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: MUTED }}>Caisses</p>
             <div className="space-y-3">
               {crates.map(crate => {
-                const c = crate.color ?? '#F0A93B'
+                const c = crate.color ?? GOLD
                 const isBusy = crateBusy === crate.id
                 const msg = crateMsg?.id === crate.id ? crateMsg : null
                 return (
-                  <div key={crate.id} className="codex-cartouche rounded-2xl overflow-hidden codex-flare"
-                       style={{ borderColor: `${c}30` }}>
+                  <div key={crate.id} className="rounded-2xl overflow-hidden"
+                       style={{ background: GLASS, border: `1px solid ${c}28`, backdropFilter: 'blur(12px)' }}>
                     <div className="flex items-center gap-4 p-4">
                       <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-3xl"
-                           style={{ background: `${c}15`, border: `1px solid ${c}35` }}>
-                        ✦
+                           style={{ background: `${c}12`, border: `1px solid ${c}25` }}>
+                        📦
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-base font-bold font-codex-display" style={{ color: 'var(--ivory)' }}>{crate.displayName}</p>
-                        {crate.description && (
-                          <p className="text-xs mt-0.5 font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>{crate.description}</p>
-                        )}
+                        <p className="font-bold" style={{ color: TEXT }}>{crate.displayName}</p>
+                        {crate.description && <p className="text-xs mt-0.5" style={{ color: MUTED }}>{crate.description}</p>}
                       </div>
                       <div className="text-right shrink-0">
-                        {crate.price > 0 ? (
-                          <>
-                            <p className="text-xl font-black font-codex-display" style={{ color: c }}>
-                              {fmtBalance(crate.price)} <span className="text-sm">$</span>
-                            </p>
-                            <p className="text-[10px] font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>par clé</p>
-                          </>
-                        ) : (
-                          <p className="text-sm font-bold text-green-400 font-codex-display">Gratuit</p>
-                        )}
+                        {crate.price > 0
+                          ? <><p className="text-lg font-bold" style={{ color: c }}>{fmtBalance(crate.price)} $</p>
+                              <p className="text-[10px]" style={{ color: MUTED }}>par clé</p></>
+                          : <p className="text-sm font-bold text-emerald-400">Gratuit</p>}
                       </div>
                     </div>
-
                     <div className="px-4 pb-4 space-y-2">
                       {msg && (
-                        <p className={`text-xs text-center py-1.5 rounded-lg font-codex-body ${msg.ok ? 'text-green-400' : 'text-red-400'}`}
-                           style={{ background: msg.ok ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)' }}>
+                        <p className={`text-xs text-center py-1.5 rounded-lg ${msg.ok ? 'text-emerald-400' : 'text-red-400'}`}
+                           style={{ background: msg.ok ? 'rgba(52,211,153,0.08)' : 'rgba(248,113,113,0.08)' }}>
                           {msg.ok ? '✓' : '✗'} {msg.msg}
                         </p>
                       )}
-                      <button
-                        onClick={() => buyCrate(crate)} disabled={isBusy}
-                        className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 font-codex-display"
-                        style={{ background: `linear-gradient(135deg,${c},${c}cc)`, color: 'var(--ink-deep)', boxShadow: `0 4px 20px ${c}25` }}>
-                        {isBusy ? 'Acquisition…' : crate.price > 0
-                          ? `Acquérir — ${fmtBalance(crate.price)} $`
+                      <button onClick={() => buyCrate(crate)} disabled={isBusy}
+                        className="w-full py-3 rounded-xl font-bold text-sm active:scale-[0.98] disabled:opacity-50 text-gray-900"
+                        style={{ background: `linear-gradient(135deg,${c},${c}cc)`, boxShadow: `0 4px 16px ${c}25` }}>
+                        {isBusy ? 'Achat en cours…'
+                          : crate.price > 0 ? `Acheter — ${fmtBalance(crate.price)} $`
                           : 'Obtenir gratuitement'}
                       </button>
                     </div>
@@ -292,39 +232,33 @@ export default function Shop() {
                 )
               })}
             </div>
-          </section>
+          </div>
         )}
 
-        {/* Economy codex */}
-        <div className="codex-cartouche rounded-2xl overflow-hidden codex-reveal codex-reveal-4">
-          <div className="px-5 py-3.5 flex items-center gap-2"
-               style={{ borderBottom: '1px solid rgba(240,169,59,0.12)' }}>
-            <RuneIcon rune="sun" size={16} color="var(--gold)" />
-            <span className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>L'Économie du Monde</span>
-          </div>
-          <div>
-            <EcoRow rune="star"    title="Gagner des pièces" desc="Joue, mine, accomplis des quêtes, ou réclame tes récompenses quotidiennes" />
-            <EcoRow rune="flame"   title="Boutique /shop"    desc="Dépense tes pièces en jeu via /shop pour acheter des items" />
-            <EcoRow rune="eye"     title="Coffres & Clés"    desc="Obtiens des clés via les missions et ouvre des coffres pour des récompenses rares" />
-            <EcoRow rune="compass" title="Métiers"           desc="Exerce un métier pour générer des revenus passifs et progresser" />
-          </div>
+        {/* Economy info */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
+          <p className="px-4 py-3 text-xs font-semibold uppercase tracking-widest border-b" style={{ color: MUTED, borderColor: BORDER }}>
+            Économie en jeu
+          </p>
+          {[
+            { icon: '🪙', title: 'Gagner des coins',  desc: 'Joue, mine, accomplis des quêtes ou réclame ta récompense quotidienne' },
+            { icon: '🛍️', title: 'Boutique /shop',    desc: 'Dépense tes coins via /shop pour acheter des items en jeu' },
+            { icon: '📦', title: 'Caisses & Clés',    desc: 'Obtiens des clés via les missions et ouvre des caisses pour des récompenses rares' },
+            { icon: '📈', title: 'Métiers',            desc: 'Génère des revenus passifs et progresse en exercant un métier' },
+          ].map((row, i) => (
+            <div key={row.title} className="flex items-start gap-3 px-4 py-3.5"
+                 style={{ borderBottom: i < 3 ? `1px solid rgba(255,255,255,0.04)` : undefined }}>
+              <span className="text-xl shrink-0 mt-0.5">{row.icon}</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: TEXT }}>{row.title}</p>
+                <p className="text-xs mt-0.5" style={{ color: MUTED }}>{row.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       <Navbar />
-    </div>
-  )
-}
-
-function EcoRow({ rune, title, desc }: { rune: 'star' | 'flame' | 'eye' | 'compass'; title: string; desc: string }) {
-  return (
-    <div className="codex-row flex items-start gap-3 px-5 py-3.5"
-         style={{ borderBottom: '1px solid rgba(240,169,59,0.05)' }}>
-      <RuneIcon rune={rune} size={18} color="var(--gold)" className="shrink-0 mt-0.5" />
-      <div className="min-w-0">
-        <p className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>{title}</p>
-        <p className="text-xs mt-0.5 font-codex-body" style={{ color: 'var(--parchment-shade)' }}>{desc}</p>
-      </div>
     </div>
   )
 }

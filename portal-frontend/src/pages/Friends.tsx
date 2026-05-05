@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
-import RuneIcon from '../components/codex/RuneIcon'
-import CompassRose from '../components/codex/CompassRose'
 
-const BASE = '/api/public'
+const GLASS  = 'rgba(255,255,255,0.05)'
+const BORDER = 'rgba(255,255,255,0.08)'
+const TEAL   = '#2dd4bf'
+const TEXT   = '#f1f5f9'
+const MUTED  = '#64748b'
+const BASE   = '/api/public'
 
 type Friend     = { uuid: string; username: string; since: number }
 type FriendReq  = { id: string; uuid: string; username: string; sender_uuid: string; receiver_uuid: string; created_at: number }
 type UserResult = { uuid: string; username: string; relation: string; request_id?: string }
-
 type Tab = 'friends' | 'incoming' | 'outgoing' | 'search'
 
 async function apiFetch(url: string, token: string, opts?: RequestInit) {
@@ -25,17 +27,17 @@ async function apiFetch(url: string, token: string, opts?: RequestInit) {
 }
 
 export default function Friends() {
-  const navigate  = useNavigate()
-  const token     = getToken()
-  const [tab, setTab]           = useState<Tab>('friends')
-  const [friends, setFriends]   = useState<Friend[]>([])
+  const navigate = useNavigate()
+  const token    = getToken()
+  const [tab,      setTab]      = useState<Tab>('friends')
+  const [friends,  setFriends]  = useState<Friend[]>([])
   const [incoming, setIncoming] = useState<FriendReq[]>([])
   const [outgoing, setOutgoing] = useState<FriendReq[]>([])
-  const [search, setSearch]     = useState('')
-  const [results, setResults]   = useState<UserResult[]>([])
+  const [search,   setSearch]   = useState('')
+  const [results,  setResults]  = useState<UserResult[]>([])
   const [searching, setSearching] = useState(false)
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState('')
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState('')
 
   useEffect(() => {
     if (!token) { navigate('/login', { replace: true }); return }
@@ -53,11 +55,8 @@ export default function Friends() {
       setFriends(f.friends)
       setIncoming(inc.requests)
       setOutgoing(out.requests)
-    } catch {
-      setError('Erreur de chargement.')
-    } finally {
-      setLoading(false)
-    }
+    } catch { setError('Erreur de chargement.') }
+    finally { setLoading(false) }
   }, [token])
 
   useEffect(() => { load() }, [load])
@@ -75,83 +74,64 @@ export default function Friends() {
     return () => clearTimeout(t)
   }, [search, tab, token])
 
-  async function sendRequest(targetUuid: string) {
+  async function sendRequest(uuid: string) {
     try {
-      await apiFetch(`${BASE}/friends/request/${targetUuid}`, token!, { method: 'POST' })
-      setResults(r => r.map(u => u.uuid === targetUuid ? { ...u, relation: 'request_sent' } : u))
+      await apiFetch(`${BASE}/friends/request/${uuid}`, token!, { method: 'POST' })
+      setResults(r => r.map(u => u.uuid === uuid ? { ...u, relation: 'request_sent' } : u))
     } catch {}
   }
-
-  async function acceptRequest(reqId: string) {
-    try { await apiFetch(`${BASE}/friends/accept/${reqId}`, token!, { method: 'POST' }); await load() } catch {}
-  }
-
-  async function declineRequest(reqId: string) {
-    try { await apiFetch(`${BASE}/friends/decline/${reqId}`, token!, { method: 'POST' }); await load() } catch {}
-  }
-
-  async function cancelRequest(reqId: string) {
-    try { await apiFetch(`${BASE}/friends/cancel/${reqId}`, token!, { method: 'POST' }); await load() } catch {}
-  }
-
-  async function removeFriend(friendUuid: string) {
+  async function accept(id: string)  { try { await apiFetch(`${BASE}/friends/accept/${id}`,  token!, { method: 'POST' }); await load() } catch {} }
+  async function decline(id: string) { try { await apiFetch(`${BASE}/friends/decline/${id}`, token!, { method: 'POST' }); await load() } catch {} }
+  async function cancel(id: string)  { try { await apiFetch(`${BASE}/friends/cancel/${id}`,  token!, { method: 'POST' }); await load() } catch {} }
+  async function remove(uuid: string) {
     if (!confirm('Supprimer cet ami ?')) return
-    try { await apiFetch(`${BASE}/friends/${friendUuid}`, token!, { method: 'DELETE' }); await load() } catch {}
+    try { await apiFetch(`${BASE}/friends/${uuid}`, token!, { method: 'DELETE' }); await load() } catch {}
   }
-
-  async function openChat(friendUuid: string) {
+  async function openChat(uuid: string) {
     try {
-      const data = await apiFetch(`${BASE}/messages/open`, token!, {
-        method: 'POST',
-        body: JSON.stringify({ target_uuid: friendUuid }),
-      })
+      const data = await apiFetch(`${BASE}/messages/open`, token!, { method: 'POST', body: JSON.stringify({ target_uuid: uuid }) })
       navigate(`/messages/${data.id}`)
     } catch {}
   }
 
-  const tabs: { key: Tab; label: string; rune: 'feather' | 'star' | 'eye' | 'compass'; badge?: number }[] = [
-    { key: 'friends',  label: 'Confrérie', rune: 'feather',  badge: friends.length },
-    { key: 'incoming', label: 'Reçues',    rune: 'star',     badge: incoming.length },
-    { key: 'outgoing', label: 'Envoyées',  rune: 'eye',      badge: outgoing.length },
-    { key: 'search',   label: 'Chercher',  rune: 'compass' },
+  const tabs = [
+    { key: 'friends'  as Tab, label: 'Amis',       badge: friends.length  },
+    { key: 'incoming' as Tab, label: 'Reçues',      badge: incoming.length },
+    { key: 'outgoing' as Tab, label: 'Envoyées',    badge: outgoing.length },
+    { key: 'search'   as Tab, label: 'Rechercher' },
   ]
 
   return (
-    <div className="min-h-screen pb-24 relative" style={{ background: '#080d19' }}>
+    <div className="min-h-screen pb-24" style={{ background: '#080d19' }}>
       <PageAura theme="friends" />
-      <CompassRose size={380} opacity={0.04} color="var(--rune-jade)"
-                   className="absolute top-[-40px] right-[-60px] pointer-events-none z-0" />
 
-      <div className="relative z-10 px-4 pt-10 max-w-screen-sm mx-auto">
+      <div className="relative z-10 px-4 pt-12 max-w-screen-sm mx-auto">
         {/* Header */}
-        <div className="mb-6 codex-reveal codex-reveal-1">
-          <div className="flex items-center gap-3 mb-1">
-            <RuneIcon rune="feather" size={22} color="var(--rune-jade)" />
-            <h1 className="text-2xl font-bold font-codex-display" style={{ color: 'var(--ivory)' }}>
-              Confrérie des Voyageurs
-            </h1>
-          </div>
-          <div className="w-48 h-px ml-9" style={{ background: 'linear-gradient(90deg,var(--rune-jade),transparent)' }} />
+        <div className="mb-6">
+          <h1 className="text-xl font-bold" style={{ color: TEXT }}>Amis</h1>
+          <p className="text-sm mt-0.5" style={{ color: MUTED }}>
+            {friends.length} ami{friends.length !== 1 ? 's' : ''}
+            {incoming.length > 0 && <span className="ml-2 text-amber-400">· {incoming.length} demande{incoming.length > 1 ? 's' : ''} en attente</span>}
+          </p>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 mb-5 p-1 rounded-2xl codex-reveal codex-reveal-2"
-             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(93,212,200,0.12)' }}>
+        {/* Tabs */}
+        <div className="flex gap-1 p-1 rounded-xl mb-5"
+             style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}` }}>
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all flex flex-col items-center gap-1"
+              className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
               style={{
-                background: tab === t.key ? 'rgba(93,212,200,0.12)' : 'transparent',
-                color: tab === t.key ? 'var(--rune-jade)' : 'var(--parchment-shade)',
-                border: tab === t.key ? '1px solid rgba(93,212,200,0.3)' : '1px solid transparent',
+                background: tab === t.key ? 'rgba(45,212,191,0.12)' : 'transparent',
+                color: tab === t.key ? TEAL : MUTED,
+                border: tab === t.key ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
               }}>
-              <RuneIcon rune={t.rune} size={14} color={tab === t.key ? 'var(--rune-jade)' : 'var(--parchment-shade)'} />
-              <span className="font-codex-display text-[10px]">{t.label}</span>
+              {t.label}
               {t.badge != null && t.badge > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold font-codex-rune"
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
                       style={{
-                        background: tab === t.key ? 'rgba(93,212,200,0.25)' : 'rgba(255,255,255,0.08)',
-                        color: tab === t.key ? 'var(--rune-jade)' : 'var(--parchment-shade)',
+                        background: tab === t.key ? 'rgba(45,212,191,0.2)' : 'rgba(255,255,255,0.08)',
+                        color: tab === t.key ? TEAL : MUTED,
                       }}>
                   {t.badge}
                 </span>
@@ -160,124 +140,117 @@ export default function Friends() {
           ))}
         </div>
 
-        {error && <p className="text-red-400 text-sm text-center mb-4 font-codex-body">{error}</p>}
+        {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
 
-        {/* Friends list */}
+        {/* Friends */}
         {tab === 'friends' && (
-          <div className="space-y-2 codex-reveal codex-reveal-3">
-            {loading ? <Spinner /> : friends.length === 0 ? (
-              <Empty text="Nul compagnon de route pour l'instant — pars à la recherche de voyageurs !" />
-            ) : friends.map(f => (
-              <div key={f.uuid} className="codex-cartouche codex-row flex items-center gap-3 rounded-2xl px-4 py-3">
-                <div className="relative shrink-0">
+          <div className="space-y-2">
+            {loading ? <Spinner color={TEAL} /> : friends.length === 0
+              ? <Empty text="Aucun ami pour l'instant. Utilise la recherche !" />
+              : friends.map(f => (
+                <div key={f.uuid} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
                   <img src={`https://mc-heads.net/avatar/${f.username}/40`} alt={f.username}
-                       className="w-10 h-10 rounded-xl" />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full"
-                       style={{ background: 'var(--rune-jade)', border: '2px solid #080d19' }} />
+                       className="w-10 h-10 rounded-xl shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{f.username}</p>
+                    <p className="text-xs" style={{ color: MUTED }}>
+                      Ami depuis {new Date(f.since).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => openChat(f.uuid)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg transition-all"
+                      style={{ background: 'rgba(45,212,191,0.1)', color: TEAL, border: '1px solid rgba(45,212,191,0.25)' }}>
+                      💬
+                    </button>
+                    <button onClick={() => remove(f.uuid)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg transition-all"
+                      style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+                      ✕
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate font-codex-display" style={{ color: 'var(--ivory)' }}>{f.username}</p>
-                  <p className="text-xs font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>
-                    compagnon depuis {new Date(f.since).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => openChat(f.uuid)}
-                    className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all"
-                    style={{ background: 'rgba(93,212,200,0.12)', color: 'var(--rune-jade)', border: '1px solid rgba(93,212,200,0.3)' }}>
-                    ✉
-                  </button>
-                  <button onClick={() => removeFriend(f.uuid)}
-                    className="text-xs px-2.5 py-1.5 rounded-lg transition-all"
-                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
 
-        {/* Incoming requests */}
+        {/* Incoming */}
         {tab === 'incoming' && (
-          <div className="space-y-2 codex-reveal codex-reveal-3">
-            {loading ? <Spinner /> : incoming.length === 0 ? (
-              <Empty text="Aucun voyageur n'a sollicité ton alliance." />
-            ) : incoming.map(r => (
-              <div key={r.id} className="codex-cartouche codex-row flex items-center gap-3 rounded-2xl px-4 py-3">
-                <img src={`https://mc-heads.net/avatar/${r.username}/40`} alt={r.username}
-                     className="w-10 h-10 rounded-xl shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate font-codex-display" style={{ color: 'var(--ivory)' }}>{r.username}</p>
-                  <p className="text-xs font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>souhaite rejoindre ta confrérie</p>
+          <div className="space-y-2">
+            {loading ? <Spinner color={TEAL} /> : incoming.length === 0
+              ? <Empty text="Aucune demande reçue." />
+              : incoming.map(r => (
+                <div key={r.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
+                  <img src={`https://mc-heads.net/avatar/${r.username}/40`} alt={r.username}
+                       className="w-10 h-10 rounded-xl shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{r.username}</p>
+                    <p className="text-xs" style={{ color: MUTED }}>veut être votre ami</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => accept(r.id)}
+                      className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+                      style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      ✓
+                    </button>
+                    <button onClick={() => decline(r.id)}
+                      className="text-xs px-3 py-1.5 rounded-lg"
+                      style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+                      ✕
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => acceptRequest(r.id)}
-                    className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all font-codex-display"
-                    style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
-                    ✓
-                  </button>
-                  <button onClick={() => declineRequest(r.id)}
-                    className="text-xs px-3 py-1.5 rounded-lg transition-all"
-                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
 
-        {/* Outgoing requests */}
+        {/* Outgoing */}
         {tab === 'outgoing' && (
-          <div className="space-y-2 codex-reveal codex-reveal-3">
-            {loading ? <Spinner /> : outgoing.length === 0 ? (
-              <Empty text="Nulle invitation en attente de réponse." />
-            ) : outgoing.map(r => (
-              <div key={r.id} className="codex-cartouche codex-row flex items-center gap-3 rounded-2xl px-4 py-3">
-                <img src={`https://mc-heads.net/avatar/${r.username}/40`} alt={r.username}
-                     className="w-10 h-10 rounded-xl shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate font-codex-display" style={{ color: 'var(--ivory)' }}>{r.username}</p>
-                  <p className="text-xs font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>invitation en suspens</p>
+          <div className="space-y-2">
+            {loading ? <Spinner color={TEAL} /> : outgoing.length === 0
+              ? <Empty text="Aucune demande envoyée." />
+              : outgoing.map(r => (
+                <div key={r.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
+                  <img src={`https://mc-heads.net/avatar/${r.username}/40`} alt={r.username}
+                       className="w-10 h-10 rounded-xl shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{r.username}</p>
+                    <p className="text-xs" style={{ color: MUTED }}>demande en attente</p>
+                  </div>
+                  <button onClick={() => cancel(r.id)}
+                    className="text-xs px-3 py-1.5 rounded-lg"
+                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    Annuler
+                  </button>
                 </div>
-                <button onClick={() => cancelRequest(r.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg transition-all font-codex-body"
-                  style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  Révoquer
-                </button>
-              </div>
-            ))}
+              ))}
           </div>
         )}
 
         {/* Search */}
         {tab === 'search' && (
-          <div className="space-y-3 codex-reveal codex-reveal-3">
-            <div className="relative">
-              <RuneIcon rune="compass" size={16} color="var(--rune-jade)"
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Chercher un voyageur…"
-                className="w-full rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none font-codex-body"
-                style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(93,212,200,0.25)', color: 'var(--ivory)' }}
-              />
-            </div>
-            {searching && <Spinner />}
+          <div className="space-y-3">
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher un joueur…"
+              className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+              style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(45,212,191,0.2)', color: TEXT }} />
+            {searching && <Spinner color={TEAL} />}
             {!searching && search.trim().length >= 2 && results.length === 0 && (
-              <Empty text="Nul voyageur de ce nom sous les étoiles." />
+              <Empty text="Aucun joueur trouvé." />
             )}
             <div className="space-y-2">
               {results.map(u => (
-                <div key={u.uuid} className="codex-cartouche codex-row flex items-center gap-3 rounded-2xl px-4 py-3">
+                <div key={u.uuid} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
                   <img src={`https://mc-heads.net/avatar/${u.username}/40`} alt={u.username}
                        className="w-10 h-10 rounded-xl shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm truncate font-codex-display" style={{ color: 'var(--ivory)' }}>{u.username}</p>
+                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{u.username}</p>
                   </div>
-                  <RelationBtn relation={u.relation} onAdd={() => sendRequest(u.uuid)} />
+                  <RelationBtn relation={u.relation} onAdd={() => sendRequest(u.uuid)} teal={TEAL} />
                 </div>
               ))}
             </div>
@@ -290,39 +263,31 @@ export default function Friends() {
   )
 }
 
-function RelationBtn({ relation, onAdd }: { relation: string; onAdd: () => void }) {
+function RelationBtn({ relation, onAdd, teal }: { relation: string; onAdd: () => void; teal: string }) {
   if (relation === 'friends')
-    return <span className="text-xs px-2.5 py-1 rounded-lg font-codex-display"
-                 style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>✓ Allié</span>
+    return <span className="text-xs px-2.5 py-1 rounded-lg" style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>✓ Ami</span>
   if (relation === 'request_sent')
-    return <span className="text-xs px-2.5 py-1 rounded-lg font-codex-body"
-                 style={{ color: 'var(--parchment-shade)', border: '1px solid rgba(240,169,59,0.15)' }}>Envoyée</span>
+    return <span className="text-xs px-2.5 py-1 rounded-lg" style={{ color: MUTED, border: `1px solid rgba(255,255,255,0.08)` }}>Envoyée</span>
   if (relation === 'request_received')
-    return <span className="text-xs px-2.5 py-1 rounded-lg font-codex-body"
-                 style={{ color: 'var(--gold)', border: '1px solid rgba(240,169,59,0.3)' }}>Reçue</span>
+    return <span className="text-xs px-2.5 py-1 rounded-lg" style={{ color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>Reçue</span>
   return (
     <button onClick={onAdd}
-      className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all font-codex-display"
-      style={{ background: 'rgba(93,212,200,0.12)', color: 'var(--rune-jade)', border: '1px solid rgba(93,212,200,0.3)' }}>
-      + Inviter
+      className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+      style={{ background: 'rgba(45,212,191,0.1)', color: teal, border: '1px solid rgba(45,212,191,0.25)' }}>
+      + Ajouter
     </button>
   )
 }
 
-function Spinner() {
+function Spinner({ color }: { color: string }) {
   return (
     <div className="flex justify-center py-10">
-      <div className="w-8 h-8 rounded-full border-2 animate-spin"
-           style={{ borderColor: 'rgba(93,212,200,0.2)', borderTopColor: 'var(--rune-jade)' }} />
+      <div className="w-7 h-7 rounded-full border-2 animate-spin"
+           style={{ borderColor: `${color}30`, borderTopColor: color }} />
     </div>
   )
 }
 
 function Empty({ text }: { text: string }) {
-  return (
-    <div className="text-center py-12">
-      <RuneIcon rune="compass" size={32} color="rgba(93,212,200,0.25)" className="mx-auto mb-3" />
-      <p className="text-sm font-codex-lyric italic" style={{ color: 'var(--parchment-shade)' }}>{text}</p>
-    </div>
-  )
+  return <p className="text-center py-10 text-sm" style={{ color: MUTED }}>{text}</p>
 }

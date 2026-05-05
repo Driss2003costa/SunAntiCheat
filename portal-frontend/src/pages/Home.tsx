@@ -3,10 +3,12 @@ import { useNavigate, Link } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type DailyStatus } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
-import CompassRose from '../components/codex/CompassRose'
-import RuneIcon from '../components/codex/RuneIcon'
-import WaxSeal from '../components/codex/WaxSeal'
-import DustParticles from '../components/codex/DustParticles'
+
+const GLASS  = 'rgba(255,255,255,0.05)'
+const BORDER = 'rgba(255,255,255,0.08)'
+const GOLD   = '#fbbf24'
+const TEXT   = '#f1f5f9'
+const MUTED  = '#64748b'
 
 function fmtBalance(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
@@ -22,7 +24,6 @@ export default function Home() {
   useEffect(() => {
     const token = getToken()
     if (!token) { navigate('/login', { replace: true }); return }
-
     Promise.all([
       api.me(token),
       api.dailyStatus(token).catch(() => null),
@@ -44,184 +45,154 @@ export default function Home() {
   }, [navigate])
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center pb-20" style={{ background: '#080d19' }}>
-      <div className="w-10 h-10 rounded-full border-2 animate-spin"
-           style={{ borderColor: 'rgba(240,169,59,0.2)', borderTopColor: '#F0A93B' }} />
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#080d19' }}>
+      <div className="w-8 h-8 rounded-full border-2 animate-spin"
+           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
       <Navbar />
     </div>
   )
   if (!profile) return null
 
   const hour = new Date().getHours()
-  const greeting =
-    hour < 6  ? 'Bonne nuit' :
-    hour < 12 ? 'Bonjour'    :
-    hour < 18 ? 'Bon après-midi' : 'Bonsoir'
+  const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
 
   const quickLinks = [
-    { to: '/inventory', rune: 'star'    as const, label: 'Inventaire', desc: 'Objets & clés',      accent: 'rgba(139,92,246,0.35)' },
-    { to: '/minigames', rune: 'flame'   as const, label: 'Mini-jeux',  desc: 'Arènes disponibles', accent: 'rgba(59,130,246,0.35)'  },
-    { to: '/career',    rune: 'compass' as const, label: 'Carrière',   desc: 'Métiers & XP',       accent: 'rgba(16,185,129,0.35)'  },
-    { to: '/shop',      rune: 'crown'   as const, label: 'Boutique',   desc: 'VIP & avantages',    accent: 'rgba(240,169,59,0.4)'   },
+    { to: '/inventory', emoji: '🎒', label: 'Inventaire', desc: 'Objets & clés',      color: 'rgba(139,92,246,0.6)' },
+    { to: '/minigames', emoji: '🎮', label: 'Mini-jeux',  desc: 'Arènes',             color: 'rgba(59,130,246,0.6)'  },
+    { to: '/career',    emoji: '⚡', label: 'Carrière',   desc: 'Métiers & XP',       color: 'rgba(16,185,129,0.6)'  },
+    { to: '/shop',      emoji: '🛒', label: 'Boutique',   desc: 'VIP & avantages',    color: 'rgba(251,191,36,0.6)'  },
   ]
 
   return (
-    <div className="min-h-screen pb-24 relative" style={{ background: '#080d19' }}>
+    <div className="min-h-screen pb-24" style={{ background: '#080d19' }}>
       <PageAura theme="home" />
 
-      {/* Compass rose watermark */}
-      <CompassRose size={420} opacity={0.04} className="absolute top-[-60px] right-[-80px] pointer-events-none z-0" />
-      <DustParticles />
-
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <div className="relative z-10">
-        <div className="absolute inset-0 pointer-events-none"
-             style={{ background: 'radial-gradient(ellipse 80% 60% at 50% -10%,rgba(240,169,59,0.12),transparent)' }} />
-
-        <div className="relative px-5 pt-12 pb-8 max-w-screen-sm mx-auto">
-          {/* Greeting + avatar */}
-          <div className="flex flex-col items-center text-center mb-8 codex-reveal codex-reveal-1">
-            <div className="relative mb-5">
-              <div className="absolute inset-0 rounded-full blur-2xl pointer-events-none"
-                   style={{ background: 'radial-gradient(circle,rgba(240,169,59,0.35),transparent)', transform: 'scale(1.6)' }} />
-              <div className="absolute inset-0 rounded-2xl pointer-events-none"
-                   style={{ boxShadow: '0 0 0 2px rgba(240,169,59,0.4), 0 0 32px rgba(240,169,59,0.15)', borderRadius: '18px' }} />
-              <img
-                src={`https://mc-heads.net/avatar/${profile.username}/88`}
-                alt={profile.username}
-                className="relative w-[88px] h-[88px] rounded-[18px] object-cover"
-              />
-              <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`}
-                    style={{ borderColor: '#080d19' }} />
-            </div>
-            <p className="text-sm mb-1 font-codex-body" style={{ color: 'var(--ivory-dim)' }}>{greeting},</p>
-            <h1 className="text-3xl font-codex-display font-bold leading-tight" style={{ color: 'var(--ivory)' }}>
-              {profile.username}
-            </h1>
-            <div className="mt-2 w-20 h-px" style={{ background: 'linear-gradient(90deg,transparent,var(--gold),transparent)' }} />
+      {/* Hero */}
+      <div className="relative z-10 px-5 pt-14 pb-6 max-w-screen-sm mx-auto">
+        {/* Avatar */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="relative shrink-0">
+            <div className="absolute inset-0 rounded-2xl"
+                 style={{ boxShadow: '0 0 0 2px rgba(251,191,36,0.3)', borderRadius: 16 }} />
+            <img
+              src={`https://mc-heads.net/avatar/${profile.username}/56`}
+              alt={profile.username}
+              className="w-14 h-14 rounded-2xl object-cover"
+            />
+            <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 ${profile.online ? 'bg-emerald-400' : 'bg-slate-600'}`}
+                  style={{ borderColor: '#080d19' }} />
           </div>
-
-          {/* Stats row — wax seals */}
-          <div className="grid grid-cols-3 gap-3 codex-reveal codex-reveal-2">
-            <SealStat seal="gold"   label="Solde"        value={profile.balance != null ? fmtBalance(profile.balance) : '—'} />
-            <SealStat seal="silver" label="Temps de jeu" value={profile.playtime_formatted ?? '—'} />
-            <SealStat seal="bronze" label="Classement"   value={rank != null ? `#${rank}` : '—'} />
+          <div>
+            <p className="text-xs mb-0.5" style={{ color: MUTED }}>{greeting},</p>
+            <h1 className="text-xl font-bold leading-tight" style={{ color: TEXT }}>{profile.username}</h1>
+            <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(251,191,36,0.12)', color: GOLD, border: '1px solid rgba(251,191,36,0.25)' }}>
+              {profile.role}
+            </span>
           </div>
         </div>
-      </div>
 
-      <div className="px-4 pt-2 space-y-4 max-w-screen-sm mx-auto relative z-10">
-
-        {/* Daily reward */}
-        {daily && daily.config?.enabled && (
-          <Link to="/profile"
-            className="codex-cartouche codex-flare flex items-center gap-4 p-4 rounded-2xl transition-all active:scale-[0.98] codex-reveal codex-reveal-3"
-            style={{ textDecoration: 'none' }}>
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                 style={{ background: 'rgba(240,169,59,0.1)', border: '1px solid rgba(240,169,59,0.3)' }}>
-              <RuneIcon rune="sun" size={22} color="var(--gold)" />
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 mb-6">
+          {[
+            { label: 'Solde',        value: profile.balance != null ? fmtBalance(profile.balance) : '—' },
+            { label: 'Temps de jeu', value: profile.playtime_formatted ?? '—' },
+            { label: 'Classement',   value: rank != null ? `#${rank}` : '—' },
+          ].map(s => (
+            <div key={s.label} className="rounded-xl p-3 text-center"
+                 style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
+              <p className="text-sm font-bold truncate" style={{ color: TEXT }}>{s.value}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: MUTED }}>{s.label}</p>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>Récompense quotidienne</p>
-              <p className="text-xs font-codex-body" style={{ color: 'var(--ivory-dim)', opacity: 0.7 }}>
-                {daily.streak > 0
-                  ? `Série de ${daily.streak} jour${daily.streak > 1 ? 's' : ''}`
-                  : 'Commence ta série !'}
+          ))}
+        </div>
+
+        {/* Daily */}
+        {daily?.config?.enabled && (
+          <Link to="/profile"
+            className="flex items-center gap-3 p-4 rounded-2xl mb-6 transition-all active:scale-[0.98]"
+            style={{ background: daily.canClaim ? 'rgba(251,191,36,0.08)' : GLASS,
+                     border: `1px solid ${daily.canClaim ? 'rgba(251,191,36,0.35)' : BORDER}`,
+                     backdropFilter: 'blur(12px)', textDecoration: 'none' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
+                 style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}>
+              🎁
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: TEXT }}>Récompense quotidienne</p>
+              <p className="text-xs mt-0.5" style={{ color: MUTED }}>
+                {daily.streak > 0 ? `Série de ${daily.streak} jour${daily.streak > 1 ? 's' : ''}` : 'Commence ta série !'}
               </p>
             </div>
             {daily.canClaim
-              ? <span className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full animate-pulse font-codex-display"
-                      style={{ background: 'linear-gradient(135deg,var(--amber),var(--ember))', color: 'var(--ink-deep)' }}>
+              ? <span className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full animate-pulse"
+                      style={{ background: 'linear-gradient(135deg,#f59e0b,#fb923c)', color: '#080d19' }}>
                   Réclamer
                 </span>
-              : <span className="shrink-0 text-green-400 text-sm">✓</span>}
+              : <span className="text-emerald-400 text-sm shrink-0">✓</span>}
           </Link>
         )}
 
-        {/* Quick navigation */}
-        <div className="codex-reveal codex-reveal-3">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3 px-0.5 font-codex-rune"
-             style={{ color: 'var(--parchment-shade)' }}>Sections</p>
-          <div className="grid grid-cols-2 gap-3">
-            {quickLinks.map((q, i) => (
-              <Link key={q.to} to={q.to}
-                className="codex-cartouche codex-flare p-4 rounded-2xl transition-all active:scale-[0.97]"
-                style={{ textDecoration: 'none', borderColor: q.accent }}>
-                <div className="mb-3">
-                  <RuneIcon rune={q.rune} size={24} color={q.accent.replace('0.35', '1').replace('0.4', '1')} />
-                </div>
-                <p className="text-sm font-bold font-codex-display" style={{ color: 'var(--ivory)' }}>{q.label}</p>
-                <p className="text-xs mt-0.5 font-codex-body" style={{ color: 'var(--parchment-shade)' }}>{q.desc}</p>
-              </Link>
+        {/* Quick links */}
+        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: MUTED }}>Navigation</p>
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          {quickLinks.map(q => (
+            <Link key={q.to} to={q.to}
+              className="p-4 rounded-2xl transition-all active:scale-[0.97] group"
+              style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)', textDecoration: 'none' }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 text-lg"
+                   style={{ background: `${q.color.replace('0.6', '0.12')}`, border: `1px solid ${q.color.replace('0.6', '0.25')}` }}>
+                {q.emoji}
+              </div>
+              <p className="text-sm font-semibold" style={{ color: TEXT }}>{q.label}</p>
+              <p className="text-xs mt-0.5" style={{ color: MUTED }}>{q.desc}</p>
+            </Link>
+          ))}
+        </div>
+
+        {/* Account status */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
+          <p className="px-4 py-3 text-xs font-semibold uppercase tracking-widest border-b"
+             style={{ color: MUTED, borderColor: BORDER }}>Statut du compte</p>
+          <div>
+            {[
+              { label: 'Connexion', value: (
+                <span className={`flex items-center gap-1.5 text-xs ${profile.online ? 'text-emerald-400' : ''}`}
+                      style={{ color: profile.online ? '#34d399' : MUTED }}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                  {profile.online ? 'En ligne' : 'Hors ligne'}
+                </span>
+              )},
+              { label: 'Sanctions', value: (profile.active_sanctions?.length ?? 0) > 0
+                ? <span className="text-xs font-semibold text-red-400">{profile.active_sanctions!.length} active(s)</span>
+                : <span className="text-xs text-emerald-400">✓ Aucune</span>
+              },
+            ].map((row, i) => (
+              <div key={i} className="flex items-center justify-between px-4 py-3"
+                   style={{ borderBottom: i === 0 ? `1px solid ${BORDER}` : undefined }}>
+                <span className="text-sm" style={{ color: MUTED }}>{row.label}</span>
+                <div className="text-sm" style={{ color: TEXT }}>{row.value}</div>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* Account status */}
-        <div className="codex-cartouche rounded-2xl overflow-hidden codex-reveal codex-reveal-4">
-          <div className="px-5 py-3.5 flex items-center gap-2"
-               style={{ borderBottom: '1px solid rgba(240,169,59,0.15)' }}>
-            <RuneIcon rune="eye" size={16} color="var(--gold)" />
-            <span className="text-sm font-semibold font-codex-display" style={{ color: 'var(--ivory)' }}>Statut du compte</span>
-          </div>
-          <div>
-            <InfoRow label="Rôle" value={
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full font-codex-rune"
-                    style={{ background: 'rgba(240,169,59,0.12)', border: '1px solid rgba(240,169,59,0.3)', color: 'var(--gold)' }}>
-                {profile.role}
-              </span>
-            } />
-            <InfoRow label="Connexion" value={
-              <span className={`flex items-center gap-1.5 text-xs font-medium`}
-                    style={{ color: profile.online ? '#4ade80' : 'var(--parchment-shade)' }}>
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`} />
-                {profile.online ? 'En ligne' : 'Hors ligne'}
-              </span>
-            } />
-            <InfoRow label="Sanctions" value={
-              (profile.active_sanctions?.length ?? 0) > 0
-                ? <span className="text-xs font-semibold text-red-400">{profile.active_sanctions!.length} active(s)</span>
-                : <span className="text-xs text-green-400 font-medium">✓ Aucune</span>
-            } />
-          </div>
-        </div>
-
-        {/* Nav links */}
-        <div className="flex gap-2 pb-2 codex-reveal codex-reveal-5">
+        {/* Footer links */}
+        <div className="flex gap-2 mt-4">
           <Link to="/leaderboard"
-            className="codex-cartouche flex-1 text-center text-xs py-3 rounded-xl transition-colors codex-underline font-codex-body"
-            style={{ textDecoration: 'none', color: 'var(--parchment-shade)' }}>
-            ⚔ Classement
+            className="flex-1 text-center text-xs py-2.5 rounded-xl transition-colors"
+            style={{ background: GLASS, border: `1px solid ${BORDER}`, color: MUTED, textDecoration: 'none' }}>
+            🏆 Classement
           </Link>
           <Link to="/profile"
-            className="codex-cartouche flex-1 text-center text-xs py-3 rounded-xl transition-colors codex-underline font-codex-body"
-            style={{ textDecoration: 'none', color: 'var(--parchment-shade)' }}>
-            ✦ Mon profil
+            className="flex-1 text-center text-xs py-2.5 rounded-xl transition-colors"
+            style={{ background: GLASS, border: `1px solid ${BORDER}`, color: MUTED, textDecoration: 'none' }}>
+            👤 Mon profil
           </Link>
         </div>
       </div>
 
       <Navbar />
-    </div>
-  )
-}
-
-function SealStat({ seal, label, value }: { seal: 'gold' | 'silver' | 'bronze'; label: string; value: string }) {
-  return (
-    <div className="codex-cartouche rounded-xl p-3 text-center">
-      <WaxSeal color={seal} label={value.length > 6 ? '?' : value} size={40} className="mx-auto mb-2" />
-      <p className="text-[10px] leading-none font-codex-rune" style={{ color: 'var(--parchment-shade)' }}>{label}</p>
-      <p className="text-xs font-black mt-1 leading-none truncate font-codex-display" style={{ color: 'var(--gold-soft)' }}>{value}</p>
-    </div>
-  )
-}
-
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="codex-row flex items-center justify-between px-5 py-3 gap-4"
-         style={{ borderBottom: '1px solid rgba(240,169,59,0.06)' }}>
-      <span className="text-sm shrink-0 font-codex-body" style={{ color: 'var(--parchment-shade)' }}>{label}</span>
-      <div className="text-sm text-right font-codex-body" style={{ color: 'var(--ivory)' }}>{value}</div>
     </div>
   )
 }
