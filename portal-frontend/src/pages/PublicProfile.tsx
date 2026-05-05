@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import SunSky from '../components/SunSky'
-
-const BG     = '#080d19'
-const CARD   = 'rgba(15,22,40,0.85)'
-const BORDER = 'rgba(251,191,36,0.12)'
-const GOLD   = '#fbbf24'
-const TEXT   = '#f1f5f9'
-const MUTED  = '#64748b'
+import CodexSky from '../components/codex/CodexSky'
+import Cartouche from '../components/codex/Cartouche'
+import WaxSeal from '../components/codex/WaxSeal'
+import Flourish from '../components/codex/Flourish'
+import RuneIcon from '../components/codex/RuneIcon'
+import CompassRose from '../components/codex/CompassRose'
+import DustParticles from '../components/codex/DustParticles'
+import { toRoman } from '../components/codex/RomanNumeral'
 
 type LpGroup = { name: string; display: string; color: string | null }
 type Vip = { active: boolean; plan?: string; expires_at?: number }
@@ -35,44 +35,42 @@ type Profile = {
   trophies?: Trophy[]
 }
 
-function roleBadge(role: string) {
-  const map: Record<string, { bg: string; color: string; border: string }> = {
-    PLAYER:    { bg: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: 'rgba(255,255,255,0.12)' },
-    VIP:       { bg: 'rgba(251,191,36,0.15)',  color: GOLD,      border: 'rgba(251,191,36,0.35)' },
-    MODERATOR: { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa', border: 'rgba(59,130,246,0.35)' },
-    ADMIN:     { bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: 'rgba(239,68,68,0.35)' },
-  }
-  return map[role] ?? map.PLAYER
+const RARITY = {
+  common:    { label: 'COMMUN',     seal: 'bronze' as const, color: '#E2A87B' },
+  rare:      { label: 'RARE',       seal: 'silver' as const, color: '#A2C4E5' },
+  epic:      { label: 'ÉPIQUE',     seal: 'jade'   as const, color: '#C9A2EE' },
+  legendary: { label: 'LÉGENDAIRE', seal: 'gold'   as const, color: '#F0A93B' },
 }
 
-function rarityStyle(r: Trophy['rarity']) {
-  return {
-    common:    { border: 'rgba(255,255,255,0.12)', bg: 'rgba(255,255,255,0.04)', color: '#e2e8f0' },
-    rare:      { border: 'rgba(96,165,250,0.4)',   bg: 'rgba(59,130,246,0.08)',  color: '#bfdbfe' },
-    epic:      { border: 'rgba(192,132,252,0.4)',  bg: 'rgba(139,92,246,0.08)',  color: '#e9d5ff' },
-    legendary: { border: 'rgba(251,191,36,0.5)',   bg: 'rgba(251,191,36,0.12)', color: '#fde68a' },
-  }[r]
-}
-
-function lastSeenLabel(ts: number | null | undefined, online: boolean): string {
-  if (online) return 'En ligne maintenant'
-  if (!ts) return 'Jamais vu'
+function poeticLastSeen(ts: number | null | undefined, online: boolean): string {
+  if (online) return 'présent à l\'instant même'
+  if (!ts) return 'jamais aperçu'
   const diff = Date.now() - ts
   const m = Math.floor(diff / 60_000)
-  if (m < 2) return 'Vu à l\'instant'
-  if (m < 60) return `Vu il y a ${m} min`
+  if (m < 2)    return 'aperçu à l\'instant'
+  if (m < 60)   return `aperçu il y a ${m} minutes`
   const h = Math.floor(m / 60)
-  if (h < 24) return `Vu il y a ${h}h`
+  if (h < 24)   return h === 1 ? 'aperçu il y a une heure' : `aperçu il y a ${h} heures`
   const d = Math.floor(h / 24)
-  if (d < 30) return `Vu il y a ${d}j`
+  if (d < 30)   return d === 1 ? 'aperçu hier' : `aperçu il y a ${d} jours`
   const mo = Math.floor(d / 30)
-  if (mo < 12) return `Vu il y a ${mo} mois`
-  return `Vu il y a ${Math.floor(mo / 12)} an(s)`
+  if (mo < 12)  return mo === 1 ? 'aperçu il y a une lune' : `aperçu il y a ${mo} lunes`
+  const y = Math.floor(mo / 12)
+  return y === 1 ? 'aperçu il y a une année' : `aperçu il y a ${y} années`
 }
 
-function fmtDate(ts: number | null | undefined) {
+function poeticDate(ts: number | null | undefined) {
   if (!ts) return '—'
-  return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+  const d = new Date(ts)
+  const month = d.toLocaleDateString('fr-FR', { month: 'long' })
+  return `le ${d.getDate()} du mois de ${month}, an ${d.getFullYear()}`
+}
+
+const ROLE_SEAL: Record<string, { color: 'red' | 'gold' | 'silver' | 'bronze' | 'jade'; label: string }> = {
+  PLAYER:    { color: 'bronze', label: 'V' },  // Voyageur
+  VIP:       { color: 'gold',   label: '✦' },
+  MODERATOR: { color: 'jade',   label: 'M' },
+  ADMIN:     { color: 'red',    label: 'A' },
 }
 
 export default function PublicProfile() {
@@ -84,6 +82,7 @@ export default function PublicProfile() {
 
   useEffect(() => {
     if (!username) return
+    setLoading(true); setError('')
     fetch(`/api/public/profile/${encodeURIComponent(username)}`)
       .then(async res => {
         const data = await res.json()
@@ -100,227 +99,392 @@ export default function PublicProfile() {
     })
   }
 
+  // Détermine le ciel selon le rang
+  const skyTime = profile && profile.playtime_rank && profile.playtime_rank <= 10
+    ? 'triumph' as const
+    : 'dawn' as const
+
   return (
-    <SunSky variant="noon" twist={{ fogIntensity: 'light' }}>
-      <div className="min-h-screen relative pb-10">
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+    <CodexSky time={skyTime}>
+      <DustParticles count={profile && profile.online ? 12 : 8} />
 
-        {/* Top bar */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">☀️</span>
-            <span className="text-sm font-bold" style={{ color: TEXT }}>SunAntiCheat</span>
-          </div>
-          <div className="flex items-center gap-3 text-xs" style={{ color: MUTED }}>
-            <Link to="/leaderboard" className="hover:text-white transition-colors">Classement</Link>
-            <span style={{ color: '#1e293b' }}>·</span>
-            <Link to="/login" className="hover:text-white transition-colors">Connexion</Link>
-          </div>
-        </div>
+      {/* Compas filigrane */}
+      <CompassRose
+        size={460}
+        opacity={0.04}
+        className="absolute top-[30%] right-[-100px] pointer-events-none hidden md:block"
+      />
 
-        {loading && (
-          <div className="flex justify-center py-20">
-            <div className="w-8 h-8 rounded-full border-2 animate-spin"
-                 style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
-          </div>
-        )}
+      <div className="relative z-10 min-h-screen pb-16">
 
-        {error && (
-          <div className="rounded-3xl p-10 text-center space-y-3 backdrop-blur-sm"
-               style={{ background: CARD, border: `1px solid rgba(239,68,68,0.2)` }}>
-            <p className="text-5xl">🔍</p>
-            <p className="text-2xl font-black" style={{ color: TEXT }}>Profil introuvable</p>
-            <p className="text-sm" style={{ color: MUTED }}>{error}</p>
-            <Link to="/" className="inline-block text-sm font-medium mt-2 underline-offset-4 hover:underline"
-                  style={{ color: GOLD }}>
-              Créer un compte →
+        {/* ── Top bar ─── */}
+        <header className="px-5 py-6 flex items-center justify-between max-w-5xl mx-auto codex-reveal codex-reveal-1">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <RuneIcon rune="sun" size={22} color="#F0A93B" />
+            <span className="font-codex-display text-sm tracking-[0.3em] text-amber-100/90 group-hover:text-amber-100 transition-colors">
+              SUNGUARD
+            </span>
+          </Link>
+          <nav className="flex items-center gap-5 text-xs font-codex-lyric tracking-wider">
+            <Link to="/leaderboard" className="codex-underline text-amber-100/70 hover:text-amber-100">
+              Panthéon
             </Link>
-          </div>
-        )}
+            <span className="text-amber-100/30">◈</span>
+            <Link to="/login" className="codex-underline text-amber-100/70 hover:text-amber-100">
+              Connexion
+            </Link>
+          </nav>
+        </header>
 
-        {profile && (
-          <>
-            {/* ── Hero card ──────────────────────────────────────────────────── */}
-            <div className="rounded-3xl overflow-hidden backdrop-blur-sm"
-                 style={{ background: CARD, border: `1px solid rgba(251,191,36,0.2)` }}>
-              <div className="relative px-7 pt-7 pb-5">
-                {/* Sun halo behind avatar */}
-                <div className="absolute top-4 left-4 w-40 h-40 rounded-full blur-3xl pointer-events-none"
-                     style={{ background: 'radial-gradient(circle,rgba(251,191,36,0.12),transparent)' }} />
+        <main className="max-w-5xl mx-auto px-5 pt-4">
 
-                <div className="flex items-end gap-5 relative">
-                  {/* Body skin */}
-                  <div className="relative shrink-0">
-                    <img
-                      src={`https://mc-heads.net/body/${profile.username}/130`}
-                      alt={profile.username}
-                      className="h-32 w-auto object-contain"
-                      style={{ filter: 'drop-shadow(0 8px 24px rgba(251,191,36,0.1))' }}
-                      onError={e => {
-                        const img = e.target as HTMLImageElement
-                        img.src = `https://mc-heads.net/avatar/${profile.username}/72`
-                        img.className = 'w-20 h-20 rounded-2xl'
-                        img.style.cssText = `border: 2px solid rgba(251,191,36,0.3)`
-                      }}
-                    />
-                    <span className={`absolute bottom-1 right-0 w-3.5 h-3.5 rounded-full border-2 ${profile.online ? 'bg-green-400' : 'bg-gray-600'}`}
-                          style={{ borderColor: '#0f1628' }} />
+          {/* ── Loading ─── */}
+          {loading && (
+            <div className="flex flex-col items-center gap-4 py-32 codex-reveal">
+              <div className="w-14 h-14 rounded-full border-2 border-amber-200/20 border-t-amber-300 animate-spin" />
+              <p className="font-codex-lyric italic text-amber-100/60">
+                Le scribe ouvre le grimoire...
+              </p>
+            </div>
+          )}
+
+          {/* ── Error ─── */}
+          {error && (
+            <Cartouche tone="night" className="px-10 py-14 text-center max-w-md mx-auto codex-reveal mt-12">
+              <RuneIcon rune="eye" size={42} color="#C84329" className="mx-auto mb-3" />
+              <p className="font-codex-display text-2xl text-amber-100 tracking-wider mb-2">PROFIL INTROUVABLE</p>
+              <p className="font-codex-lyric italic text-amber-100/60 mb-5">{error}</p>
+              <Link to="/"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 border font-codex-display text-xs tracking-[0.2em] text-amber-200 hover:text-amber-100 transition-colors"
+                    style={{ borderColor: 'rgba(240,169,59,0.4)' }}>
+                <span>◈</span> CRÉER UN COMPTE
+              </Link>
+            </Cartouche>
+          )}
+
+          {profile && (
+            <>
+              {/* ── Page double codex ─── */}
+              <article className="codex-reveal codex-reveal-2"
+                       style={{ animation: 'codexUnfold 1.2s cubic-bezier(.16,.84,.44,1) both, codexFadeIn 0.9s ease-out both', perspective: '1200px' }}>
+
+                <Cartouche tone="night" className="overflow-hidden">
+
+                  {/* Tranche centrale verticale */}
+                  <div className="absolute left-1/2 top-6 bottom-6 w-px hidden md:block pointer-events-none -translate-x-1/2"
+                       style={{ background: 'linear-gradient(180deg, transparent, rgba(240,169,59,0.3), transparent)' }} />
+
+                  <div className="grid md:grid-cols-2 gap-6 md:gap-0 p-6 sm:p-8 md:p-10">
+
+                    {/* ─── Page de gauche : identité ─── */}
+                    <div className="md:pr-8 space-y-5">
+
+                      {/* Devise héraldique */}
+                      {profile.bio && (
+                        <p className="font-codex-lyric italic text-base sm:text-lg leading-relaxed text-amber-100/80 text-center md:text-left"
+                           style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                          « {profile.bio} »
+                        </p>
+                      )}
+                      {!profile.bio && (
+                        <p className="font-codex-lyric italic text-amber-100/40 text-center md:text-left text-sm">
+                          « Sans devise gravée »
+                        </p>
+                      )}
+
+                      <Flourish variant="simple" width={160} className="mx-auto md:mx-0" />
+
+                      {/* Avatar Minecraft */}
+                      <div className="flex flex-col items-center md:items-start gap-3 relative">
+                        {/* Halo derrière */}
+                        <div className="absolute -top-4 left-1/2 md:left-12 -translate-x-1/2 w-44 h-44 rounded-full pointer-events-none"
+                             style={{
+                               background: 'radial-gradient(circle, rgba(240,169,59,0.18), transparent 70%)',
+                               filter: 'blur(24px)',
+                               animation: profile.online ? 'codexHaloPulse 4s ease-in-out infinite' : 'none',
+                             }} />
+
+                        {/* État online/offline en haut-droite */}
+                        <div className="absolute top-0 right-0 flex items-center gap-1.5">
+                          {profile.online ? (
+                            <>
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-300"
+                                    style={{ boxShadow: '0 0 12px rgba(240,169,59,0.8)',
+                                             animation: 'codexShimmer 2s ease-in-out infinite' }} />
+                              <span className="font-codex-rune text-[9px] tracking-[0.3em] text-amber-200/80">VEILLE</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+                              <span className="font-codex-rune text-[9px] tracking-[0.3em] text-amber-100/40">SOMMEIL</span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Avatar dans cartouche */}
+                        <div className="relative p-2"
+                             style={{
+                               border: '1px solid rgba(240,169,59,0.35)',
+                               background: 'linear-gradient(180deg, rgba(244,228,193,0.06), rgba(184,92,14,0.04))',
+                             }}>
+                          <span className="absolute -top-1 -left-1 w-2 h-2 border-l border-t border-amber-300/60" />
+                          <span className="absolute -top-1 -right-1 w-2 h-2 border-r border-t border-amber-300/60" />
+                          <span className="absolute -bottom-1 -left-1 w-2 h-2 border-l border-b border-amber-300/60" />
+                          <span className="absolute -bottom-1 -right-1 w-2 h-2 border-r border-b border-amber-300/60" />
+                          <img
+                            src={`https://mc-heads.net/body/${profile.username}/200`}
+                            alt={profile.username}
+                            className="h-40 w-auto"
+                            style={{
+                              imageRendering: 'pixelated',
+                              filter: 'drop-shadow(0 8px 24px rgba(240,169,59,0.2))',
+                            }}
+                            onError={e => {
+                              const img = e.target as HTMLImageElement
+                              img.src = `https://mc-heads.net/avatar/${profile.username}/144`
+                              img.className = 'w-32 h-32'
+                            }}
+                          />
+                        </div>
+
+                        {/* Pseudo */}
+                        <h1 className="font-codex-display text-3xl sm:text-5xl font-bold leading-none mt-2"
+                            style={{
+                              color: '#FBE9C2',
+                              textShadow: '0 4px 24px rgba(240,169,59,0.4), 0 1px 0 rgba(248,210,103,0.5)',
+                              letterSpacing: '0.04em',
+                              wordBreak: 'break-word',
+                            }}>
+                          {profile.username}
+                        </h1>
+
+                        {/* Sceaux : rang + VIP + LP */}
+                        <div className="flex flex-wrap items-center gap-3 mt-1">
+                          {(() => {
+                            const rs = ROLE_SEAL[profile.role] ?? ROLE_SEAL.PLAYER
+                            return <WaxSeal color={rs.color} label={rs.label} size={36} />
+                          })()}
+                          <div>
+                            <p className="font-codex-display text-xs tracking-[0.25em] text-amber-100">
+                              {profile.role}
+                            </p>
+                            {profile.lp_group && profile.lp_group.name !== 'default' && (
+                              <p className="font-codex-lyric italic text-xs"
+                                 style={{ color: profile.lp_group.color || '#FBE9C2' }}>
+                                {profile.lp_group.display}
+                              </p>
+                            )}
+                          </div>
+
+                          {profile.vip?.active && (
+                            <>
+                              <span className="text-amber-100/30">◈</span>
+                              <div className="flex items-center gap-2">
+                                <WaxSeal color="gold" label="✦" size={32} />
+                                <span className="font-codex-display text-xs tracking-[0.25em] text-amber-100">
+                                  {profile.vip.plan ?? 'VIP'}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Statut temporel */}
+                        <p className="font-codex-lyric italic text-sm text-amber-100/70 mt-2">
+                          {poeticLastSeen(profile.last_seen, profile.online)}
+                        </p>
+
+                        {/* Date d'arrivée */}
+                        <p className="font-codex-body italic text-xs text-amber-100/50 mt-1">
+                          Arrivé au royaume {poeticDate(profile.created_at)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* ─── Page de droite : faits d'armes ─── */}
+                    <div className="md:pl-8 space-y-6 md:border-l-0 md:relative">
+
+                      <SectionHeading rune="flame" label="FAITS D'ARMES" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <StatBlock
+                          icon={<RuneIcon rune="compass" size={20} color="#F0A93B" />}
+                          value={profile.playtime_formatted ?? '—'}
+                          label="errance"
+                        />
+                        <StatBlock
+                          icon={<RuneIcon rune="crown" size={20} color="#F0A93B" />}
+                          value={profile.playtime_rank ? `№ ${toRoman(profile.playtime_rank)}` : '—'}
+                          label="au panthéon"
+                        />
+                        <StatBlock
+                          icon={<RuneIcon rune="flame" size={20} color="#F0A93B" />}
+                          value={profile.daily_streak != null ? String(profile.daily_streak) : '—'}
+                          label="aubes consécutives"
+                        />
+                        <StatBlock
+                          icon={<RuneIcon rune="star" size={20} color="#F0A93B" />}
+                          value={profile.quests ? String(profile.quests.completed_count) : '—'}
+                          label="quêtes scellées"
+                        />
+                      </div>
+
+                      {/* Quêtes en cours */}
+                      {(profile.quests?.active?.length ?? 0) > 0 && (
+                        <div>
+                          <SectionHeading rune="feather" label="QUÊTES EN COURS" />
+                          <div className="space-y-3">
+                            {profile.quests!.active.map(q => {
+                              const pct = Math.min(100, Math.round((q.progress / Math.max(1, q.goal)) * 100))
+                              return (
+                                <div key={q.questId}>
+                                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <span className="flex items-center gap-2 min-w-0">
+                                      <span className="text-base shrink-0">{q.icon}</span>
+                                      <span className="font-codex-body text-sm text-amber-50 truncate">{q.title}</span>
+                                    </span>
+                                    <span className="font-codex-rune text-[10px] text-amber-200/60 shrink-0">
+                                      {q.progress}/{q.goal}
+                                    </span>
+                                  </div>
+                                  <div className="h-1 overflow-hidden"
+                                       style={{ background: 'rgba(240,169,59,0.08)' }}>
+                                    <div className="h-full transition-all"
+                                         style={{
+                                           width: `${pct}%`,
+                                           background: `linear-gradient(90deg, ${q.color}80, ${q.color})`,
+                                           boxShadow: `0 0 8px ${q.color}60`,
+                                         }} />
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Trophées */}
+                      {(profile.trophies?.length ?? 0) > 0 && (
+                        <div>
+                          <SectionHeading rune="star" label="SCEAUX OBTENUS" />
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                            {profile.trophies!.map(t => {
+                              const r = RARITY[t.rarity]
+                              return (
+                                <div key={t.id} title={`${t.name} — ${r.label}`}
+                                     className="codex-flare relative aspect-square flex flex-col items-center justify-center gap-1 p-2 group cursor-default"
+                                     style={{
+                                       background: 'linear-gradient(180deg, rgba(244,228,193,0.05), rgba(184,92,14,0.03))',
+                                       border: `1px solid ${r.color}50`,
+                                       transform: `rotate(${(t.id.charCodeAt(0) % 5) - 2}deg)`,
+                                       transition: 'transform 0.3s ease',
+                                     }}
+                                     onMouseEnter={e => e.currentTarget.style.transform = 'rotate(0) scale(1.06)'}
+                                     onMouseLeave={e => e.currentTarget.style.transform = `rotate(${(t.id.charCodeAt(0) % 5) - 2}deg)`}>
+                                  <div className="text-2xl"
+                                       style={{ filter: `drop-shadow(0 2px 4px ${r.color}60)` }}>
+                                    {t.icon}
+                                  </div>
+                                  <p className="font-codex-rune text-[8px] tracking-[0.15em] text-center"
+                                     style={{ color: r.color }}>
+                                    {r.label}
+                                  </p>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
+                </Cartouche>
+              </article>
 
-                  {/* Identity */}
-                  <div className="flex-1 min-w-0 pb-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <h2 className="text-3xl font-black leading-none" style={{ color: TEXT }}>{profile.username}</h2>
-                      {profile.vip?.active && (
-                        <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold"
-                              style={{ background: 'rgba(251,191,36,0.2)', color: GOLD, border: `1px solid rgba(251,191,36,0.4)` }}>
-                          {profile.vip.plan ?? 'VIP'}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5 mb-2.5">
-                      {(() => { const rb = roleBadge(profile.role); return (
-                        <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-medium border"
-                              style={{ background: rb.bg, color: rb.color, borderColor: rb.border }}>
-                          {profile.role}
-                        </span>
-                      )})()}
-                      {profile.lp_group && profile.lp_group.name !== 'default' && (
-                        <span
-                          className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full font-medium border"
-                          style={{
-                            color: profile.lp_group.color ?? undefined,
-                            borderColor: profile.lp_group.color ? `${profile.lp_group.color}55` : undefined,
-                            backgroundColor: profile.lp_group.color ? `${profile.lp_group.color}15` : undefined,
-                          }}
-                        >
-                          {profile.lp_group.display}
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-xs" style={{ color: profile.online ? '#4ade80' : MUTED }}>
-                      {lastSeenLabel(profile.last_seen, profile.online)}
+              {/* ── Sanctions ─── */}
+              {(profile.active_sanctions?.length ?? 0) > 0 && (
+                <Cartouche tone="night" className="mt-6 px-7 py-6 codex-reveal codex-reveal-3"
+                           style={{ borderColor: 'rgba(140,42,31,0.5)' }}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <WaxSeal color="red" label="!" size={36} />
+                    <p className="font-codex-display text-sm tracking-[0.25em] text-red-200">
+                      JUGEMENTS RENDUS
                     </p>
                   </div>
-                </div>
-
-                {/* Bio */}
-                {profile.bio && (
-                  <p className="mt-4 text-sm italic leading-relaxed" style={{ color: '#cbd5e1' }}>
-                    « {profile.bio} »
-                  </p>
-                )}
-              </div>
-
-              {/* Stats row */}
-              <div className="grid grid-cols-4 border-t" style={{ borderColor: BORDER }}>
-                <StatCell icon="⏱️" value={profile.playtime_formatted ?? '—'}                                  label="Temps de jeu" />
-                <StatCell icon="📊" value={profile.playtime_rank ? `#${profile.playtime_rank}` : '—'}          label="Classement"   />
-                <StatCell icon="🔥" value={profile.daily_streak != null ? String(profile.daily_streak) : '—'}  label="Série"        />
-                <StatCell icon="✦"  value={profile.quests ? String(profile.quests.completed_count) : '—'}      label="Quêtes"       />
-              </div>
-            </div>
-
-            {/* Active quests */}
-            {(profile.quests?.active?.length ?? 0) > 0 && (
-              <div className="rounded-3xl p-6 space-y-3 backdrop-blur-sm"
-                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: MUTED }}>
-                  Quêtes en cours
-                </p>
-                {profile.quests!.active.map(q => {
-                  const pct = Math.min(100, Math.round((q.progress / Math.max(1, q.goal)) * 100))
-                  return (
-                    <div key={q.questId} className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm flex items-center gap-1.5" style={{ color: TEXT }}>
-                          <span>{q.icon}</span>
-                          <span className="truncate">{q.title}</span>
+                  <div className="space-y-2.5">
+                    {profile.active_sanctions!.map((s, i) => (
+                      <div key={i} className="flex items-start gap-3 pl-2">
+                        <span className="font-codex-rune text-[10px] tracking-[0.2em] px-2 py-1 shrink-0"
+                              style={{
+                                background: 'rgba(140,42,31,0.25)',
+                                color: '#FCA5A5',
+                                border: '1px solid rgba(200,67,41,0.4)',
+                              }}>
+                          {s.type}
                         </span>
-                        <span className="text-xs shrink-0 font-mono" style={{ color: MUTED }}>{q.progress}/{q.goal}</span>
+                        <span className="font-codex-body italic text-sm text-amber-100/80 pt-1">
+                          {s.reason || 'Raison non gravée'}
+                        </span>
                       </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: q.color }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    ))}
+                  </div>
+                </Cartouche>
+              )}
 
-            {/* Trophies */}
-            {(profile.trophies?.length ?? 0) > 0 && (
-              <div className="rounded-3xl p-6 space-y-3 backdrop-blur-sm"
-                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: MUTED }}>Trophées</p>
-                <div className="flex flex-wrap gap-2">
-                  {profile.trophies!.map(t => {
-                    const rs = rarityStyle(t.rarity)
-                    return (
-                      <div key={t.id} title={t.name}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium"
-                        style={{ background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color }}>
-                        <span>{t.icon}</span>
-                        <span>{t.name}</span>
-                      </div>
-                    )
-                  })}
+              {/* ── Footer ─── */}
+              <div className="mt-8 codex-reveal codex-reveal-4">
+                <Flourish variant="double" width={220} />
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 mt-4">
+                  <p className="font-codex-lyric italic text-xs text-amber-100/40">
+                    Page consultée à l'heure du voyageur
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <button onClick={copyLink}
+                            className="codex-underline font-codex-display text-xs tracking-[0.25em] text-amber-200 hover:text-amber-100 transition-colors">
+                      {copied ? '✓ COPIÉ' : '◈ PARTAGER'}
+                    </button>
+                    <span className="text-amber-100/30">·</span>
+                    <Link to="/" className="codex-underline font-codex-display text-xs tracking-[0.25em] text-amber-200 hover:text-amber-100">
+                      ◈ INSCRIPTION
+                    </Link>
+                  </div>
                 </div>
               </div>
-            )}
-
-            {/* Sanctions */}
-            {(profile.active_sanctions?.length ?? 0) > 0 && (
-              <div className="rounded-3xl p-6 space-y-2 backdrop-blur-sm"
-                   style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red-300">Sanctions actives</p>
-                {profile.active_sanctions!.map((s, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded shrink-0"
-                          style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.4)' }}>
-                      {s.type}
-                    </span>
-                    <span className="text-sm" style={{ color: '#e2e8f0' }}>{s.reason || 'Non précisé'}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-2 px-2">
-              <p className="text-[11px] italic" style={{ color: MUTED }}>
-                Membre depuis {fmtDate(profile.created_at)}
-              </p>
-              <div className="flex items-center gap-3">
-                <button onClick={copyLink}
-                  className="text-xs transition-colors flex items-center gap-1"
-                  style={{ color: GOLD }}>
-                  {copied ? '✓ Copié' : '🔗 Partager'}
-                </button>
-                <span style={{ color: '#1e293b' }}>·</span>
-                <Link to="/" className="text-xs transition-colors hover:text-white"
-                      style={{ color: MUTED }}>
-                  Inscription
-                </Link>
-              </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </main>
       </div>
-      </div>
-    </SunSky>
+    </CodexSky>
   )
 }
 
-function StatCell({ icon, value, label }: { icon: string; value: string; label: string }) {
+function SectionHeading({ rune, label }: { rune: 'flame' | 'feather' | 'star' | 'compass'; label: string }) {
   return (
-    <div className="flex flex-col items-center py-4 px-2 gap-0.5"
-         style={{ borderRight: `1px solid rgba(251,191,36,0.08)` }}>
-      <span className="text-base">{icon}</span>
-      <span className="text-base font-black leading-none" style={{ color: '#f1f5f9' }}>{value}</span>
-      <span className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: '#64748b' }}>{label}</span>
+    <div className="flex items-center gap-2.5 mb-3">
+      <RuneIcon rune={rune} size={14} color="#F0A93B" />
+      <p className="font-codex-display text-xs tracking-[0.3em] text-amber-200/80">
+        {label}
+      </p>
+      <div className="flex-1 h-px"
+           style={{ background: 'linear-gradient(90deg, rgba(240,169,59,0.4), transparent)' }} />
+    </div>
+  )
+}
+
+function StatBlock({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+  return (
+    <div className="relative p-3.5 group"
+         style={{
+           background: 'linear-gradient(180deg, rgba(244,228,193,0.04), transparent)',
+           border: '1px solid rgba(240,169,59,0.15)',
+         }}>
+      <div className="flex items-center gap-2 mb-1.5 opacity-70">
+        {icon}
+      </div>
+      <p className="font-codex-display text-lg sm:text-xl text-amber-50 leading-none tracking-wider">
+        {value}
+      </p>
+      <p className="font-codex-lyric italic text-[10px] text-amber-100/55 mt-1">
+        {label}
+      </p>
     </div>
   )
 }

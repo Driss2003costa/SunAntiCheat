@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import SunSky from '../components/SunSky'
-
-const BG     = '#080d19'
-const CARD   = 'rgba(15,22,40,0.85)'
-const BORDER = 'rgba(251,191,36,0.12)'
-const GOLD   = '#fbbf24'
-const TEXT   = '#f1f5f9'
-const MUTED  = '#64748b'
+import CodexSky from '../components/codex/CodexSky'
+import Cartouche from '../components/codex/Cartouche'
+import WaxSeal from '../components/codex/WaxSeal'
+import Flourish from '../components/codex/Flourish'
+import RuneIcon from '../components/codex/RuneIcon'
+import CompassRose from '../components/codex/CompassRose'
+import DustParticles from '../components/codex/DustParticles'
+import RomanNumeral, { toRoman } from '../components/codex/RomanNumeral'
 
 type LeaderboardEntry = {
   rank: number
@@ -22,10 +22,6 @@ type LeaderboardData = {
   playtime: LeaderboardEntry[]
   economy: LeaderboardEntry[]
   updatedAt: number
-}
-
-function fmtBalance(n: number) {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' $'
 }
 
 export default function Leaderboard() {
@@ -45,165 +41,319 @@ export default function Leaderboard() {
   }, [])
 
   return (
-    <SunSky variant="noon" twist={{ cloudLayer: true, mountainMood: 'snowy' }}>
-      <div className="min-h-screen pb-10 relative">
-      <div className="max-w-2xl mx-auto px-4 py-10 space-y-5">
+    <CodexSky time="noon">
+      <DustParticles count={10} />
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">☀️</span>
-            <span className="text-base font-bold" style={{ color: TEXT }}>SunAntiCheat</span>
-          </div>
-          <div className="flex items-center gap-3 text-xs" style={{ color: MUTED }}>
-            <Link to="/login" className="hover:text-white transition-colors" style={{ color: MUTED }}>Connexion</Link>
-            <span style={{ color: '#1e293b' }}>·</span>
-            <Link to="/" className="hover:text-white transition-colors" style={{ color: MUTED }}>Inscription</Link>
-          </div>
-        </div>
+      {/* Compas filigrane en fond */}
+      <CompassRose
+        size={520}
+        opacity={0.05}
+        className="absolute top-[20%] left-1/2 -translate-x-1/2 pointer-events-none hidden md:block"
+      />
 
-        {/* Title */}
-        <div className="rounded-3xl px-7 py-7 text-center backdrop-blur-sm"
-             style={{ background: CARD, border: `1px solid rgba(251,191,36,0.2)` }}>
-          <p className="text-[11px] uppercase tracking-[0.25em] mb-3 font-medium" style={{ color: MUTED }}>
-            Le grand registre
-          </p>
-          <h1 className="text-4xl sm:text-5xl font-black leading-none" style={{ color: TEXT }}>Classement</h1>
-          <p className="text-sm mt-3 max-w-md mx-auto" style={{ color: MUTED }}>
-            Les âmes les plus dévouées du serveur, classées par leur temps d'aventure.
-          </p>
-        </div>
+      {/* Oiseau qui passe */}
+      <svg
+        className="absolute pointer-events-none"
+        style={{
+          top: '12%', left: 0,
+          width: 32, height: 24,
+          opacity: 0.45,
+          animation: 'codexBirdFly 38s linear infinite',
+          animationDelay: '4s',
+        }}
+        viewBox="0 0 32 24" fill="none" stroke="#FBE9C2" strokeWidth="1.4"
+        strokeLinecap="round" strokeLinejoin="round"
+      >
+        <path d="M 2 14 Q 8 4, 14 14 Q 20 4, 30 14" />
+      </svg>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 rounded-full border-2 animate-spin"
-                 style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
-          </div>
-        )}
+      <div className="relative z-10 min-h-screen pb-20">
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-3xl p-8 text-center backdrop-blur-sm"
-               style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-            <p className="text-red-300 text-sm">{error}</p>
-          </div>
-        )}
+        {/* ── Top bar ─── */}
+        <header className="px-5 py-6 flex items-center justify-between max-w-6xl mx-auto codex-reveal codex-reveal-1">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <RuneIcon rune="sun" size={22} color="#F0A93B" />
+            <span className="font-codex-display text-sm tracking-[0.3em] text-amber-100/90 group-hover:text-amber-100 transition-colors">
+              SUNGUARD
+            </span>
+          </Link>
+          <nav className="flex items-center gap-5 text-xs font-codex-lyric tracking-wider">
+            <Link to="/login" className="codex-underline text-amber-100/70 hover:text-amber-100">
+              Connexion
+            </Link>
+            <span className="text-amber-100/30">◈</span>
+            <Link to="/" className="codex-underline text-amber-100/70 hover:text-amber-100">
+              Inscription
+            </Link>
+          </nav>
+        </header>
 
-        {/* Top 3 podium */}
-        {data && data.playtime.length >= 3 && (
-          <div className="grid grid-cols-3 gap-3">
-            <PodiumCard entry={data.playtime[1]} place={2} height="h-36" />
-            <PodiumCard entry={data.playtime[0]} place={1} height="h-44" />
-            <PodiumCard entry={data.playtime[2]} place={3} height="h-32" />
-          </div>
-        )}
+        <main className="max-w-4xl mx-auto px-5 pt-6 space-y-12">
 
-        {/* Rest of leaderboard */}
-        {data && data.playtime.length > 0 && (
-          <div className="rounded-3xl overflow-hidden backdrop-blur-sm"
-               style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-            {data.playtime.slice(3).map(entry => (
-              <a
-                key={entry.uuid}
-                href={`/portal/player/${entry.username}`}
-                className="flex items-center gap-4 px-5 py-3 transition-colors group"
-                style={{ borderBottom: `1px solid rgba(251,191,36,0.05)` }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(251,191,36,0.04)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <div className="w-10 shrink-0 text-center">
-                  <span className="text-sm font-bold" style={{ color: MUTED }}>#{entry.rank}</span>
-                </div>
+          {/* ── Titre cérémoniel ─── */}
+          <section className="text-center codex-reveal codex-reveal-2">
+            <p className="font-codex-rune text-[10px] tracking-[0.4em] text-amber-200/50 mb-5">
+              ✦ LIVRE I ✦ DU PANTHÉON ✦
+            </p>
+            <h1 className="font-codex-display text-5xl sm:text-7xl font-bold leading-[0.9]"
+                style={{
+                  color: '#FBE9C2',
+                  textShadow: '0 4px 30px rgba(240,169,59,0.3), 0 1px 0 rgba(248,210,103,0.4)',
+                  letterSpacing: '0.08em',
+                }}>
+              PANTHÉON<br />
+              <span className="text-3xl sm:text-5xl text-amber-200/80">DES VOYAGEURS</span>
+            </h1>
+            <Flourish variant="royal" width={260} className="mt-6" />
+            <p className="font-codex-lyric italic text-amber-100/70 text-lg mt-4 max-w-md mx-auto">
+              « Ceux qui ont vu l'aube se lever sur les royaumes de Sun »
+            </p>
+          </section>
 
-                <img
-                  src={`https://mc-heads.net/avatar/${entry.username}/36`}
-                  alt={entry.username}
-                  className="w-9 h-9 rounded-lg shrink-0"
-                  style={{ border: `1px solid ${BORDER}` }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
+          {/* ── Loading ─── */}
+          {loading && (
+            <div className="flex flex-col items-center gap-4 py-20 codex-reveal">
+              <div className="w-14 h-14 rounded-full border-2 border-amber-200/20 border-t-amber-300 animate-spin" />
+              <p className="font-codex-lyric italic text-amber-100/60 text-sm">
+                Le scribe consulte les grands registres...
+              </p>
+            </div>
+          )}
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate transition-colors" style={{ color: TEXT }}>
-                    {entry.username}
+          {/* ── Error ─── */}
+          {error && (
+            <Cartouche tone="night" className="px-8 py-10 text-center codex-reveal">
+              <RuneIcon rune="flame" size={36} color="#C84329" className="mx-auto mb-3" />
+              <p className="font-codex-display text-2xl text-red-200 mb-2">Le registre est scellé</p>
+              <p className="font-codex-body italic text-amber-100/60">{error}</p>
+            </Cartouche>
+          )}
+
+          {/* ── Top 3 podium ─── */}
+          {data && data.playtime.length >= 3 && (
+            <section className="codex-reveal codex-reveal-3">
+              <p className="text-center font-codex-rune text-[10px] tracking-[0.4em] text-amber-200/50 mb-6">
+                ✦ LES TROIS ÉLUS ✦
+              </p>
+              <div className="grid grid-cols-3 gap-3 sm:gap-5 items-end">
+                <PodiumPillar entry={data.playtime[1]} place={2} />
+                <PodiumPillar entry={data.playtime[0]} place={1} />
+                <PodiumPillar entry={data.playtime[2]} place={3} />
+              </div>
+            </section>
+          )}
+
+          {/* ── Reste du classement ─── */}
+          {data && data.playtime.length > 3 && (
+            <section className="codex-reveal codex-reveal-4">
+              <Flourish variant="double" width={200} className="mb-6" />
+              <Cartouche tone="night" className="overflow-hidden">
+                <div className="px-6 py-4 border-b border-amber-300/10 flex items-center justify-between">
+                  <p className="font-codex-display text-xs tracking-[0.3em] text-amber-200/70">
+                    LES INSCRITS
                   </p>
-                  {entry.balance != null && (
-                    <p className="text-[11px]" style={{ color: MUTED }}>{fmtBalance(entry.balance)}</p>
-                  )}
+                  <p className="font-codex-rune text-[10px] text-amber-100/40">
+                    rang · pseudo · temps
+                  </p>
                 </div>
+                <ol className="divide-y divide-amber-300/5">
+                  {data.playtime.slice(3).map((entry, i) => (
+                    <li key={entry.uuid}
+                        className="codex-reveal"
+                        style={{ animationDelay: `${600 + i * 80}ms` }}>
+                      <a
+                        href={`/portal/player/${entry.username}`}
+                        className="codex-row flex items-center gap-4 px-6 py-3.5 group"
+                      >
+                        {/* Numéro romain */}
+                        <div className="w-12 shrink-0 text-center">
+                          <span className="font-codex-display text-sm text-amber-200/50 group-hover:text-amber-200 transition-colors tracking-wider">
+                            {toRoman(entry.rank)}
+                          </span>
+                        </div>
 
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold" style={{ color: TEXT }}>{entry.playtime_formatted}</p>
-                  <p className="text-[10px]" style={{ color: MUTED }}>de jeu</p>
-                </div>
-              </a>
-            ))}
-          </div>
-        )}
+                        {/* Avatar */}
+                        <img
+                          src={`https://mc-heads.net/avatar/${entry.username}/40`}
+                          alt={entry.username}
+                          className="w-10 h-10 shrink-0"
+                          style={{
+                            border: '1px solid rgba(240,169,59,0.25)',
+                            imageRendering: 'pixelated',
+                          }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
 
-        {data && data.playtime.length === 0 && (
-          <div className="rounded-3xl p-10 text-center backdrop-blur-sm"
-               style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-            <p className="text-5xl mb-3">🌅</p>
-            <p className="text-xl font-black" style={{ color: TEXT }}>Le registre est encore vierge</p>
-            <p className="text-sm mt-1" style={{ color: MUTED }}>Les premières aventures commencent à peine.</p>
-          </div>
-        )}
+                        {/* Pseudo */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-codex-lyric text-amber-50 truncate text-base group-hover:italic transition-all">
+                            {entry.username}
+                          </p>
+                        </div>
 
-        {/* Footer */}
-        {data && (
-          <p className="text-center text-[11px] italic" style={{ color: MUTED }}>
-            Mis à jour à {new Date(data.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        )}
+                        {/* Temps */}
+                        <div className="text-right shrink-0">
+                          <p className="font-codex-display text-sm text-amber-200/90 tracking-wider">
+                            {entry.playtime_formatted}
+                          </p>
+                          <p className="font-codex-lyric italic text-[10px] text-amber-100/40">
+                            heures d'errance
+                          </p>
+                        </div>
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </Cartouche>
+            </section>
+          )}
+
+          {/* ── Vide ─── */}
+          {data && data.playtime.length === 0 && (
+            <Cartouche tone="ivory" className="px-10 py-16 text-center codex-reveal">
+              <RuneIcon rune="feather" size={48} color="#F0A93B" className="mx-auto mb-4" />
+              <p className="font-codex-display text-2xl text-amber-100 mb-2 tracking-wider">
+                LE REGISTRE EST VIERGE
+              </p>
+              <p className="font-codex-lyric italic text-amber-100/60">
+                Les premières aventures s'écrivent à peine.
+              </p>
+            </Cartouche>
+          )}
+
+          {/* ── Footer ─── */}
+          {data && (
+            <div className="text-center codex-reveal codex-reveal-5">
+              <Flourish variant="simple" width={180} />
+              <p className="font-codex-lyric italic text-[11px] text-amber-100/50 mt-3">
+                Mis à jour à l'heure de {new Date(data.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          )}
+        </main>
       </div>
-      </div>
-    </SunSky>
+    </CodexSky>
   )
 }
 
-function PodiumCard({ entry, place, height }: { entry: LeaderboardEntry; place: 1 | 2 | 3; height: string }) {
-  const styles = {
+function PodiumPillar({ entry, place }: { entry: LeaderboardEntry; place: 1 | 2 | 3 }) {
+  const config = {
     1: {
-      bg: 'linear-gradient(160deg,rgba(251,191,36,0.25),rgba(217,119,6,0.1))',
-      border: 'rgba(251,191,36,0.4)',
-      crown: '👑',
-      glow: '0 0 30px rgba(251,191,36,0.15)',
+      sealColor: 'gold' as const,
+      pillarH: 'h-56 sm:h-64',
+      avatarSize: 64,
+      ornament: '👑',
+      glowColor: 'rgba(240,169,59,0.45)',
+      borderColor: 'rgba(240,169,59,0.55)',
+      bgGradient: 'linear-gradient(180deg, rgba(240,169,59,0.18), rgba(184,92,14,0.08) 60%, rgba(20,15,30,0.5))',
+      label: 'PREMIER',
     },
     2: {
-      bg: 'linear-gradient(160deg,rgba(203,213,225,0.2),rgba(148,163,184,0.08))',
-      border: 'rgba(203,213,225,0.3)',
-      crown: '🥈',
-      glow: 'none',
+      sealColor: 'silver' as const,
+      pillarH: 'h-44 sm:h-52',
+      avatarSize: 52,
+      ornament: '✦',
+      glowColor: 'rgba(192,197,204,0.3)',
+      borderColor: 'rgba(192,197,204,0.4)',
+      bgGradient: 'linear-gradient(180deg, rgba(192,197,204,0.15), rgba(74,107,138,0.08) 60%, rgba(20,15,30,0.5))',
+      label: 'SECOND',
     },
     3: {
-      bg: 'linear-gradient(160deg,rgba(217,119,6,0.2),rgba(180,83,9,0.08))',
-      border: 'rgba(217,119,6,0.35)',
-      crown: '🥉',
-      glow: 'none',
+      sealColor: 'bronze' as const,
+      pillarH: 'h-36 sm:h-44',
+      avatarSize: 48,
+      ornament: '✦',
+      glowColor: 'rgba(184,92,14,0.35)',
+      borderColor: 'rgba(184,92,14,0.5)',
+      bgGradient: 'linear-gradient(180deg, rgba(184,92,14,0.18), rgba(140,63,10,0.08) 60%, rgba(20,15,30,0.5))',
+      label: 'TROISIÈME',
     },
   }[place]
 
-  const order = { 1: 'order-2', 2: 'order-1', 3: 'order-3' }[place]
+  const tilt = place === 1 ? '0deg' : place === 2 ? '-1.5deg' : '1.5deg'
 
   return (
     <a
       href={`/portal/player/${entry.username}`}
-      className={`${order} rounded-3xl backdrop-blur-sm ${height}
-        p-4 flex flex-col items-center justify-end gap-1 transition-transform hover:scale-[1.02] active:scale-100`}
-      style={{ background: styles.bg, border: `1px solid ${styles.border}`, boxShadow: styles.glow }}
+      className={`relative block ${config.pillarH} group`}
+      style={{ transform: `rotate(${tilt})`, transition: 'transform 0.4s ease' }}
+      onMouseEnter={e => e.currentTarget.style.transform = `rotate(0deg) translateY(-4px)`}
+      onMouseLeave={e => e.currentTarget.style.transform = `rotate(${tilt})`}
     >
-      <div className="text-2xl mb-1">{styles.crown}</div>
-      <img
-        src={`https://mc-heads.net/avatar/${entry.username}/48`}
-        alt={entry.username}
-        className="w-12 h-12 rounded-xl shrink-0"
-        style={{ border: `1px solid ${styles.border}` }}
-        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-      />
-      <p className="text-sm font-bold truncate max-w-full" style={{ color: TEXT }}>{entry.username}</p>
-      <p className="text-[10px] font-medium" style={{ color: MUTED }}>{entry.playtime_formatted}</p>
+      {/* Halo */}
+      {place === 1 && (
+        <div className="absolute -inset-4 rounded-full pointer-events-none"
+             style={{
+               background: `radial-gradient(circle, ${config.glowColor}, transparent 70%)`,
+               filter: 'blur(20px)',
+               animation: 'codexHaloPulse 4s ease-in-out infinite',
+             }} />
+      )}
+
+      {/* Pilier */}
+      <div className="relative h-full flex flex-col items-center justify-end px-3 pb-4 pt-5"
+           style={{
+             background: config.bgGradient,
+             border: `1px solid ${config.borderColor}`,
+             boxShadow: place === 1
+               ? `0 20px 40px -10px ${config.glowColor}, inset 0 1px 0 rgba(255,255,255,0.1)`
+               : `0 12px 24px -8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)`,
+           }}>
+
+        {/* Coins ornés */}
+        <span className="absolute top-2 left-2 w-3 h-3 border-l border-t" style={{ borderColor: config.borderColor }} />
+        <span className="absolute top-2 right-2 w-3 h-3 border-r border-t" style={{ borderColor: config.borderColor }} />
+        <span className="absolute bottom-2 left-2 w-3 h-3 border-l border-b" style={{ borderColor: config.borderColor }} />
+        <span className="absolute bottom-2 right-2 w-3 h-3 border-r border-b" style={{ borderColor: config.borderColor }} />
+
+        {/* Sceau de cire avec rang romain */}
+        <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+          <WaxSeal color={config.sealColor} label={toRoman(place)} size={place === 1 ? 52 : 42} rotate={-4} />
+        </div>
+
+        {/* Avatar */}
+        <div className="relative mb-2 mt-3">
+          <img
+            src={`https://mc-heads.net/avatar/${entry.username}/${config.avatarSize * 2}`}
+            alt={entry.username}
+            style={{
+              width: config.avatarSize, height: config.avatarSize,
+              imageRendering: 'pixelated',
+              border: `1px solid ${config.borderColor}`,
+              boxShadow: `0 4px 12px rgba(0,0,0,0.4)`,
+            }}
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+          {place === 1 && (
+            <span className="absolute -top-1 -right-1 text-2xl"
+                  style={{ filter: `drop-shadow(0 2px 4px ${config.glowColor})` }}>
+              {config.ornament}
+            </span>
+          )}
+        </div>
+
+        {/* Pseudo */}
+        <p className={`font-codex-display text-center truncate w-full leading-tight ${place === 1 ? 'text-base sm:text-lg' : 'text-sm'}`}
+           style={{
+             color: place === 1 ? '#FFF6E5' : '#FBE9C2',
+             textShadow: place === 1 ? '0 2px 8px rgba(240,169,59,0.4)' : 'none',
+             letterSpacing: '0.05em',
+             fontWeight: place === 1 ? 700 : 500,
+           }}>
+          {entry.username}
+        </p>
+
+        {/* Temps */}
+        <p className="font-codex-lyric italic text-[10px] sm:text-xs text-amber-100/70 mt-0.5">
+          {entry.playtime_formatted}
+        </p>
+
+        {/* Label de rang */}
+        <p className="font-codex-rune text-[9px] tracking-[0.25em] text-amber-200/50 mt-1.5 pt-1.5 border-t w-full text-center"
+           style={{ borderColor: config.borderColor }}>
+          {config.label}
+        </p>
+      </div>
     </a>
   )
 }

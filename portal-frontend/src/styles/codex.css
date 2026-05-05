@@ -1,0 +1,287 @@
+/* ─── CODEX DU VOYAGEUR — Aube Solaire ──────────────────────────────────── */
+/* Système de design pour les pages publiques (Leaderboard, PublicProfile,   */
+/* ComingSoon). Inspiré des manuscrits enluminés et des codex RPG.           */
+
+:root {
+  --ink-deep:    #0A0F1F;
+  --ink-warm:    #1A1226;
+  --ember:       #B85C0E;
+  --amber:       #E07F1A;
+  --gold:        #F0A93B;
+  --gold-soft:   #E8C770;
+  --ivory:       #FBE9C2;
+  --ivory-dim:   #E8D3A8;
+  --dawn-pink:   #F4B5A0;
+  --dust-blue:   #4A6B8A;
+  --seal-red:    #8C2A1F;
+  --seal-red-glow: #C84329;
+  --rune-jade:   #5DD4C8;
+  --parchment:   #F4E4C1;
+  --parchment-shade: #C9B485;
+}
+
+/* ─── Typographies du codex ─────────────────────────────────────────────── */
+.font-codex-display { font-family: 'Cinzel', 'Cormorant Garamond', serif; letter-spacing: 0.05em; }
+.font-codex-lyric   { font-family: 'Fraunces', 'Cormorant Garamond', serif; }
+.font-codex-body    { font-family: 'EB Garamond', 'Cormorant Garamond', Georgia, serif; }
+.font-codex-rune    { font-family: 'JetBrains Mono', monospace; letter-spacing: 0.15em; }
+
+/* ─── Animations partagées ──────────────────────────────────────────────── */
+@keyframes codexRiseSun {
+  0%   { transform: translateY(40%) scale(0.7); opacity: 0; }
+  60%  { opacity: 0.85; }
+  100% { transform: translateY(0) scale(1); opacity: 0.8; }
+}
+
+@keyframes codexHaloPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.08); }
+}
+
+@keyframes codexFloatDust {
+  0%   { transform: translate(0, 0) rotate(0deg);   opacity: 0; }
+  10%  { opacity: 0.7; }
+  85%  { opacity: 0.4; }
+  100% { transform: translate(20px, -120px) rotate(360deg); opacity: 0; }
+}
+
+@keyframes codexFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);     filter: blur(0); }
+}
+
+@keyframes codexGoldSweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes codexSandFall {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(180deg); }
+}
+
+@keyframes codexShimmer {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+@keyframes codexCometStreak {
+  0%   { transform: translate(-10vw, 30vh) rotate(20deg); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translate(110vw, 10vh) rotate(20deg); opacity: 0; }
+}
+
+@keyframes codexBirdFly {
+  0%   { transform: translateX(-10vw) translateY(0); }
+  50%  { transform: translateX(50vw)  translateY(-8px); }
+  100% { transform: translateX(110vw) translateY(0); }
+}
+
+@keyframes codexUnfold {
+  0%   { transform: rotateY(-12deg) scale(0.96); opacity: 0; }
+  100% { transform: rotateY(0)      scale(1);    opacity: 1; }
+}
+
+@keyframes codexUnderlineSweep {
+  0%   { transform: scaleX(0); transform-origin: left; }
+  100% { transform: scaleX(1); transform-origin: left; }
+}
+
+/* ─── Helpers reveal staggered ──────────────────────────────────────────── */
+.codex-reveal      { animation: codexFadeIn 0.9s cubic-bezier(.16,.84,.44,1) both; }
+.codex-reveal-1    { animation-delay: 0ms; }
+.codex-reveal-2    { animation-delay: 180ms; }
+.codex-reveal-3    { animation-delay: 360ms; }
+.codex-reveal-4    { animation-delay: 540ms; }
+.codex-reveal-5    { animation-delay: 720ms; }
+
+/* ─── Cartouche / parchemin ─────────────────────────────────────────────── */
+.codex-cartouche {
+  position: relative;
+  background:
+    radial-gradient(ellipse at top left, rgba(240,169,59,0.04), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(184,92,14,0.05), transparent 60%),
+    linear-gradient(160deg, rgba(20,15,30,0.92), rgba(8,10,22,0.96));
+  border: 1px solid rgba(240,169,59,0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(240,169,59,0.10),
+    inset 0 0 32px rgba(0,0,0,0.4),
+    0 30px 60px -20px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(240,169,59,0.04);
+}
+
+.codex-cartouche::before,
+.codex-cartouche::after {
+  content: '';
+  position: absolute;
+  width: 28px; height: 28px;
+  border: 1px solid rgba(240,169,59,0.5);
+  pointer-events: none;
+}
+.codex-cartouche::before { top: 10px; left: 10px;
+  border-right: none; border-bottom: none; }
+.codex-cartouche::after  { bottom: 10px; right: 10px;
+  border-left: none; border-top: none; }
+
+.codex-cartouche-ivory {
+  background:
+    radial-gradient(ellipse at top, rgba(244,228,193,0.08), transparent 70%),
+    linear-gradient(180deg, rgba(244,228,193,0.04), rgba(244,228,193,0.02));
+  border-color: rgba(244,228,193,0.25);
+}
+
+/* ─── Sceaux de cire ────────────────────────────────────────────────────── */
+.codex-seal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  background: conic-gradient(from 45deg,
+    var(--seal-red-glow) 0deg,
+    var(--seal-red)      90deg,
+    #5C1A12              180deg,
+    var(--seal-red)      270deg,
+    var(--seal-red-glow) 360deg);
+  box-shadow:
+    inset 0 0 12px rgba(0,0,0,0.5),
+    inset 0 2px 4px rgba(255,255,255,0.15),
+    0 6px 16px rgba(0,0,0,0.5),
+    0 0 0 2px rgba(140,42,31,0.4);
+  color: #FBE9C2;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+
+.codex-seal-gold {
+  background: conic-gradient(from 45deg,
+    #F8D267 0deg, var(--gold) 90deg, var(--ember) 180deg,
+    var(--gold) 270deg, #F8D267 360deg);
+  color: #1A0E03;
+  text-shadow: 0 1px 1px rgba(255,235,180,0.5);
+  box-shadow:
+    inset 0 0 12px rgba(140,80,10,0.4),
+    inset 0 2px 4px rgba(255,255,255,0.4),
+    0 6px 18px rgba(240,169,59,0.4),
+    0 0 0 2px rgba(240,169,59,0.5);
+}
+
+.codex-seal-silver {
+  background: conic-gradient(from 45deg,
+    #E5E7EB 0deg, #C0C5CC 90deg, #8B92A0 180deg,
+    #C0C5CC 270deg, #E5E7EB 360deg);
+  color: #1A1F2A;
+  text-shadow: 0 1px 1px rgba(255,255,255,0.5);
+  box-shadow:
+    inset 0 0 12px rgba(60,70,90,0.4),
+    inset 0 2px 4px rgba(255,255,255,0.4),
+    0 6px 16px rgba(0,0,0,0.4),
+    0 0 0 2px rgba(192,197,204,0.5);
+}
+
+.codex-seal-bronze {
+  background: conic-gradient(from 45deg,
+    #D4843E 0deg, #B85C0E 90deg, #6B340A 180deg,
+    #B85C0E 270deg, #D4843E 360deg);
+  color: #FBE9C2;
+  box-shadow:
+    inset 0 0 12px rgba(60,30,8,0.5),
+    inset 0 2px 4px rgba(255,210,150,0.3),
+    0 6px 16px rgba(0,0,0,0.4),
+    0 0 0 2px rgba(184,92,14,0.5);
+}
+
+.codex-seal-jade {
+  background: conic-gradient(from 45deg,
+    #7DEDE1 0deg, var(--rune-jade) 90deg, #2C8E83 180deg,
+    var(--rune-jade) 270deg, #7DEDE1 360deg);
+  color: #042520;
+  box-shadow:
+    inset 0 0 12px rgba(8,60,52,0.4),
+    inset 0 2px 4px rgba(255,255,255,0.4),
+    0 6px 16px rgba(93,212,200,0.3),
+    0 0 0 2px rgba(93,212,200,0.5);
+}
+
+/* ─── Underline calligraphique au survol ────────────────────────────────── */
+.codex-underline {
+  position: relative;
+  transition: color 0.3s ease;
+}
+.codex-underline::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -2px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent, var(--gold), var(--gold-soft), var(--gold), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s cubic-bezier(.16,.84,.44,1);
+}
+.codex-underline:hover::after {
+  transform: scaleX(1);
+}
+
+/* ─── Bande dorée sweep au hover (rangs leaderboard) ────────────────────── */
+.codex-row {
+  position: relative;
+  overflow: hidden;
+  transition: background 0.3s ease;
+}
+.codex-row::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(240,169,59,0.12) 50%,
+    transparent 100%);
+  transform: translateX(-100%);
+  pointer-events: none;
+  transition: transform 0.7s cubic-bezier(.16,.84,.44,1);
+}
+.codex-row:hover::before {
+  transform: translateX(100%);
+}
+.codex-row:hover {
+  background: rgba(240,169,59,0.04);
+}
+
+/* ─── Texture grain SVG noise (à appliquer via background) ──────────────── */
+.codex-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ─── Lens flare au hover ───────────────────────────────────────────────── */
+.codex-flare {
+  position: relative;
+  overflow: hidden;
+}
+.codex-flare::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    rgba(240,169,59,0.18), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.codex-flare:hover::after { opacity: 1; }
+
+/* ─── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .codex-reveal,
+  .codex-row::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
