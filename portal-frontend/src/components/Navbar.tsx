@@ -11,24 +11,6 @@ const items = [
     ),
   },
   {
-    label: 'Inventaire',
-    to: '/inventory',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" /><line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Minijeux',
-    to: '/minigames',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-        <rect x="2" y="6" width="20" height="12" rx="4" /><path d="M6 12h4M8 10v4" /><circle cx="15" cy="11" r="1" fill="currentColor" stroke="none" /><circle cx="18" cy="13" r="1" fill="currentColor" stroke="none" />
-      </svg>
-    ),
-  },
-  {
     label: 'Carrière',
     to: '/career',
     icon: (
@@ -43,6 +25,16 @@ const items = [
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Amis',
+    to: '/friends',
+    matchPaths: ['/friends', '/messages'],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
       </svg>
     ),
   },
@@ -77,7 +69,9 @@ export default function Navbar() {
       />
       <div className="relative flex items-stretch max-w-screen-sm mx-auto px-1">
         {items.map(item => {
-          const active = pathname === item.to || (item.to === '/profile' && pathname === '/')
+          const active = pathname === item.to
+            || (item.to === '/profile' && pathname === '/')
+            || ('matchPaths' in item && Array.isArray((item as any).matchPaths) && (item as any).matchPaths.some((p: string) => pathname.startsWith(p)))
           return (
             <Link
               key={item.to}

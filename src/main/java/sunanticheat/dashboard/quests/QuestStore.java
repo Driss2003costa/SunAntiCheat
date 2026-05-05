@@ -160,6 +160,59 @@ public final class QuestStore {
         return out;
     }
 
+    /**
+     * Vérifie et décerne les quêtes sociales (FRIEND_COUNT, REFERRAL_COUNT) en se basant
+     * sur un compteur courant. Le joueur peut être hors-ligne — la récompense est exécutée
+     * immédiatement si la commande ne requiert pas de joueur connecté.
+     */
+    public void checkSocialQuest(String playerUuid, Quest.Type type, int currentCount) {
+        for (Quest q : quests.values()) {
+            if (!q.isEnabled() || q.getType() != type) continue;
+
+            Set<String> done = completed.computeIfAbsent(q.getId(), k -> ConcurrentHashMap.newKeySet());
+            if (done.contains(playerUuid) && !q.isRepeatable()) continue;
+
+            // Pour les quêtes sociales, le progrès = currentCount (on met à jour directement)
+            Map<String, Integer> playerProgress = progress.computeIfAbsent(q.getId(), k -> new ConcurrentHashMap<>());
+            int before = playerProgress.getOrDefault(playerUuid, 0);
+
+            // On ne recule jamais
+            if (currentCount <= before) continue;
+            playerProgress.put(playerUuid, currentCount);
+
+            if (before < q.getGoal() && currentCount >= q.getGoal()) {
+                done.add(playerUuid);
+                completeSocial(playerUuid, q);
+                if (q.isRepeatable()) playerProgress.put(playerUuid, 0);
+            }
+        }
+        saveProgress();
+    }
+
+    private void completeSocial(String playerUuid, Quest q) {
+        // Tente d'envoyer la notification en jeu si le joueur est connecté
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            org.bukkit.entity.Player p = null;
+            try { p = Bukkit.getPlayer(java.util.UUID.fromString(playerUuid)); } catch (Exception ignored) {}
+            if (p != null) {
+                p.sendMessage(net.kyori.adventure.text.Component.text(
+                        "✨ Quête terminée : " + q.getIcon() + " " + q.getTitle(),
+                        net.kyori.adventure.text.format.NamedTextColor.GOLD));
+                if (!q.getRewardLabel().isBlank()) {
+                    p.sendMessage(net.kyori.adventure.text.Component.text(
+                            "🎁 Récompense : " + q.getRewardLabel(),
+                            net.kyori.adventure.text.format.NamedTextColor.GREEN));
+                }
+            }
+            if (q.getRewardCommand() != null && !q.getRewardCommand().isBlank()) {
+                String cmd = q.getRewardCommand()
+                        .replace("{player}", p != null ? p.getName() : playerUuid);
+                if (cmd.startsWith("/")) cmd = cmd.substring(1);
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
+            }
+        });
+    }
+
     // ── Persist ───────────────────────────────────────────────────────────────
     public synchronized void saveQuests() {
         try {

@@ -5,6 +5,9 @@ import com.sun.net.httpserver.HttpHandler;
 import sunanticheat.dashboard.handlers.*;
 import sunanticheat.dashboard.handlers.AltAccountHandler;
 import sunanticheat.dashboard.handlers.ViolationPointsHandler;
+import sunanticheat.dashboard.handlers.FriendHandler;
+import sunanticheat.dashboard.handlers.ChatHandler;
+import sunanticheat.dashboard.handlers.ReferralHandler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -60,7 +63,9 @@ public final class DashboardRouter implements HttpHandler {
     private final PublicLeaderboardHandler publicLeaderboardHandler;
     private final CustomJobsApiHandler customJobsApiHandler;
     private final GeoIpHandler geoIpHandler;
-    private final PublicCrateShopHandler publicCrateShopHandler;
+    private final FriendHandler friendHandler;
+    private final ChatHandler chatHandler;
+    private final ReferralHandler referralHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -106,7 +111,9 @@ public final class DashboardRouter implements HttpHandler {
                            PublicLeaderboardHandler publicLeaderboardHandler,
                            CustomJobsApiHandler customJobsApiHandler,
                            GeoIpHandler geoIpHandler,
-                           PublicCrateShopHandler publicCrateShopHandler) {
+                           FriendHandler friendHandler,
+                           ChatHandler chatHandler,
+                           ReferralHandler referralHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -151,7 +158,9 @@ public final class DashboardRouter implements HttpHandler {
         this.publicLeaderboardHandler = publicLeaderboardHandler;
         this.customJobsApiHandler    = customJobsApiHandler;
         this.geoIpHandler            = geoIpHandler;
-        this.publicCrateShopHandler  = publicCrateShopHandler;
+        this.friendHandler           = friendHandler;
+        this.chatHandler             = chatHandler;
+        this.referralHandler         = referralHandler;
     }
 
     @Override
@@ -615,6 +624,30 @@ public final class DashboardRouter implements HttpHandler {
 
         // ── GeoIP ─────────────────────────────────────────────────────────────
         if (eq(path, "/api/geoip/lookup") && GET(method)) { geoIpHandler.lookup(ex, jwt, users); return; }
+
+        // ── Amis (public — auth portal JWT gérée dans le handler) ─────────────
+        if (eq(path, "/api/public/friends")                           && GET(method))    { friendHandler.list(ex); return; }
+        if (eq(path, "/api/public/friends/search")                    && GET(method))    { friendHandler.search(ex); return; }
+        if (eq(path, "/api/public/friends/requests/incoming")         && GET(method))    { friendHandler.incoming(ex); return; }
+        if (eq(path, "/api/public/friends/requests/outgoing")         && GET(method))    { friendHandler.outgoing(ex); return; }
+        if (path.startsWith("/api/public/friends/request/")           && POST(method))   { friendHandler.sendRequest(ex, id(path, "/api/public/friends/request/")); return; }
+        if (path.startsWith("/api/public/friends/accept/")            && POST(method))   { friendHandler.accept(ex, id(path, "/api/public/friends/accept/")); return; }
+        if (path.startsWith("/api/public/friends/decline/")           && POST(method))   { friendHandler.decline(ex, id(path, "/api/public/friends/decline/")); return; }
+        if (path.startsWith("/api/public/friends/cancel/")            && POST(method))   { friendHandler.cancel(ex, id(path, "/api/public/friends/cancel/")); return; }
+        if (path.startsWith("/api/public/friends/relation/")          && GET(method))    { friendHandler.relation(ex, id(path, "/api/public/friends/relation/")); return; }
+        if (path.startsWith("/api/public/friends/")                   && DELETE(method)) { friendHandler.remove(ex, id(path, "/api/public/friends/")); return; }
+
+        // ── Chat (public — auth portal JWT gérée dans le handler) ─────────────
+        if (eq(path, "/api/public/messages")                          && GET(method))    { chatHandler.listConversations(ex); return; }
+        if (eq(path, "/api/public/messages/open")                     && POST(method))   { chatHandler.openConversation(ex); return; }
+        if (path.startsWith("/api/public/messages/") && path.endsWith("/poll")  && GET(method))  { chatHandler.pollMessages(ex, id(path, "/api/public/messages/", "/poll")); return; }
+        if (path.startsWith("/api/public/messages/") && path.endsWith("/send")  && POST(method)) { chatHandler.sendMessage(ex, id(path, "/api/public/messages/", "/send")); return; }
+        if (path.startsWith("/api/public/messages/") && path.endsWith("/read")  && POST(method)) { chatHandler.markRead(ex, id(path, "/api/public/messages/", "/read")); return; }
+        if (path.startsWith("/api/public/messages/")                  && GET(method))    { chatHandler.getMessages(ex, id(path, "/api/public/messages/")); return; }
+
+        // ── Parrainage (public) ───────────────────────────────────────────────
+        if (eq(path, "/api/public/referral/me")                       && GET(method))    { referralHandler.myCode(ex); return; }
+        if (eq(path, "/api/public/referral/check")                    && GET(method))    { referralHandler.checkCode(ex); return; }
 
         HttpHelper.error(ex, 404, "Route introuvable: " + method + " " + path);
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult } from '../api/client'
+import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
 import Navbar from '../components/Navbar'
 import SunBackground from '../components/SunBackground'
 
@@ -48,6 +48,10 @@ export default function Profile() {
   const [bioSaving, setBioSaving]   = useState(false)
   const [bioError, setBioError]     = useState('')
 
+  const [friendCount, setFriendCount]   = useState<number | null>(null)
+  const [referral, setReferral]         = useState<ReferralInfo | null>(null)
+  const [refCopied, setRefCopied]       = useState(false)
+
   const [daily, setDaily]                 = useState<DailyStatus | null>(null)
   const [dailyClaiming, setDailyClaiming] = useState(false)
   const [dailyResult, setDailyResult]     = useState<DailyClaimResult | null>(null)
@@ -65,6 +69,10 @@ export default function Profile() {
       })
       .finally(() => setLoading(false))
     api.dailyStatus(token).then(setDaily).catch(() => {})
+    fetch('/api/public/friends', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setFriendCount(d.friends?.length ?? 0)).catch(() => {})
+    fetch('/api/public/referral/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setReferral(d)).catch(() => {})
   }, [navigate])
 
   useEffect(() => {
@@ -255,10 +263,11 @@ export default function Profile() {
       </div>
 
       {/* Stats strip */}
-      <div className="grid grid-cols-2 mx-0"
+      <div className="grid grid-cols-3 mx-0"
            style={{ borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
         <StatCell icon="⏱️" label="Temps de jeu" value={profile.playtime_formatted ?? '—'} />
         <StatCell icon="💰" label="Solde"         value={profile.balance != null ? fmtBalance(profile.balance) : '—'} />
+        <StatCell icon="👥" label="Amis"          value={friendCount != null ? String(friendCount) : '—'} />
       </div>
 
       {/* Content */}
@@ -360,6 +369,48 @@ export default function Profile() {
 
         {sanctions.length === 0 && (
           <p className="text-center text-xs py-3" style={{ color: '#475569' }}>✓ Aucune sanction active</p>
+        )}
+
+        {/* Referral section */}
+        {referral && (
+          <section className="rounded-2xl overflow-hidden backdrop-blur-sm"
+                   style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${BORDER}` }}>
+              <span className="text-sm font-semibold" style={{ color: TEXT }}>🔗 Mon code de parrainage</span>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <code className="flex-1 rounded-xl px-4 py-2.5 text-sm font-mono font-bold tracking-widest text-center"
+                      style={{ background: 'rgba(251,191,36,0.08)', border: `1px solid rgba(251,191,36,0.25)`, color: GOLD }}>
+                  {referral.code}
+                </code>
+                <button
+                  onClick={() => {
+                    const link = `${window.location.origin}/portal?ref=${referral.code}`
+                    navigator.clipboard.writeText(link).then(() => { setRefCopied(true); setTimeout(() => setRefCopied(false), 2000) })
+                  }}
+                  className="text-xs px-3 py-2.5 rounded-xl font-semibold shrink-0 transition-all"
+                  style={{ background: refCopied ? 'rgba(16,185,129,0.15)' : 'rgba(251,191,36,0.12)',
+                           color: refCopied ? '#34d399' : GOLD,
+                           border: `1px solid ${refCopied ? 'rgba(16,185,129,0.3)' : 'rgba(251,191,36,0.3)'}` }}>
+                  {refCopied ? '✓ Copié !' : '📋 Copier le lien'}
+                </button>
+              </div>
+              <div className="flex gap-4 text-center">
+                <div className="flex-1 rounded-xl py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <p className="text-xl font-black" style={{ color: TEXT }}>{referral.total}</p>
+                  <p className="text-xs" style={{ color: MUTED }}>Inscrits</p>
+                </div>
+                <div className="flex-1 rounded-xl py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <p className="text-xl font-black" style={{ color: GOLD }}>{referral.validated}</p>
+                  <p className="text-xs" style={{ color: MUTED }}>Validés</p>
+                </div>
+              </div>
+              <p className="text-xs text-center" style={{ color: MUTED }}>
+                Partage ton lien — les parrainages sont validés après 24h d'activité du filleul.
+              </p>
+            </div>
+          </section>
         )}
       </div>
 
