@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
-import SunBackground from '../components/SunBackground'
+import PageAura from '../components/PageAura'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type PublicQuest = {
@@ -387,7 +387,7 @@ export default function Quests() {
 
   return (
     <div className="min-h-screen pb-24 relative" style={{ background: '#080d19' }}>
-      <SunBackground />
+      <PageAura theme="quests" />
 
       {/* Header */}
       <div className="relative overflow-hidden pt-10 pb-6 px-4 z-10">

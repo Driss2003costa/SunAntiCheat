@@ -12,11 +12,16 @@ const THEMES: Record<AuraTheme, {
   aurora?: boolean
 }> = {
   home: {
-    bg: '#080d19',
-    primary:   'rgba(251,191,36,0.22)',
-    secondary: 'rgba(245,158,11,0.10)',
-    rays: true,
-    orbs: [['50%', '-8%', '70% 45%', 'rgba(251,191,36,0.22)'], ['50%', '-2%', '50% 30%', 'rgba(245,158,11,0.12)']],
+    bg: '#050810',
+    primary:   'rgba(56,189,248,0.10)',
+    secondary: 'rgba(99,102,241,0.08)',
+    rays: false,
+    aurora: true,
+    orbs: [
+      ['15%', '5%',   '50% 35%', 'rgba(56,189,248,0.09)'],
+      ['85%', '15%',  '40% 28%', 'rgba(99,102,241,0.08)'],
+      ['50%', '80%',  '60% 30%', 'rgba(30,58,138,0.12)'],
+    ],
   },
   profile: {
     bg: '#07091c',
@@ -77,13 +82,15 @@ const THEMES: Record<AuraTheme, {
     ],
   },
   quests: {
-    bg: '#080c10',
-    primary:   'rgba(251,146,60,0.15)',
-    secondary: 'rgba(234,88,12,0.08)',
-    rays: true,
+    bg: '#080610',
+    primary:   'rgba(167,139,250,0.14)',
+    secondary: 'rgba(251,146,60,0.10)',
+    rays: false,
+    particles: true,
     orbs: [
-      ['50%',  '-5%',  '55% 35%', 'rgba(251,146,60,0.14)'],
-      ['100%', '50%',  '35% 25%', 'rgba(234,88,12,0.08)'],
+      ['50%',  '-5%',  '55% 35%', 'rgba(139,92,246,0.13)'],
+      ['0%',   '60%',  '40% 28%', 'rgba(167,139,250,0.08)'],
+      ['100%', '30%',  '38% 25%', 'rgba(251,146,60,0.09)'],
     ],
   },
 }
@@ -97,6 +104,10 @@ const PARTICLE_POSITIONS: Record<string, [number, number, number, number][]> = {
   messages: [
     [15, 60, 1.5, 5], [35, 80, 2, 7], [55, 40, 1.5, 9], [72, 65, 2, 6],
     [90, 25, 1.5, 8], [8,  50, 2, 5], [42, 15, 1.5, 7], [68, 88, 2, 6],
+  ],
+  quests: [
+    [20, 80, 2,   6], [38, 65, 1.5, 9], [55, 85, 2.5, 5], [70, 70, 1.5, 8],
+    [85, 55, 2,   7], [10, 50, 1.5, 6], [45, 40, 2,   9], [75, 88, 1.5, 5],
   ],
 }
 
@@ -150,6 +161,7 @@ export default function PageAura({ theme }: { theme: AuraTheme }) {
            style={{ background: t.bg }}>
 
         {/* Aurora blobs */}
+        {t.aurora && theme === 'home'     && <Aurora colors={['#0ea5e9', '#6366f1']} />}
         {t.aurora && theme === 'profile'  && <Aurora colors={['#7c3aed', '#4f46e5']} />}
         {t.aurora && theme === 'friends'  && <Aurora colors={['#e11d48', '#7c3aed']} />}
 
@@ -186,14 +198,16 @@ export default function PageAura({ theme }: { theme: AuraTheme }) {
           </svg>
         )}
 
-        {/* Floating particles (career + messages) */}
+        {/* Floating particles */}
         {t.particles && (PARTICLE_POSITIONS[theme] ?? []).map(([x, y, r, dur], i) => (
           <div key={i} style={{
             position: 'absolute',
             left: `${x}%`, top: `${y}%`,
             width: r * 2, height: r * 2,
             borderRadius: '50%',
-            background: t.primary.replace(/[\d.]+\)$/, '0.5)'),
+            background: theme === 'quests'
+              ? `rgba(251,146,60,${0.4 + (i % 3) * 0.1})`
+              : t.primary.replace(/[\d.]+\)$/, '0.5)'),
             animation: `floatUp ${dur}s ease-in-out infinite`,
             animationDelay: `${i * 1.1}s`,
           }} />
