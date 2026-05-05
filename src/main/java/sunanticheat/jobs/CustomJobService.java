@@ -84,6 +84,14 @@ public final class CustomJobService {
         return r == JoinResult.OK;
     }
 
+    /** Admin force-join: bypasses slot limit and enabled check. */
+    public JoinResult forceJoin(String uuid, String jobId) {
+        if (config.getJob(jobId) == null) return JoinResult.NOT_FOUND;
+        if (store.hasJob(uuid, jobId)) return JoinResult.ALREADY_IN;
+        store.joinJob(uuid, jobId);
+        return JoinResult.OK;
+    }
+
     /** UUID-based join with slot + enabled enforcement. Used by portal API + commands. */
     public JoinResult tryJoin(String uuid, String jobId) {
         CustomJob job = config.getJob(jobId);

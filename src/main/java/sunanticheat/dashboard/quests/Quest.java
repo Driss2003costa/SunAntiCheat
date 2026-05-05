@@ -1,7 +1,7 @@
 package sunanticheat.dashboard.quests;
 
 public final class Quest {
-    public enum Type { BREAK_BLOCK, PLACE_BLOCK, KILL_ENTITY, KILL_PLAYER, CRAFT_ITEM, FISH_CATCH, PLAY_TIME }
+    public enum Type { BREAK_BLOCK, PLACE_BLOCK, KILL_ENTITY, KILL_PLAYER, CRAFT_ITEM, FISH_CATCH, PLAY_TIME, FRIEND_COUNT, REFERRAL_COUNT }
 
     private final String id;
     private String title;

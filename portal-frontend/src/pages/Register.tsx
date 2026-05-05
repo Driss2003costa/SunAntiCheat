@@ -18,9 +18,19 @@ export default function Register() {
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
+  const [refCode, setRefCode]     = useState('')
+  const [refValid, setRefValid]   = useState<boolean | null>(null)
 
   useEffect(() => {
     if (getToken()) navigate('/profile', { replace: true })
+    // Lit le code de parrainage depuis l'URL (?ref=SUN-XXXX)
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref) {
+      setRefCode(ref.toUpperCase().trim())
+      fetch(`/api/public/referral/check?code=${encodeURIComponent(ref.toUpperCase().trim())}`)
+        .then(r => r.json()).then(d => setRefValid(d.valid)).catch(() => setRefValid(false))
+    }
   }, [navigate])
 
   useEffect(() => {
@@ -49,7 +59,14 @@ export default function Register() {
     if (loginPin.replace(/\D/g, '').length < 6)  { setError('Crée un code PIN de 6 chiffres.'); return }
     setLoading(true); setError('')
     try {
-      const res = await api.verifyPin(uuid, verifyPin, loginPin)
+      // Passe le code de parrainage dans le body si présent
+      const body: Record<string, string> = { uuid, pin: verifyPin, password: loginPin }
+      if (refCode && refValid) body.ref_code = refCode
+      const res = await fetch('/api/public/register/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(async r => { const d = await r.json(); if (!r.ok) throw d; return d })
       saveToken(res.token); setStep('success')
     } catch (e: any) {
       if (e.error === 'pin_expired')      setError('Code expiré. Clique sur "Renvoyer le code".')
@@ -92,6 +109,22 @@ export default function Register() {
   return (
     <SunSky variant="dawn">
       <Frame>
+        {/* Referral banner */}
+        {refCode && (
+          <div className="mb-5 rounded-xl px-4 py-3 text-sm text-center"
+               style={{
+                 background: refValid === true  ? 'rgba(16,185,129,0.12)' :
+                             refValid === false ? 'rgba(239,68,68,0.1)'   : 'rgba(251,191,36,0.1)',
+                 border:     refValid === true  ? '1px solid rgba(16,185,129,0.35)' :
+                             refValid === false ? '1px solid rgba(239,68,68,0.3)'   : '1px solid rgba(251,191,36,0.3)',
+                 color:      refValid === true  ? '#34d399' :
+                             refValid === false ? '#f87171'               : '#fbbf24',
+               }}>
+            {refValid === true  && `🎁 Tu as été invité avec le code ${refCode} — tu recevras un bonus à l'inscription !`}
+            {refValid === false && `⚠️ Code de parrainage "${refCode}" invalide ou inexistant.`}
+            {refValid === null  && `⏳ Vérification du code ${refCode}…`}
+          </div>
+        )}
         {/* Stepper */}
         <div className="flex items-center gap-3 mb-7">
           {['Pseudo', 'Vérification'].map((label, i) => {

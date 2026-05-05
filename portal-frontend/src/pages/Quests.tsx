@@ -65,80 +65,73 @@ function fmtTarget(target: string): string {
   return target.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())
 }
 
-// ── SolarTimer ─────────────────────────────────────────────────────────────────
-function SolarTimer({ endsAt, totalMs, onExpired }: { endsAt: number; totalMs: number; onExpired: () => void }) {
+// ── SolarTimerCompact ──────────────────────────────────────────────────────────
+function SolarTimerCompact({
+  endsAt, totalMs, onExpired,
+}: { endsAt: number; totalMs: number; onExpired: () => void }) {
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
     const id = setInterval(() => {
       const t = Date.now()
       setNow(t)
-      if (t >= endsAt) {
-        clearInterval(id)
-        setTimeout(onExpired, 800) // let fade-out play
-      }
+      if (t >= endsAt) { clearInterval(id); setTimeout(onExpired, 800) }
     }, 1000)
     return () => clearInterval(id)
   }, [endsAt, onExpired])
 
   const msLeft = Math.max(0, endsAt - now)
   const pct    = totalMs > 0 ? msLeft / totalMs : 0
-  const urgent = msLeft < 3_600_000  // < 1h
-  const warn   = msLeft < 86_400_000 // < 24h
+  const urgent = msLeft < 3_600_000
+  const warn   = msLeft < 86_400_000
 
-  const r = 22
+  const r    = 14
   const circ = 2 * Math.PI * r
-  const dashOffset = circ * (1 - pct)
+  const dash = circ * (1 - pct)
+  const color = urgent ? '#ef4444' : warn ? '#f59e0b' : '#fbbf24'
 
-  const ringColor = urgent ? '#ef4444' : warn ? '#f59e0b' : '#fbbf24'
-  const textColor = urgent ? '#f87171' : warn ? '#fbbf24' : '#e5e7eb'
-
-  const label = fmtDuration(msLeft)
+  let label: string
+  const totalSec = Math.floor(msLeft / 1000)
+  const d = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec % 86400) / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  if (d > 0)       label = `${d}j`
+  else if (h > 0)  label = `${h}h`
+  else             label = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
 
   return (
-    <div className="flex items-center gap-3 mt-2">
-      {/* SVG ring */}
-      <div className="relative shrink-0 flex items-center justify-center" style={{ width: 54, height: 54 }}>
-        <svg width="54" height="54" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="27" cy="27" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
-          <circle
-            cx="27" cy="27" r={r}
-            fill="none"
-            stroke={ringColor}
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray={circ}
-            strokeDashoffset={dashOffset}
-            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s' }}
-          />
-        </svg>
-        {urgent && (
-          <span
-            className="absolute text-[10px]"
-            style={{
-              color: ringColor,
-              animation: 'pulse 1s ease-in-out infinite',
-            }}
-          >🔴</span>
-        )}
-        {!urgent && (
-          <span className="absolute text-[10px]" style={{ color: ringColor }}>⏱</span>
-        )}
-      </div>
-
-      {/* Countdown */}
-      <div>
-        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: '#64748b' }}>Fin dans</p>
-        <p
-          className="font-mono font-bold text-sm leading-none"
+    <div
+      className="relative shrink-0 flex items-center justify-center"
+      title={`Expire dans ${fmtDuration(msLeft)}`}
+      style={{ width: 36, height: 36 }}
+    >
+      <svg width="36" height="36" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="18" cy="18" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="3" />
+        <circle
+          cx="18" cy="18" r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={dash}
           style={{
-            color: textColor,
+            transition: 'stroke-dashoffset 1s linear, stroke 0.5s',
             animation: urgent ? 'pulse 1s ease-in-out infinite' : undefined,
           }}
-        >
-          {label.startsWith('00:') ? label.slice(3) : label}
-        </p>
-      </div>
+        />
+      </svg>
+      <span
+        className="absolute font-mono font-black leading-none"
+        style={{
+          fontSize: 7,
+          color,
+          animation: urgent ? 'pulse 1s ease-in-out infinite' : undefined,
+        }}
+      >
+        {label}
+      </span>
     </div>
   )
 }
@@ -169,7 +162,6 @@ function QuestCard({
     setTimeout(() => onExpired(quest.id), 600)
   }, [quest.id, onExpired])
 
-  // Card tint based on urgency
   const cardBg = urgent
     ? 'rgba(239,68,68,0.06)'
     : warn
@@ -209,8 +201,8 @@ function QuestCard({
       }} />
 
       <div className="p-4 flex flex-col gap-3 flex-1">
-        {/* Header */}
-        <div className="flex items-start gap-3">
+        {/* Header : icône + titre + timer à droite */}
+        <div className="flex items-center gap-3">
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
             style={{
@@ -221,6 +213,7 @@ function QuestCard({
           >
             {quest.icon}
           </div>
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-sm leading-tight" style={{ color: '#f1f5f9' }}>{quest.title}</h3>
@@ -241,6 +234,17 @@ function QuestCard({
               <p className="text-xs mt-0.5 line-clamp-2" style={{ color: '#64748b' }}>{quest.description}</p>
             )}
           </div>
+
+          {/* Timer compact, extrême droite */}
+          {timed && msLeft !== null && msLeft > 0 && (
+            <SolarTimerCompact endsAt={quest.endsAt!} totalMs={totalMs} onExpired={handleExpired} />
+          )}
+          {timed && msLeft !== null && msLeft <= 0 && (
+            <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold"
+                 style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171' }}>
+              ✕
+            </div>
+          )}
         </div>
 
         {/* Meta badges */}
@@ -313,16 +317,6 @@ function QuestCard({
             </div>
           )}
         </div>
-
-        {/* Solar ring timer */}
-        {timed && msLeft !== null && msLeft > 0 && (
-          <SolarTimer endsAt={quest.endsAt!} totalMs={totalMs} onExpired={handleExpired} />
-        )}
-        {timed && msLeft !== null && msLeft <= 0 && (
-          <div className="text-[11px] px-2 py-1 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
-            🔴 Expirée
-          </div>
-        )}
       </div>
     </div>
   )
@@ -389,8 +383,6 @@ export default function Quests() {
     { key: 'timed',     label: '⏱ Limitées' },
   ]
 
-  // For each timed quest, compute totalMs (from creation or a reasonable window)
-  // We use endsAt as reference and assume a fixed window of 7 days if no start known
   const FALLBACK_WINDOW = 7 * 24 * 3600 * 1000
 
   return (
@@ -471,7 +463,7 @@ export default function Quests() {
       <div className="px-4 max-w-screen-sm mx-auto relative z-10">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20" style={{ color: '#64748b' }}>
-            <div className="w-8 h-8 rounded-full border-2 border-t-amber-500 animate-spin mb-3"
+            <div className="w-8 h-8 rounded-full border-2 animate-spin mb-3"
                  style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#f59e0b' }} />
             Chargement des quêtes…
           </div>
