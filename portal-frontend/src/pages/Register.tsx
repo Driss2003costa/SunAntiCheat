@@ -23,15 +23,26 @@ export default function Register() {
 
   useEffect(() => {
     if (getToken()) navigate('/profile', { replace: true })
-    // Lit le code de parrainage depuis l'URL (?ref=SUN-XXXX)
     const params = new URLSearchParams(window.location.search)
     const ref = params.get('ref')
     if (ref) {
-      setRefCode(ref.toUpperCase().trim())
-      fetch(`/api/public/referral/check?code=${encodeURIComponent(ref.toUpperCase().trim())}`)
+      const code = ref.toUpperCase().trim()
+      setRefCode(code)
+      fetch(`/api/public/referral/check?code=${encodeURIComponent(code)}`)
         .then(r => r.json()).then(d => setRefValid(d.valid)).catch(() => setRefValid(false))
     }
   }, [navigate])
+
+  function handleRefCodeChange(val: string) {
+    const code = val.toUpperCase().trim()
+    setRefCode(code)
+    setRefValid(null)
+    if (code.length === 0) return
+    if (code.length >= 4) {
+      fetch(`/api/public/referral/check?code=${encodeURIComponent(code)}`)
+        .then(r => r.json()).then(d => setRefValid(d.valid)).catch(() => setRefValid(false))
+    }
+  }
 
   useEffect(() => {
     if (countdown <= 0) return
@@ -109,20 +120,11 @@ export default function Register() {
   return (
     <SunSky variant="dawn">
       <Frame>
-        {/* Referral banner */}
-        {refCode && (
+        {/* Referral banner — uniquement si le code vient de l'URL et est encore en cours de vérification */}
+        {refCode && refValid === null && (
           <div className="mb-5 rounded-xl px-4 py-3 text-sm text-center"
-               style={{
-                 background: refValid === true  ? 'rgba(16,185,129,0.12)' :
-                             refValid === false ? 'rgba(239,68,68,0.1)'   : 'rgba(251,191,36,0.1)',
-                 border:     refValid === true  ? '1px solid rgba(16,185,129,0.35)' :
-                             refValid === false ? '1px solid rgba(239,68,68,0.3)'   : '1px solid rgba(251,191,36,0.3)',
-                 color:      refValid === true  ? '#34d399' :
-                             refValid === false ? '#f87171'               : '#fbbf24',
-               }}>
-            {refValid === true  && `🎁 Tu as été invité avec le code ${refCode} — tu recevras un bonus à l'inscription !`}
-            {refValid === false && `⚠️ Code de parrainage "${refCode}" invalide ou inexistant.`}
-            {refValid === null  && `⏳ Vérification du code ${refCode}…`}
+               style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}>
+            ⏳ Vérification du code {refCode}…
           </div>
         )}
         {/* Stepper */}
@@ -162,6 +164,28 @@ export default function Register() {
                 placeholder="ex: Steve"
                 className="w-full px-4 py-3 bg-ink-500/40 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-sun-300/60 focus:bg-ink-500/60 focus:outline-none transition-all backdrop-blur"
               />
+            </Field>
+            <Field label="Code de parrainage (optionnel)">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={refCode}
+                  onChange={e => handleRefCodeChange(e.target.value)}
+                  placeholder="ex: SUN-XXXXXXXX"
+                  className="w-full px-4 py-3 bg-ink-500/40 border rounded-xl text-white placeholder-white/30 focus:outline-none transition-all backdrop-blur font-mono text-sm"
+                  style={{
+                    borderColor: refValid === true ? 'rgba(52,211,153,0.5)' : refValid === false ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.1)',
+                    background: refValid === true ? 'rgba(16,185,129,0.08)' : 'rgba(10,16,32,0.4)',
+                  }}
+                />
+                {refCode && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm">
+                    {refValid === true ? '✅' : refValid === false ? '❌' : '⏳'}
+                  </span>
+                )}
+              </div>
+              {refValid === true  && <p className="text-[11px] text-emerald-400 mt-1">Code valide — tu recevras un bonus à l'inscription !</p>}
+              {refValid === false && <p className="text-[11px] text-red-400 mt-1">Code invalide ou inexistant.</p>}
             </Field>
             {error && <ErrorBox>{error}</ErrorBox>}
             <PrimaryButton onClick={handleRequest} disabled={loading || !username.trim()}>
