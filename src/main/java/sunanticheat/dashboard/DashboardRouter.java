@@ -60,6 +60,7 @@ public final class DashboardRouter implements HttpHandler {
     private final PublicLeaderboardHandler publicLeaderboardHandler;
     private final CustomJobsApiHandler customJobsApiHandler;
     private final GeoIpHandler geoIpHandler;
+    private final PublicCrateShopHandler publicCrateShopHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -104,7 +105,8 @@ public final class DashboardRouter implements HttpHandler {
                            PublicDailyHandler publicDailyHandler,
                            PublicLeaderboardHandler publicLeaderboardHandler,
                            CustomJobsApiHandler customJobsApiHandler,
-                           GeoIpHandler geoIpHandler) {
+                           GeoIpHandler geoIpHandler,
+                           PublicCrateShopHandler publicCrateShopHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -149,6 +151,7 @@ public final class DashboardRouter implements HttpHandler {
         this.publicLeaderboardHandler = publicLeaderboardHandler;
         this.customJobsApiHandler    = customJobsApiHandler;
         this.geoIpHandler            = geoIpHandler;
+        this.publicCrateShopHandler  = publicCrateShopHandler;
     }
 
     @Override
@@ -568,6 +571,16 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/custom-jobs/admin/regulator")                 && PATCH(method))  { customJobsApiHandler.adminRegulatorPatch(ex);   return; }
         if (eq(path, "/api/custom-jobs/admin/regulator/history")         && GET(method))    { customJobsApiHandler.adminRegulatorHistory(ex); return; }
         if (eq(path, "/api/custom-jobs/admin/regulator/freeze")          && PUT(method))    { customJobsApiHandler.adminRegulatorFreeze(ex);  return; }
+
+        // ── Shop de crates public ─────────────────────────────────────────────
+        if (eq(path, "/api/public/crates/shop")                                        && GET(method))  { publicCrateShopHandler.listShop(ex); return; }
+        if (eq(path, "/api/public/player/me/crates/buy")                               && POST(method)) { publicCrateShopHandler.buy(ex); return; }
+        if (eq(path, "/api/public/player/me/crates/keys")                              && GET(method))  { publicCrateShopHandler.myKeys(ex); return; }
+        if (path.startsWith("/api/public/player/me/crates/keys/") && path.endsWith("/claim") && POST(method)) {
+            String crateId = path.substring("/api/public/player/me/crates/keys/".length(),
+                    path.length() - "/claim".length());
+            publicCrateShopHandler.claim(ex, crateId); return;
+        }
 
         // ── VIP routes PUBLIQUES (sans auth — webhooks + page d'achat) ───────
         if (eq(path, "/api/public/vip/plans")           && GET(method))   { vipPublicHandler.listPublicPlans(ex); return; }
