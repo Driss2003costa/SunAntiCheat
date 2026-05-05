@@ -71,7 +71,7 @@ public final class HttpHelper {
         }
         try {
             var claims = jwt.validate(header.substring(7));
-            DashboardUser user = users.get(claims.getSubject());
+            DashboardUser user = users.get(claims.getSubject().toLowerCase());
             if (user == null) { error(ex, 401, "Utilisateur inconnu"); return null; }
             return user;
         } catch (Exception e) {
