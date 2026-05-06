@@ -1,114 +1,92 @@
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-import PageAura from '../components/PageAura'
-import RuneIcon from '../components/codex/RuneIcon'
-import Flourish from '../components/codex/Flourish'
+import SunGuardBg from '../components/SunGuardBg'
 
-const META: Record<string, { title: string; rune: 'flame' | 'eye' | 'star' | 'compass' | 'feather'; verse: string }> = {
-  '/home':      { title: 'L\'Accueil',     rune: 'sun' as any, verse: 'Le foyer du voyageur s\'élève à l\'horizon...' },
-  '/inventory': { title: 'L\'Inventaire',  rune: 'star',       verse: 'Le scribe inventorie tes biens un à un...' },
-  '/minigames': { title: 'Les Mini-jeux',  rune: 'flame',      verse: 'Les arènes se construisent en silence...' },
-  '/career':    { title: 'La Carrière',    rune: 'compass',    verse: 'Ton parcours se grave sur le marbre...' },
-  '/shop':      { title: 'La Boutique',    rune: 'feather',    verse: 'Les marchands déballent leurs trésors...' },
+const GLASS  = 'rgba(255,255,255,0.05)'
+const BORDER = 'rgba(255,255,255,0.08)'
+const AMBER  = 'rgba(251,191,36,0.12)'
+const AMBER_B = 'rgba(251,191,36,0.25)'
+
+const META: Record<string, { title: string; description: string; icon: string; eta?: string }> = {
+  '/home':      { title: 'Accueil',     icon: '🏠', description: 'Votre tableau de bord arrive bientôt.' },
+  '/inventory': { title: 'Inventaire',  icon: '🎒', description: 'Gérez votre inventaire en jeu depuis ici.', eta: 'Bientôt' },
+  '/minigames': { title: 'Mini-jeux',   icon: '🎮', description: 'Suivez vos scores et statistiques de mini-jeux.', eta: 'En développement' },
+  '/career':    { title: 'Carrière',    icon: '💼', description: 'Votre progression de carrière sur le serveur.', eta: 'Bientôt' },
+  '/shop':      { title: 'Boutique',    icon: '🛍', description: 'La boutique en jeu arrive prochainement.' },
 }
 
 export default function ComingSoon({ path }: { path: string }) {
-  const meta = META[path] ?? { title: 'Page', rune: 'eye' as const, verse: 'Le scribe travaille encore...' }
+  const meta = META[path] ?? { title: 'Page', icon: '⚙️', description: 'Cette fonctionnalité est en cours de développement.' }
 
   return (
-    <>
-      <PageAura theme="home" />
+    <SunGuardBg>
+      <div className="relative min-h-screen flex flex-col pb-24">
+        <main className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center">
 
-      <div className="relative min-h-screen flex flex-col pb-24 z-10">
-
-        {/* Étoiles filantes */}
-        <svg className="absolute pointer-events-none" style={{
-          top: 0, left: 0, width: '100%', height: '100%',
-        }} viewBox="0 0 100 100" preserveAspectRatio="none">
-          <line x1="-10" y1="20" x2="20" y2="40"
-                stroke="rgba(248,210,103,0.6)" strokeWidth="0.15" strokeLinecap="round"
-                style={{ animation: 'codexCometStreak 12s linear infinite' }} />
-          <line x1="-10" y1="60" x2="25" y2="80"
-                stroke="rgba(244,181,160,0.4)" strokeWidth="0.12" strokeLinecap="round"
-                style={{ animation: 'codexCometStreak 16s linear infinite', animationDelay: '6s' }} />
-        </svg>
-
-        <main className="flex-1 flex flex-col items-center justify-center gap-7 px-8 text-center max-w-md mx-auto">
-
-          {/* Sablier animé */}
-          <div className="relative codex-reveal codex-reveal-1">
-            <div className="absolute inset-0 rounded-full blur-2xl"
-                 style={{
-                   background: 'radial-gradient(circle, rgba(240,169,59,0.25), transparent 70%)',
-                   transform: 'scale(2)',
-                   animation: 'codexHaloPulse 5s ease-in-out infinite',
-                 }} />
-            <svg width="80" height="100" viewBox="0 0 80 100" fill="none"
-                 className="relative"
-                 style={{ animation: 'codexSandFall 8s ease-in-out infinite' }}>
-              {/* Cadre */}
-              <line x1="10" y1="10" x2="70" y2="10" stroke="#F0A93B" strokeWidth="2" strokeLinecap="round" />
-              <line x1="10" y1="90" x2="70" y2="90" stroke="#F0A93B" strokeWidth="2" strokeLinecap="round" />
-              {/* Bulles */}
-              <path d="M 15 10 Q 15 35, 38 50 Q 15 65, 15 90"
-                    stroke="rgba(240,169,59,0.6)" strokeWidth="1.5" fill="none" />
-              <path d="M 65 10 Q 65 35, 42 50 Q 65 65, 65 90"
-                    stroke="rgba(240,169,59,0.6)" strokeWidth="1.5" fill="none" />
-              {/* Sable haut */}
-              <path d="M 18 14 Q 28 28, 40 32 Q 52 28, 62 14 Z"
-                    fill="rgba(248,210,103,0.4)" />
-              {/* Sable bas */}
-              <path d="M 22 86 Q 30 72, 40 70 Q 50 72, 58 86 Z"
-                    fill="rgba(248,210,103,0.7)" />
-              {/* Filet de sable */}
-              <line x1="40" y1="48" x2="40" y2="68" stroke="rgba(248,210,103,0.8)" strokeWidth="0.5" />
-            </svg>
+          {/* Animated icon */}
+          <div className="relative mb-2">
+            <div className="absolute inset-0 rounded-full pointer-events-none"
+                 style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.15), transparent 70%)',
+                          transform: 'scale(2.5)',
+                          animation: 'pulse 4s ease-in-out infinite' }} />
+            <div className="relative w-24 h-24 rounded-2xl flex items-center justify-center text-5xl"
+                 style={{ background: AMBER, border: `1px solid ${AMBER_B}`, backdropFilter: 'blur(8px)' }}>
+              {meta.icon}
+            </div>
           </div>
 
-          {/* Titre */}
-          <div className="codex-reveal codex-reveal-2">
-            <p className="font-codex-rune text-[10px] tracking-[0.4em] text-amber-200/50 mb-3">
-              ✦ LE SCRIBE TRAVAILLE ✦
-            </p>
-            <h1 className="font-codex-display text-3xl sm:text-4xl font-bold leading-tight"
-                style={{
-                  color: '#FBE9C2',
-                  textShadow: '0 4px 24px rgba(240,169,59,0.3)',
-                  letterSpacing: '0.06em',
-                }}>
+          {/* Badge */}
+          <span className="px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase"
+                style={{ background: AMBER, border: `1px solid ${AMBER_B}`, color: '#fbbf24' }}>
+            {meta.eta ?? 'À venir'}
+          </span>
+
+          {/* Title */}
+          <div>
+            <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight mb-2">
               {meta.title}
             </h1>
-            <Flourish variant="simple" width={160} className="mt-4" />
+            <p className="text-white/50 text-base max-w-sm mx-auto">
+              {meta.description}
+            </p>
           </div>
 
-          {/* Verset */}
-          <p className="font-codex-lyric italic text-amber-100/70 text-base leading-relaxed codex-reveal codex-reveal-3">
-            « {meta.verse} »
-          </p>
+          {/* Progress bar decoration */}
+          <div className="w-48 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="h-full rounded-full"
+                 style={{
+                   width: '60%',
+                   background: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
+                   animation: 'pulse 2s ease-in-out infinite',
+                 }} />
+          </div>
 
-          {/* Sub-text */}
-          <p className="font-codex-body italic text-amber-100/45 text-sm codex-reveal codex-reveal-4">
-            Cette page est en cours d'enluminure.<br />
-            Reviens à l'aube prochaine pour la découvrir.
-          </p>
+          {/* Info card */}
+          <div className="mt-2 px-6 py-4 rounded-xl max-w-xs"
+               style={{ background: GLASS, border: `1px solid ${BORDER}` }}>
+            <p className="text-xs text-white/40 leading-relaxed">
+              Cette fonctionnalité est actuellement en cours de développement.
+              Reviens bientôt pour la découvrir !
+            </p>
+          </div>
 
-          {/* CTA retour */}
-          <Link to="/profile"
-                className="codex-flare inline-flex items-center gap-3 px-6 py-3 mt-2 codex-reveal codex-reveal-5"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(184,92,14,0.15), rgba(140,42,31,0.08))',
-                  border: '1px solid rgba(240,169,59,0.35)',
-                  color: '#FBE9C2',
-                }}>
-            <RuneIcon rune="compass" size={16} color="#F0A93B" />
-            <span className="font-codex-display text-xs tracking-[0.3em]">
-              RETOUR AU ROYAUME
-            </span>
-          </Link>
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 mt-2">
+            <Link to="/portal/profile"
+                  className="px-6 py-2.5 rounded-full text-sm font-semibold text-amber-300 hover:text-amber-200 transition-colors"
+                  style={{ background: AMBER, border: `1px solid ${AMBER_B}` }}>
+              Mon profil
+            </Link>
+            <Link to="/portal/home"
+                  className="px-6 py-2.5 rounded-full text-sm font-semibold transition-colors hover:text-white"
+                  style={{ background: GLASS, border: `1px solid ${BORDER}`, color: 'rgba(255,255,255,0.5)' }}>
+              Accueil
+            </Link>
+          </div>
         </main>
 
         <Navbar />
       </div>
-    </>
+    </SunGuardBg>
   )
 }
