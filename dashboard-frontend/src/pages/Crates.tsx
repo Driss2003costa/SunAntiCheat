@@ -408,13 +408,26 @@ export default function Crates() {
                            placeholder="itemsadder:mon_bloc"
                            style={inputStyle} className="w-full px-3 py-2 rounded"/>
                   </Field>
-                  <div className="p-4 rounded-lg text-sm space-y-1" style={{ background: 'var(--surface-2)' }}>
+                  <div className="p-4 rounded-lg text-sm space-y-2" style={{ background: 'var(--surface-2)' }}>
                     <div style={{ color: 'var(--text)' }}><b>Placement en jeu :</b></div>
-                    <code className="text-xs" style={{ color: 'var(--primary)' }}>
-                      /crate place {editing.name}
-                    </code>
-                    <div style={{ color: 'var(--text-muted)' }} className="text-xs">
-                      Vise le bloc et lance la commande — il sera enregistré comme crate.
+                    {editing.itemAdderBlockId && (
+                      <div className="space-y-0.5">
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>1. Obtenir le bloc ItemsAdder :</div>
+                        <code className="text-xs block" style={{ color: '#a78bfa' }}>
+                          /iagive {'<joueur>'} {editing.itemAdderBlockId}
+                        </code>
+                      </div>
+                    )}
+                    <div className="space-y-0.5">
+                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {editing.itemAdderBlockId ? '2.' : ''} Vise le bloc et lance :
+                      </div>
+                      <code className="text-xs block" style={{ color: 'var(--primary)' }}>
+                        /crate place {editing.name}
+                      </code>
+                      <div style={{ color: 'var(--text-muted)' }} className="text-xs">
+                        Il sera enregistré comme crate.
+                      </div>
                     </div>
                   </div>
                 </>
