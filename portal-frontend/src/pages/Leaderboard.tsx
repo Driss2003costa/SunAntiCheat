@@ -1,15 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import CodexSky from '../components/codex/CodexSky'
-import Cartouche from '../components/codex/Cartouche'
-import WaxSeal from '../components/codex/WaxSeal'
-import Flourish from '../components/codex/Flourish'
-import RuneIcon from '../components/codex/RuneIcon'
-import CompassRose from '../components/codex/CompassRose'
-import DustParticles from '../components/codex/DustParticles'
-import RomanNumeral, { toRoman } from '../components/codex/RomanNumeral'
+import SunGuardBg from '../components/SunGuardBg'
 
-type LeaderboardEntry = {
+type Entry = {
   rank: number
   username: string
   uuid: string
@@ -19,339 +12,276 @@ type LeaderboardEntry = {
 }
 
 type LeaderboardData = {
-  playtime: LeaderboardEntry[]
-  economy: LeaderboardEntry[]
+  playtime: Entry[]
+  economy: Entry[]
   updatedAt: number
 }
 
+type Tab = 'playtime' | 'economy'
+
+const RANK_STYLE = {
+  1: { bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.35)', badge: '#fbbf24', label: '🥇' },
+  2: { bg: 'rgba(192,197,204,0.08)', border: 'rgba(192,197,204,0.3)', badge: '#c0c5cc', label: '🥈' },
+  3: { bg: 'rgba(184,92,14,0.1)',   border: 'rgba(184,92,14,0.35)',  badge: '#d4843e', label: '🥉' },
+}
+
+function fmtBalance(n?: number) {
+  if (n == null) return '—'
+  return n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' $'
+}
+
 export default function Leaderboard() {
-  const [data, setData]       = useState<LeaderboardData | null>(null)
+  const [data,    setData]    = useState<LeaderboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState('')
+  const [error,   setError]   = useState('')
+  const [tab,     setTab]     = useState<Tab>('playtime')
 
   useEffect(() => {
     fetch('/api/public/leaderboard')
-      .then(async r => {
-        const d = await r.json()
-        if (!r.ok) throw d
-        setData(d)
-      })
+      .then(async r => { const d = await r.json(); if (!r.ok) throw d; setData(d) })
       .catch(e => setError(e.message || 'Erreur de chargement.'))
       .finally(() => setLoading(false))
   }, [])
 
+  const entries = data ? (tab === 'playtime' ? data.playtime : data.economy) : []
+  const top3    = entries.slice(0, 3)
+  const rest    = entries.slice(3)
+
   return (
-    <CodexSky time="noon">
-      <DustParticles count={10} />
-
-      {/* Compas filigrane en fond */}
-      <CompassRose
-        size={520}
-        opacity={0.05}
-        className="absolute top-[20%] left-1/2 -translate-x-1/2 pointer-events-none hidden md:block"
-      />
-
-      {/* Oiseau qui passe */}
-      <svg
-        className="absolute pointer-events-none"
-        style={{
-          top: '12%', left: 0,
-          width: 32, height: 24,
-          opacity: 0.45,
-          animation: 'codexBirdFly 38s linear infinite',
-          animationDelay: '4s',
-        }}
-        viewBox="0 0 32 24" fill="none" stroke="#FBE9C2" strokeWidth="1.4"
-        strokeLinecap="round" strokeLinejoin="round"
-      >
-        <path d="M 2 14 Q 8 4, 14 14 Q 20 4, 30 14" />
-      </svg>
-
-      <div className="relative z-10 min-h-screen pb-20">
-
-        {/* ── Top bar ─── */}
-        <header className="px-5 py-6 flex items-center justify-between max-w-6xl mx-auto codex-reveal codex-reveal-1">
+    <SunGuardBg glow="amber">
+      {/* ── Navbar ─────────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 border-b"
+              style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(6,9,15,0.85)', backdropFilter: 'blur(16px)' }}>
+        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <RuneIcon rune="sun" size={22} color="#F0A93B" />
-            <span className="font-codex-display text-sm tracking-[0.3em] text-amber-100/90 group-hover:text-amber-100 transition-colors">
-              SUNGUARD
-            </span>
+            {/* Sun mark */}
+            <div className="relative w-6 h-6 shrink-0">
+              <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle at 35% 35%, #fef9c3, #f59e0b)', boxShadow: '0 0 12px rgba(251,191,36,0.5)' }} />
+              <div className="absolute inset-[30%] rounded-full" style={{ background: 'rgba(255,255,255,0.7)' }} />
+            </div>
+            <span className="font-bold text-sm tracking-wide text-white">SunGuard</span>
           </Link>
-          <nav className="flex items-center gap-5 text-xs font-codex-lyric tracking-wider">
-            <Link to="/login" className="codex-underline text-amber-100/70 hover:text-amber-100">
+          <nav className="flex items-center gap-1">
+            <span className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+                  style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+              Classement
+            </span>
+            <Link to="/login"
+              className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+              style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
               Connexion
             </Link>
-            <span className="text-amber-100/30">◈</span>
-            <Link to="/" className="codex-underline text-amber-100/70 hover:text-amber-100">
-              Inscription
+            <Link to="/register"
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+              style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', textDecoration: 'none' }}>
+              S'inscrire
             </Link>
           </nav>
-        </header>
+        </div>
+      </header>
 
-        <main className="max-w-4xl mx-auto px-5 pt-6 space-y-12">
+      <main className="max-w-5xl mx-auto px-5 pb-20">
 
-          {/* ── Titre cérémoniel ─── */}
-          <section className="text-center codex-reveal codex-reveal-2">
-            <p className="font-codex-rune text-[10px] tracking-[0.4em] text-amber-200/50 mb-5">
-              ✦ LIVRE I ✦ DU PANTHÉON ✦
-            </p>
-            <h1 className="font-codex-display text-5xl sm:text-7xl font-bold leading-[0.9]"
-                style={{
-                  color: '#FBE9C2',
-                  textShadow: '0 4px 30px rgba(240,169,59,0.3), 0 1px 0 rgba(248,210,103,0.4)',
-                  letterSpacing: '0.08em',
-                }}>
-              PANTHÉON<br />
-              <span className="text-3xl sm:text-5xl text-amber-200/80">DES VOYAGEURS</span>
-            </h1>
-            <Flourish variant="royal" width={260} className="mt-6" />
-            <p className="font-codex-lyric italic text-amber-100/70 text-lg mt-4 max-w-md mx-auto">
-              « Ceux qui ont vu l'aube se lever sur les royaumes de Sun »
-            </p>
-          </section>
-
-          {/* ── Loading ─── */}
-          {loading && (
-            <div className="flex flex-col items-center gap-4 py-20 codex-reveal">
-              <div className="w-14 h-14 rounded-full border-2 border-amber-200/20 border-t-amber-300 animate-spin" />
-              <p className="font-codex-lyric italic text-amber-100/60 text-sm">
-                Le scribe consulte les grands registres...
-              </p>
-            </div>
-          )}
-
-          {/* ── Error ─── */}
-          {error && (
-            <Cartouche tone="night" className="px-8 py-10 text-center codex-reveal">
-              <RuneIcon rune="flame" size={36} color="#C84329" className="mx-auto mb-3" />
-              <p className="font-codex-display text-2xl text-red-200 mb-2">Le registre est scellé</p>
-              <p className="font-codex-body italic text-amber-100/60">{error}</p>
-            </Cartouche>
-          )}
-
-          {/* ── Top 3 podium ─── */}
-          {data && data.playtime.length >= 3 && (
-            <section className="codex-reveal codex-reveal-3">
-              <p className="text-center font-codex-rune text-[10px] tracking-[0.4em] text-amber-200/50 mb-6">
-                ✦ LES TROIS ÉLUS ✦
-              </p>
-              <div className="grid grid-cols-3 gap-3 sm:gap-5 items-end">
-                <PodiumPillar entry={data.playtime[1]} place={2} />
-                <PodiumPillar entry={data.playtime[0]} place={1} />
-                <PodiumPillar entry={data.playtime[2]} place={3} />
-              </div>
-            </section>
-          )}
-
-          {/* ── Reste du classement ─── */}
-          {data && data.playtime.length > 3 && (
-            <section className="codex-reveal codex-reveal-4">
-              <Flourish variant="double" width={200} className="mb-6" />
-              <Cartouche tone="night" className="overflow-hidden">
-                <div className="px-6 py-4 border-b border-amber-300/10 flex items-center justify-between">
-                  <p className="font-codex-display text-xs tracking-[0.3em] text-amber-200/70">
-                    LES INSCRITS
-                  </p>
-                  <p className="font-codex-rune text-[10px] text-amber-100/40">
-                    rang · pseudo · temps
-                  </p>
-                </div>
-                <ol className="divide-y divide-amber-300/5">
-                  {data.playtime.slice(3).map((entry, i) => (
-                    <li key={entry.uuid}
-                        className="codex-reveal"
-                        style={{ animationDelay: `${600 + i * 80}ms` }}>
-                      <a
-                        href={`/portal/player/${entry.username}`}
-                        className="codex-row flex items-center gap-4 px-6 py-3.5 group"
-                      >
-                        {/* Numéro romain */}
-                        <div className="w-12 shrink-0 text-center">
-                          <span className="font-codex-display text-sm text-amber-200/50 group-hover:text-amber-200 transition-colors tracking-wider">
-                            {toRoman(entry.rank)}
-                          </span>
-                        </div>
-
-                        {/* Avatar */}
-                        <img
-                          src={`https://mc-heads.net/avatar/${entry.username}/40`}
-                          alt={entry.username}
-                          className="w-10 h-10 shrink-0"
-                          style={{
-                            border: '1px solid rgba(240,169,59,0.25)',
-                            imageRendering: 'pixelated',
-                          }}
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
-
-                        {/* Pseudo */}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-codex-lyric text-amber-50 truncate text-base group-hover:italic transition-all">
-                            {entry.username}
-                          </p>
-                        </div>
-
-                        {/* Temps */}
-                        <div className="text-right shrink-0">
-                          <p className="font-codex-display text-sm text-amber-200/90 tracking-wider">
-                            {entry.playtime_formatted}
-                          </p>
-                          <p className="font-codex-lyric italic text-[10px] text-amber-100/40">
-                            heures d'errance
-                          </p>
-                        </div>
-                      </a>
-                    </li>
-                  ))}
-                </ol>
-              </Cartouche>
-            </section>
-          )}
-
-          {/* ── Vide ─── */}
-          {data && data.playtime.length === 0 && (
-            <Cartouche tone="ivory" className="px-10 py-16 text-center codex-reveal">
-              <RuneIcon rune="feather" size={48} color="#F0A93B" className="mx-auto mb-4" />
-              <p className="font-codex-display text-2xl text-amber-100 mb-2 tracking-wider">
-                LE REGISTRE EST VIERGE
-              </p>
-              <p className="font-codex-lyric italic text-amber-100/60">
-                Les premières aventures s'écrivent à peine.
-              </p>
-            </Cartouche>
-          )}
-
-          {/* ── Footer ─── */}
+        {/* ── Hero title ───────────────────────────────────────────────────── */}
+        <div className="pt-14 pb-10 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-5 text-xs font-semibold tracking-wider uppercase"
+               style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)', color: '#fbbf24' }}>
+            ☀ SunGuard Network
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight mb-3">
+            Classement
+          </h1>
+          <p className="text-base" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            Les meilleurs joueurs du serveur, mis à jour en temps réel.
+          </p>
           {data && (
-            <div className="text-center codex-reveal codex-reveal-5">
-              <Flourish variant="simple" width={180} />
-              <p className="font-codex-lyric italic text-[11px] text-amber-100/50 mt-3">
-                Mis à jour à l'heure de {new Date(data.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
+            <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+              Dernière mise à jour : {new Date(data.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
           )}
-        </main>
-      </div>
-    </CodexSky>
+        </div>
+
+        {/* ── Tabs ─────────────────────────────────────────────────────────── */}
+        <div className="flex gap-1 p-1 rounded-xl mb-10 max-w-xs mx-auto"
+             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          {([
+            { key: 'playtime' as Tab, label: '⏱ Temps de jeu' },
+            { key: 'economy'  as Tab, label: '💰 Économie' },
+          ]).map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                background: tab === t.key ? 'rgba(251,191,36,0.12)' : 'transparent',
+                color: tab === t.key ? '#fbbf24' : 'rgba(255,255,255,0.4)',
+                border: tab === t.key ? '1px solid rgba(251,191,36,0.25)' : '1px solid transparent',
+              }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Loading ──────────────────────────────────────────────────────── */}
+        {loading && (
+          <div className="flex flex-col items-center gap-4 py-24">
+            <div className="w-10 h-10 rounded-full border-2 animate-spin"
+                 style={{ borderColor: 'rgba(251,191,36,0.15)', borderTopColor: '#fbbf24' }} />
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>Chargement du classement…</p>
+          </div>
+        )}
+
+        {/* ── Error ────────────────────────────────────────────────────────── */}
+        {error && (
+          <div className="rounded-2xl p-10 text-center"
+               style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <p className="text-red-400 font-semibold">{error}</p>
+          </div>
+        )}
+
+        {/* ── Podium Top 3 ─────────────────────────────────────────────────── */}
+        {entries.length >= 3 && (
+          <div className="mb-8">
+            <div className="grid grid-cols-3 gap-3 sm:gap-5 items-end max-w-2xl mx-auto">
+              {/* #2 */}
+              <PodiumCard entry={top3[1]} place={2} tab={tab} />
+              {/* #1 */}
+              <PodiumCard entry={top3[0]} place={1} tab={tab} />
+              {/* #3 */}
+              <PodiumCard entry={top3[2]} place={3} tab={tab} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Rest of leaderboard ──────────────────────────────────────────── */}
+        {rest.length > 0 && (
+          <div className="rounded-2xl overflow-hidden"
+               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            {/* Table header */}
+            <div className="grid grid-cols-[40px_1fr_auto] sm:grid-cols-[40px_40px_1fr_auto_auto] gap-4 px-5 py-3 border-b"
+                 style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>#</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest hidden sm:block" style={{ color: 'rgba(255,255,255,0.3)' }}></span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>Joueur</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-right" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                {tab === 'playtime' ? 'Temps de jeu' : 'Solde'}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-right hidden sm:block" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                {tab === 'playtime' ? 'Solde' : 'Temps de jeu'}
+              </span>
+            </div>
+
+            {rest.map((entry, i) => (
+              <a key={entry.uuid} href={`/portal/player/${entry.username}`}
+                className="grid grid-cols-[40px_1fr_auto] sm:grid-cols-[40px_40px_1fr_auto_auto] gap-4 px-5 py-3.5 border-b items-center transition-colors group"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.04)',
+                  textDecoration: 'none',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(251,191,36,0.04)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                {/* Rank */}
+                <span className="text-sm font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                  {entry.rank}
+                </span>
+                {/* Avatar */}
+                <img src={`https://mc-heads.net/avatar/${entry.username}/32`} alt={entry.username}
+                     className="w-8 h-8 rounded-lg hidden sm:block"
+                     style={{ imageRendering: 'pixelated' }}
+                     onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                {/* Name */}
+                <span className="text-sm font-semibold truncate transition-colors group-hover:text-white"
+                      style={{ color: 'rgba(255,255,255,0.8)' }}>
+                  {entry.username}
+                </span>
+                {/* Primary stat */}
+                <span className="text-sm font-bold text-right tabular-nums" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {tab === 'playtime' ? entry.playtime_formatted : fmtBalance(entry.balance)}
+                </span>
+                {/* Secondary stat */}
+                <span className="text-xs text-right tabular-nums hidden sm:block" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  {tab === 'playtime' ? fmtBalance(entry.balance) : entry.playtime_formatted}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {entries.length === 0 && !loading && !error && (
+          <div className="rounded-2xl p-16 text-center"
+               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-4xl mb-4">🏆</p>
+            <p className="font-semibold text-white mb-2">Le classement est vide</p>
+            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Les premiers joueurs n'ont pas encore joué.</p>
+          </div>
+        )}
+
+        {/* ── Footer CTA ────────────────────────────────────────────────────── */}
+        <div className="mt-12 rounded-2xl p-8 text-center"
+             style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.06), rgba(184,92,14,0.04))', border: '1px solid rgba(251,191,36,0.12)' }}>
+          <p className="text-lg font-bold text-white mb-2">Rejoins le serveur</p>
+          <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Connecte-toi et commence à accumuler des heures pour apparaître dans le classement.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Link to="/register"
+              className="px-5 py-2.5 rounded-xl font-bold text-sm text-gray-900 transition-all"
+              style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', textDecoration: 'none' }}>
+              Créer un compte
+            </Link>
+            <Link to="/login"
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)', textDecoration: 'none' }}>
+              Connexion
+            </Link>
+          </div>
+        </div>
+      </main>
+    </SunGuardBg>
   )
 }
 
-function PodiumPillar({ entry, place }: { entry: LeaderboardEntry; place: 1 | 2 | 3 }) {
-  const config = {
-    1: {
-      sealColor: 'gold' as const,
-      pillarH: 'h-56 sm:h-64',
-      avatarSize: 64,
-      ornament: '👑',
-      glowColor: 'rgba(240,169,59,0.45)',
-      borderColor: 'rgba(240,169,59,0.55)',
-      bgGradient: 'linear-gradient(180deg, rgba(240,169,59,0.18), rgba(184,92,14,0.08) 60%, rgba(20,15,30,0.5))',
-      label: 'PREMIER',
-    },
-    2: {
-      sealColor: 'silver' as const,
-      pillarH: 'h-44 sm:h-52',
-      avatarSize: 52,
-      ornament: '✦',
-      glowColor: 'rgba(192,197,204,0.3)',
-      borderColor: 'rgba(192,197,204,0.4)',
-      bgGradient: 'linear-gradient(180deg, rgba(192,197,204,0.15), rgba(74,107,138,0.08) 60%, rgba(20,15,30,0.5))',
-      label: 'SECOND',
-    },
-    3: {
-      sealColor: 'bronze' as const,
-      pillarH: 'h-36 sm:h-44',
-      avatarSize: 48,
-      ornament: '✦',
-      glowColor: 'rgba(184,92,14,0.35)',
-      borderColor: 'rgba(184,92,14,0.5)',
-      bgGradient: 'linear-gradient(180deg, rgba(184,92,14,0.18), rgba(140,63,10,0.08) 60%, rgba(20,15,30,0.5))',
-      label: 'TROISIÈME',
-    },
-  }[place]
-
-  const tilt = place === 1 ? '0deg' : place === 2 ? '-1.5deg' : '1.5deg'
+function PodiumCard({ entry, place, tab }: { entry: Entry; place: 1 | 2 | 3; tab: Tab }) {
+  const s = RANK_STYLE[place]
+  const heights = { 1: 'pt-8', 2: 'pt-4', 3: 'pt-2' }
+  const avatarSizes = { 1: 72, 2: 56, 3: 48 }
 
   return (
-    <a
-      href={`/portal/player/${entry.username}`}
-      className={`relative block ${config.pillarH} group`}
-      style={{ transform: `rotate(${tilt})`, transition: 'transform 0.4s ease' }}
-      onMouseEnter={e => e.currentTarget.style.transform = `rotate(0deg) translateY(-4px)`}
-      onMouseLeave={e => e.currentTarget.style.transform = `rotate(${tilt})`}
-    >
-      {/* Halo */}
-      {place === 1 && (
-        <div className="absolute -inset-4 rounded-full pointer-events-none"
-             style={{
-               background: `radial-gradient(circle, ${config.glowColor}, transparent 70%)`,
-               filter: 'blur(20px)',
-               animation: 'codexHaloPulse 4s ease-in-out infinite',
-             }} />
-      )}
-
-      {/* Pilier */}
-      <div className="relative h-full flex flex-col items-center justify-end px-3 pb-4 pt-5"
-           style={{
-             background: config.bgGradient,
-             border: `1px solid ${config.borderColor}`,
-             boxShadow: place === 1
-               ? `0 20px 40px -10px ${config.glowColor}, inset 0 1px 0 rgba(255,255,255,0.1)`
-               : `0 12px 24px -8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)`,
-           }}>
-
-        {/* Coins ornés */}
-        <span className="absolute top-2 left-2 w-3 h-3 border-l border-t" style={{ borderColor: config.borderColor }} />
-        <span className="absolute top-2 right-2 w-3 h-3 border-r border-t" style={{ borderColor: config.borderColor }} />
-        <span className="absolute bottom-2 left-2 w-3 h-3 border-l border-b" style={{ borderColor: config.borderColor }} />
-        <span className="absolute bottom-2 right-2 w-3 h-3 border-r border-b" style={{ borderColor: config.borderColor }} />
-
-        {/* Sceau de cire avec rang romain */}
-        <div className="absolute -top-5 left-1/2 -translate-x-1/2">
-          <WaxSeal color={config.sealColor} label={toRoman(place)} size={place === 1 ? 52 : 42} rotate={-4} />
+    <a href={`/portal/player/${entry.username}`}
+       className={`block rounded-2xl overflow-hidden transition-transform hover:-translate-y-1 ${heights[place]}`}
+       style={{ background: s.bg, border: `1px solid ${s.border}`, textDecoration: 'none' }}>
+      {/* Rank badge */}
+      <div className="flex justify-center pt-5 pb-2">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black"
+             style={{ background: s.badge, color: '#06090F', boxShadow: `0 4px 16px ${s.border}` }}>
+          {place}
         </div>
-
-        {/* Avatar */}
-        <div className="relative mb-2 mt-3">
-          <img
-            src={`https://mc-heads.net/avatar/${entry.username}/${config.avatarSize * 2}`}
-            alt={entry.username}
-            style={{
-              width: config.avatarSize, height: config.avatarSize,
-              imageRendering: 'pixelated',
-              border: `1px solid ${config.borderColor}`,
-              boxShadow: `0 4px 12px rgba(0,0,0,0.4)`,
-            }}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-          />
-          {place === 1 && (
-            <span className="absolute -top-1 -right-1 text-2xl"
-                  style={{ filter: `drop-shadow(0 2px 4px ${config.glowColor})` }}>
-              {config.ornament}
-            </span>
-          )}
+      </div>
+      {/* Avatar */}
+      <div className="flex justify-center mb-3">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl blur-xl opacity-60"
+               style={{ background: s.badge, transform: 'scale(1.3)' }} />
+          <img src={`https://mc-heads.net/avatar/${entry.username}/${avatarSizes[place] * 2}`}
+               alt={entry.username}
+               style={{
+                 width: avatarSizes[place], height: avatarSizes[place],
+                 imageRendering: 'pixelated',
+                 borderRadius: 10,
+                 border: `2px solid ${s.border}`,
+                 position: 'relative',
+               }}
+               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
         </div>
-
-        {/* Pseudo */}
-        <p className={`font-codex-display text-center truncate w-full leading-tight ${place === 1 ? 'text-base sm:text-lg' : 'text-sm'}`}
-           style={{
-             color: place === 1 ? '#FFF6E5' : '#FBE9C2',
-             textShadow: place === 1 ? '0 2px 8px rgba(240,169,59,0.4)' : 'none',
-             letterSpacing: '0.05em',
-             fontWeight: place === 1 ? 700 : 500,
-           }}>
-          {entry.username}
+      </div>
+      {/* Info */}
+      <div className="px-3 pb-5 text-center">
+        <p className="font-bold text-sm text-white truncate mb-1">{entry.username}</p>
+        <p className="text-xs font-semibold" style={{ color: s.badge }}>
+          {tab === 'playtime' ? entry.playtime_formatted : fmtBalance(entry.balance)}
         </p>
-
-        {/* Temps */}
-        <p className="font-codex-lyric italic text-[10px] sm:text-xs text-amber-100/70 mt-0.5">
-          {entry.playtime_formatted}
-        </p>
-
-        {/* Label de rang */}
-        <p className="font-codex-rune text-[9px] tracking-[0.25em] text-amber-200/50 mt-1.5 pt-1.5 border-t w-full text-center"
-           style={{ borderColor: config.borderColor }}>
-          {config.label}
+        <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          {tab === 'playtime' ? 'de jeu' : ''}
         </p>
       </div>
     </a>
