@@ -514,6 +514,13 @@ public final class DashboardModule {
         sunanticheat.dashboard.handlers.PortalSectionsHandler portalSectionsHandler =
                 new sunanticheat.dashboard.handlers.PortalSectionsHandler(portalSectionsStore);
 
+        // ── Activité portail (logs connexions + page views + parrainages) ─────
+        sunanticheat.dashboard.portal.PortalActivityStore portalActivityStore =
+                new sunanticheat.dashboard.portal.PortalActivityStore(database, plugin.getLogger());
+        sunanticheat.dashboard.handlers.PortalActivityHandler portalActivityHandler =
+                new sunanticheat.dashboard.handlers.PortalActivityHandler(portalActivityStore, database, plugin.getLogger());
+        publicRegisterHandler.setActivityStore(portalActivityStore);
+
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
@@ -527,7 +534,8 @@ public final class DashboardModule {
                 publicRegisterHandler, publicPlayerHandler, publicProfileHandler,
                 publicDailyHandler, publicLeaderboardHandler, customJobsApiHandler,
                 geoIpHandler, publicCrateShopHandler, friendHandler, chatHandler, referralHandler,
-                portalSectionsHandler);
+                portalSectionsHandler, portalActivityHandler);
+        router.setPortalActivityDeps(portalActivityStore, playerJwtUtil);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

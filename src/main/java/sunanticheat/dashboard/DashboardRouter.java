@@ -70,6 +70,9 @@ public final class DashboardRouter implements HttpHandler {
     private final ChatHandler chatHandler;
     private final ReferralHandler referralHandler;
     private final PortalSectionsHandler portalSectionsHandler;
+    private final PortalActivityHandler portalActivityHandler;
+    private sunanticheat.dashboard.portal.PortalActivityStore portalActivityStore;
+    private sunanticheat.dashboard.portal.PlayerJwtUtil portalJwt;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -119,7 +122,8 @@ public final class DashboardRouter implements HttpHandler {
                            FriendHandler friendHandler,
                            ChatHandler chatHandler,
                            ReferralHandler referralHandler,
-                           PortalSectionsHandler portalSectionsHandler) {
+                           PortalSectionsHandler portalSectionsHandler,
+                           PortalActivityHandler portalActivityHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -169,6 +173,14 @@ public final class DashboardRouter implements HttpHandler {
         this.chatHandler             = chatHandler;
         this.referralHandler         = referralHandler;
         this.portalSectionsHandler   = portalSectionsHandler;
+        this.portalActivityHandler   = portalActivityHandler;
+    }
+
+    /** Injecté après construction (dépendance circulaire évitée). */
+    public void setPortalActivityDeps(sunanticheat.dashboard.portal.PortalActivityStore store,
+                                      sunanticheat.dashboard.portal.PlayerJwtUtil pjwt) {
+        this.portalActivityStore = store;
+        this.portalJwt           = pjwt;
     }
 
     @Override
@@ -189,6 +201,18 @@ public final class DashboardRouter implements HttpHandler {
             // PAS d'auth, PAS de pare-feu VIEWER. Ces handlers gèrent eux-mêmes
             // la sécurité (signature webhook, rate-limit IP).
             if (path.startsWith("/api/public/")) {
+                // Middleware page views : log les appels authentifiés (player JWT)
+                if (portalActivityStore != null && portalJwt != null) {
+                    try {
+                        String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+                        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                            var claims = portalJwt.validate(authHeader.substring(7));
+                            String pvUuid = claims.getSubject();
+                            String pvName = claims.get("username", String.class);
+                            portalActivityStore.logPageView(pvUuid, pvName, path, method);
+                        }
+                    } catch (Exception ignored) { /* token invalide ou absent — pas de log */ }
+                }
                 dispatch(exchange, path, method);
                 return;
             }
@@ -660,6 +684,12 @@ public final class DashboardRouter implements HttpHandler {
         // ── Sections portail (admin) ──────────────────────────────────────────
         if (eq(path, "/api/portal/sections")  && GET(method))   { portalSectionsHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/portal/sections")  && PATCH(method)) { portalSectionsHandler.update(ex, jwt, users); return; }
+
+        // ── Activité portail (admin) ──────────────────────────────────────────
+        if (eq(path, "/api/portal/activity/logins")     && GET(method)) { portalActivityHandler.logins(ex, jwt, users); return; }
+        if (eq(path, "/api/portal/activity/pageviews")  && GET(method)) { portalActivityHandler.pageViews(ex, jwt, users); return; }
+        if (eq(path, "/api/portal/activity/referrals")  && GET(method)) { portalActivityHandler.referrals(ex, jwt, users); return; }
+        if (eq(path, "/api/portal/activity/stats")      && GET(method)) { portalActivityHandler.stats(ex, jwt, users); return; }
 
         // ── Parrainage (public) ───────────────────────────────────────────────
         if (eq(path, "/api/public/referral/me")                       && GET(method))    { referralHandler.myCode(ex); return; }

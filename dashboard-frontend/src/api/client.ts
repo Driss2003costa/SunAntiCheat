@@ -466,6 +466,21 @@ export const api = {
       method: 'PATCH', body: JSON.stringify({ sections }),
     }),
 
+  // Portal activity (admin monitoring)
+  portalActivityStats: () => request<any>('/api/portal/activity/stats'),
+  portalActivityLogins: (p: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]))).toString()
+    return request<any>(`/api/portal/activity/logins${qs ? '?' + qs : ''}`)
+  },
+  portalActivityPageViews: (p: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]))).toString()
+    return request<any>(`/api/portal/activity/pageviews${qs ? '?' + qs : ''}`)
+  },
+  portalActivityReferrals: (p: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]))).toString()
+    return request<any>(`/api/portal/activity/referrals${qs ? '?' + qs : ''}`)
+  },
+
   // VIP — endpoints publics (pas d'auth, pour la page /buy)
   vipPublicPlans:  () => fetch('/api/public/vip/plans').then(r => r.json()) as Promise<any[]>,
   vipPublicCheckout: (planId: string, playerName: string, gateway: 'STRIPE' | 'PAYPAL') =>
