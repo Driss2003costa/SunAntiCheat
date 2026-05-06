@@ -281,11 +281,16 @@ export default function Profile() {
                   <p className="text-xs" style={{ color: MUTED }}>{dailyResult.message}</p>
                 </div>
               ) : daily.canClaim ? (
-                <button onClick={claimDaily} disabled={dailyClaiming}
-                  className="w-full py-3 rounded-xl font-bold text-sm disabled:opacity-50 text-gray-900"
-                  style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', boxShadow: '0 4px 20px rgba(251,191,36,0.2)' }}>
-                  {dailyClaiming ? 'Réclamation…' : '🎁 Réclamer ma récompense'}
-                </button>
+                <div className="space-y-2">
+                  <button onClick={claimDaily} disabled={dailyClaiming}
+                    className="w-full py-3 rounded-xl font-bold text-sm disabled:opacity-50 text-gray-900"
+                    style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', boxShadow: '0 4px 20px rgba(251,191,36,0.2)' }}>
+                    {dailyClaiming ? 'Réclamation…' : '🎁 Réclamer ma récompense'}
+                  </button>
+                  <p className="text-center text-[10px]" style={{ color: MUTED }}>
+                    🎮 Vous devez être connecté en jeu pour réclamer
+                  </p>
+                </div>
               ) : (
                 <div className="text-center py-1">
                   <p className="text-xs" style={{ color: MUTED }}>Prochaine dans</p>

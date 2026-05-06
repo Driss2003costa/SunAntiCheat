@@ -96,6 +96,17 @@ public final class PublicDailyHandler {
         if (cfg == null || !cfg.enabled) {
             HttpHelper.error(ex, 403, "Le système de récompense quotidienne est désactivé."); return;
         }
+
+        // Le joueur doit être connecté en jeu pour réclamer
+        try {
+            Player online = Bukkit.getPlayer(UUID.fromString(uuid));
+            if (online == null || !online.isOnline()) {
+                HttpHelper.error(ex, 403, "Vous devez être connecté en jeu pour réclamer votre récompense quotidienne."); return;
+            }
+        } catch (IllegalArgumentException ignored) {
+            HttpHelper.error(ex, 400, "UUID invalide."); return;
+        }
+
         if (!store.canClaim(uuid)) {
             DailyRewardStore.PlayerState st = store.getPlayerState(uuid);
             long cooldownMs = 0L;
