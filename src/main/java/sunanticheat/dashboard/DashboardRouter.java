@@ -9,6 +9,7 @@ import sunanticheat.dashboard.handlers.FriendHandler;
 import sunanticheat.dashboard.handlers.ChatHandler;
 import sunanticheat.dashboard.handlers.ReferralHandler;
 import sunanticheat.dashboard.handlers.PublicCrateShopHandler;
+import sunanticheat.dashboard.handlers.PortalSectionsHandler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -68,6 +69,7 @@ public final class DashboardRouter implements HttpHandler {
     private final FriendHandler friendHandler;
     private final ChatHandler chatHandler;
     private final ReferralHandler referralHandler;
+    private final PortalSectionsHandler portalSectionsHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -116,7 +118,8 @@ public final class DashboardRouter implements HttpHandler {
                            PublicCrateShopHandler publicCrateShopHandler,
                            FriendHandler friendHandler,
                            ChatHandler chatHandler,
-                           ReferralHandler referralHandler) {
+                           ReferralHandler referralHandler,
+                           PortalSectionsHandler portalSectionsHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -165,6 +168,7 @@ public final class DashboardRouter implements HttpHandler {
         this.friendHandler           = friendHandler;
         this.chatHandler             = chatHandler;
         this.referralHandler         = referralHandler;
+        this.portalSectionsHandler   = portalSectionsHandler;
     }
 
     @Override
@@ -649,6 +653,13 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/public/messages/") && path.endsWith("/send")  && POST(method)) { chatHandler.sendMessage(ex, id(path, "/api/public/messages/", "/send")); return; }
         if (path.startsWith("/api/public/messages/") && path.endsWith("/read")  && POST(method)) { chatHandler.markRead(ex, id(path, "/api/public/messages/", "/read")); return; }
         if (path.startsWith("/api/public/messages/")                  && GET(method))    { chatHandler.getMessages(ex, id(path, "/api/public/messages/")); return; }
+
+        // ── Sections portail (public — aucune auth requise) ──────────────────
+        if (eq(path, "/api/public/sections")  && GET(method))   { portalSectionsHandler.publicList(ex); return; }
+
+        // ── Sections portail (admin) ──────────────────────────────────────────
+        if (eq(path, "/api/portal/sections")  && GET(method))   { portalSectionsHandler.list(ex, jwt, users); return; }
+        if (eq(path, "/api/portal/sections")  && PATCH(method)) { portalSectionsHandler.update(ex, jwt, users); return; }
 
         // ── Parrainage (public) ───────────────────────────────────────────────
         if (eq(path, "/api/public/referral/me")                       && GET(method))    { referralHandler.myCode(ex); return; }

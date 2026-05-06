@@ -508,6 +508,12 @@ public final class DashboardModule {
                 crateStore, cratePendingClaimStore, crateListener,
                 playerJwtUtil, playerAccountStore, shopStore, economy, plugin);
 
+        // ── Sections portail (activation/désactivation depuis le dashboard) ───
+        sunanticheat.dashboard.portal.PortalSectionsStore portalSectionsStore =
+                new sunanticheat.dashboard.portal.PortalSectionsStore(plugin.getDataFolder(), plugin.getLogger(), blobs);
+        sunanticheat.dashboard.handlers.PortalSectionsHandler portalSectionsHandler =
+                new sunanticheat.dashboard.handlers.PortalSectionsHandler(portalSectionsStore);
+
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
@@ -520,7 +526,8 @@ public final class DashboardModule {
                 playerLogHandler, altAccountHandler, vpHandler,
                 publicRegisterHandler, publicPlayerHandler, publicProfileHandler,
                 publicDailyHandler, publicLeaderboardHandler, customJobsApiHandler,
-                geoIpHandler, publicCrateShopHandler, friendHandler, chatHandler, referralHandler);
+                geoIpHandler, publicCrateShopHandler, friendHandler, chatHandler, referralHandler,
+                portalSectionsHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

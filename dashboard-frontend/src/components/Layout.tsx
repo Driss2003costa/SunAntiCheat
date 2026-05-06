@@ -84,6 +84,14 @@ const NAV_CATEGORIES = [
     ],
   },
   {
+    id: 'portal',
+    label: 'Portail joueur',
+    icon: '🌐',
+    items: [
+      { to: '/portal/sections', label: 'Sections', icon: '🔀' },
+    ],
+  },
+  {
     id: 'tools',
     label: 'Outils',
     icon: '🤖',

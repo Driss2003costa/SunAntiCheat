@@ -459,6 +459,13 @@ export const api = {
   vipStats:        (days = 30) => request<any>(`/api/vip/stats?days=${days}`),
   vipGateways:     () => request<any>('/api/vip/gateways/status'),
 
+  // Portal sections
+  portalSectionsList:   () => request<{ sections: any[] }>('/api/portal/sections'),
+  portalSectionsUpdate: (sections: Record<string, boolean>) =>
+    request<{ ok: boolean; sections: Record<string, boolean> }>('/api/portal/sections', {
+      method: 'PATCH', body: JSON.stringify({ sections }),
+    }),
+
   // VIP — endpoints publics (pas d'auth, pour la page /buy)
   vipPublicPlans:  () => fetch('/api/public/vip/plans').then(r => r.json()) as Promise<any[]>,
   vipPublicCheckout: (planId: string, playerName: string, gateway: 'STRIPE' | 'PAYPAL') =>
