@@ -100,3 +100,52 @@ jobs:
         TROPICAL_FISH: { xp: 8, money: 1.5 }
         PUFFERFISH: { xp: 10, money: 2.0 }
         FISH:      { xp: 5, money: 0.8 }
+
+  explorer:
+    name: "Explorateur"
+    description: "Explore les dimensions et découvre les trésors cachés du monde"
+    icon: COMPASS
+    max-level: 10
+    base-xp-per-level: 550
+    level-multiplier: 1.2
+    anti-farm-cooldown: 20
+    actions:
+      break:
+        # Overworld — biomes froids
+        ICE:                    { xp: 3,  money: 0.3 }
+        PACKED_ICE:             { xp: 5,  money: 0.8 }
+        BLUE_ICE:               { xp: 7,  money: 1.2 }
+        # Overworld — biomes luxuriants / grottes
+        MOSS_BLOCK:             { xp: 3,  money: 0.4 }
+        AMETHYST_CLUSTER:       { xp: 8,  money: 1.5 }
+        # Archéologie
+        SUSPICIOUS_SAND:        { xp: 8,  money: 1.5 }
+        SUSPICIOUS_GRAVEL:      { xp: 8,  money: 1.5 }
+        # Deep Dark
+        SCULK:                  { xp: 4,  money: 0.5 }
+        SCULK_SENSOR:           { xp: 10, money: 2.0 }
+        SCULK_CATALYST:         { xp: 12, money: 3.0 }
+        SCULK_SHRIEKER:         { xp: 15, money: 4.0 }
+        # Océan
+        SPONGE:                 { xp: 10, money: 2.0 }
+        # Nether
+        NETHER_QUARTZ_ORE:      { xp: 5,  money: 1.0 }
+        BASALT:                 { xp: 3,  money: 0.3 }
+        SOUL_SAND:              { xp: 4,  money: 0.5 }
+        MAGMA_BLOCK:            { xp: 5,  money: 0.8 }
+        # End
+        END_STONE:              { xp: 4,  money: 0.5 }
+        CHORUS_PLANT:           { xp: 8,  money: 1.5 }
+      kill:
+        DROWNED:                { xp: 6,  money: 0.8 }
+        PHANTOM:                { xp: 10, money: 2.0 }
+        WITCH:                  { xp: 8,  money: 1.5 }
+        SLIME:                  { xp: 4,  money: 0.5 }
+        HOGLIN:                 { xp: 12, money: 2.5 }
+        PIGLIN_BRUTE:           { xp: 20, money: 5.0 }
+        SHULKER:                { xp: 25, money: 8.0 }
+        VEX:                    { xp: 8,  money: 1.5 }
+      craft:
+        COMPASS:                { xp: 10, money: 2.0 }
+        FILLED_MAP:             { xp: 8,  money: 1.5 }
+        SPYGLASS:               { xp: 15, money: 3.0 }
