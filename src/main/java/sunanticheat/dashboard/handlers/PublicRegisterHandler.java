@@ -9,6 +9,7 @@ import org.bukkit.plugin.Plugin;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.portal.PlayerAccountStore;
 import sunanticheat.dashboard.portal.PlayerJwtUtil;
+import sunanticheat.dashboard.portal.PortalActivityStore;
 import sunanticheat.dashboard.portal.RegisterPinService;
 import sunanticheat.dashboard.portal.RegisterPinService.VerifyResult;
 import sunanticheat.dashboard.quests.Quest;
@@ -28,6 +29,7 @@ public final class PublicRegisterHandler {
     private final Logger logger;
     private final ReferralStore referralStore;
     private final QuestStore questStore;
+    private PortalActivityStore activityStore;
 
     public PublicRegisterHandler(PlayerAccountStore accountStore, RegisterPinService pinService,
                                   PlayerJwtUtil playerJwt, Plugin plugin, Logger logger,
@@ -40,6 +42,8 @@ public final class PublicRegisterHandler {
         this.referralStore = referralStore;
         this.questStore    = questStore;
     }
+
+    public void setActivityStore(PortalActivityStore store) { this.activityStore = store; }
 
     /** POST /api/public/register/request */
     public void request(HttpExchange ex) throws IOException {
@@ -165,8 +169,10 @@ public final class PublicRegisterHandler {
             return;
         }
 
+        String ip = ip(ex);
         Map<String, Object> account = accountStore.getByUsername(username);
         if (account == null) {
+            if (activityStore != null) activityStore.logLogin(null, username, ip, false);
             HttpHelper.error(ex, 401, "Pseudo ou mot de passe incorrect");
             return;
         }
@@ -174,6 +180,7 @@ public final class PublicRegisterHandler {
         BCrypt.Result bcResult = BCrypt.verifyer()
                 .verify(password.toCharArray(), (String) account.get("password_hash"));
         if (!bcResult.verified) {
+            if (activityStore != null) activityStore.logLogin(null, username, ip, false);
             HttpHelper.error(ex, 401, "Pseudo ou mot de passe incorrect");
             return;
         }
@@ -181,6 +188,7 @@ public final class PublicRegisterHandler {
         String uuid = (String) account.get("uuid");
         String role = (String) account.get("role");
         accountStore.updateLastLogin(uuid);
+        if (activityStore != null) activityStore.logLogin(uuid, username, ip, true);
         String token = playerJwt.generate(uuid, username, role);
 
         // Validation du parrainage si le compte a plus de 24h

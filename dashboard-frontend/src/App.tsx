@@ -46,6 +46,7 @@ const SanctionsModern = lazy(() => import('./pages/SanctionsModern'))
 const Games           = lazy(() => import('./pages/Games'))
 const Roadmap         = lazy(() => import('./pages/Roadmap'))
 const PortalSections  = lazy(() => import('./pages/PortalSections'))
+const PortalActivity  = lazy(() => import('./pages/PortalActivity'))
 
 function Protected({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated())
@@ -115,7 +116,8 @@ export default function App() {
                   <Route path="/moderation"    element={<SanctionsModern />} />
                   <Route path="/games"         element={<Games />} />
                   <Route path="/config"         element={<Config />} />
-                  <Route path="/portal/sections" element={<PortalSections />} />
+                  <Route path="/portal/sections"  element={<PortalSections />} />
+                  <Route path="/portal/activity" element={<PortalActivity />} />
                 </Routes>
               </Suspense>
             </Layout>
