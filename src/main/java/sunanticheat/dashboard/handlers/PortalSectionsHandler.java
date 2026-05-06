@@ -40,7 +40,7 @@ public final class PortalSectionsHandler {
     public void update(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
-        if (!HttpHelper.requirePermission(ex, u, Permission.CONFIG_MANAGE)) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
         Map<String, Object> body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class);
         if (body == null) { HttpHelper.error(ex, 400, "body manquant"); return; }
         // body peut contenir { "sections": { "leaderboard": true, "shop": false } }
