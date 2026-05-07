@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'sunanticheat'
-version = '2.0.57'
+version = '2.0.58'
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
