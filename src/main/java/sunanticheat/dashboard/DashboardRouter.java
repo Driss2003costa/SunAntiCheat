@@ -71,6 +71,7 @@ public final class DashboardRouter implements HttpHandler {
     private final ReferralHandler referralHandler;
     private final PortalSectionsHandler portalSectionsHandler;
     private final PortalActivityHandler portalActivityHandler;
+    private final XRayAnalysisHandler xrayAnalysisHandler;
     private sunanticheat.dashboard.portal.PortalActivityStore portalActivityStore;
     private sunanticheat.dashboard.portal.PlayerJwtUtil portalJwt;
 
@@ -123,7 +124,8 @@ public final class DashboardRouter implements HttpHandler {
                            ChatHandler chatHandler,
                            ReferralHandler referralHandler,
                            PortalSectionsHandler portalSectionsHandler,
-                           PortalActivityHandler portalActivityHandler) {
+                           PortalActivityHandler portalActivityHandler,
+                           XRayAnalysisHandler xrayAnalysisHandler) {
         this.jwt = jwt;
         this.users = users;
         this.authHandler = authHandler;
@@ -174,6 +176,7 @@ public final class DashboardRouter implements HttpHandler {
         this.referralHandler         = referralHandler;
         this.portalSectionsHandler   = portalSectionsHandler;
         this.portalActivityHandler   = portalActivityHandler;
+        this.xrayAnalysisHandler     = xrayAnalysisHandler;
     }
 
     /** Injecté après construction (dépendance circulaire évitée). */
@@ -255,6 +258,24 @@ public final class DashboardRouter implements HttpHandler {
         // ── Audit log ─────────────────────────────────────────────────────────
         if (eq(path, "/api/audit")          && GET(method))    { auditHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/audit/actions")  && GET(method))    { auditHandler.actions(ex, jwt, users); return; }
+
+        // ── X-Ray Analysis (analyse approfondie par joueur, profils région) ──
+        if (xrayAnalysisHandler != null) {
+            if (eq(path, "/api/xray/overview") && GET(method))  { xrayAnalysisHandler.overview(ex, jwt, users); return; }
+            if (eq(path, "/api/xray/players")  && GET(method))  { xrayAnalysisHandler.players(ex, jwt, users); return; }
+            if (eq(path, "/api/xray/regions")  && GET(method))  { xrayAnalysisHandler.regions(ex, jwt, users); return; }
+            if (path.matches("/api/xray/player/[^/]+/reset") && POST(method)) {
+                String n = path.substring("/api/xray/player/".length(), path.length() - "/reset".length());
+                xrayAnalysisHandler.resetPlayer(ex, jwt, users, n); return;
+            }
+            if (path.matches("/api/xray/player/[^/]+/clear") && POST(method)) {
+                String n = path.substring("/api/xray/player/".length(), path.length() - "/clear".length());
+                xrayAnalysisHandler.clearReview(ex, jwt, users, n); return;
+            }
+            if (path.startsWith("/api/xray/player/") && GET(method)) {
+                xrayAnalysisHandler.player(ex, jwt, users, id(path, "/api/xray/player/")); return;
+            }
+        }
 
         // ── Jobs (Jobs Reborn) ────────────────────────────────────────────────
         if (eq(path, "/api/jobs/overview")  && GET(method))    { jobsHandler.overview(ex, jwt, users); return; }

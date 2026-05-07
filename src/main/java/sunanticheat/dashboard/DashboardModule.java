@@ -411,6 +411,16 @@ public final class DashboardModule {
         ViolationPointsHandler vpHandler = new ViolationPointsHandler(vpService);
         profileHandler.setViolationPointsService(vpService);
 
+        // ── X-Ray Analysis (page d'analyse approfondie par joueur) ────────────
+        sunanticheat.dashboard.handlers.XRayAnalysisHandler xrayAnalysisHandler;
+        if (plugin.getXRayAnalysisStore() != null) {
+            xrayAnalysisHandler = new sunanticheat.dashboard.handlers.XRayAnalysisHandler(
+                    plugin.getXRayAnalysisStore(), plugin);
+            plugin.getLogger().info("[Dashboard] X-Ray Analysis activée — endpoints /api/xray/*");
+        } else {
+            xrayAnalysisHandler = null;
+        }
+
         // ── GeoIP ──────────────────────────────────────────────────────────────
         sunanticheat.dashboard.handlers.GeoIpHandler geoIpHandler =
                 new sunanticheat.dashboard.handlers.GeoIpHandler(plugin.getGeoIpCache());
@@ -539,7 +549,7 @@ public final class DashboardModule {
                 publicRegisterHandler, publicPlayerHandler, publicProfileHandler,
                 publicDailyHandler, publicLeaderboardHandler, customJobsApiHandler,
                 geoIpHandler, publicCrateShopHandler, friendHandler, chatHandler, referralHandler,
-                portalSectionsHandler, portalActivityHandler);
+                portalSectionsHandler, portalActivityHandler, xrayAnalysisHandler);
         router.setPortalActivityDeps(portalActivityStore, playerJwtUtil);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");

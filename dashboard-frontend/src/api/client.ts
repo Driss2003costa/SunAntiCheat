@@ -37,6 +37,21 @@ export const api = {
   totpVerify:  (code: string) => request<any>('/api/auth/totp/verify', { method: 'POST', body: JSON.stringify({ code }) }),
   totpDisable: (password: string) => request<any>('/api/auth/totp/disable', { method: 'POST', body: JSON.stringify({ password }) }),
 
+  // X-Ray Analysis (analyse approfondie par joueur, profils région/pays)
+  xrayOverview:    () => request<{
+    totalPlayers: number; totalBlocks: number; totalDiamond: number; totalAncientDebris: number;
+    levels: Record<string, number>;
+    topSuspects: any[];
+    regions: any[];
+  }>('/api/xray/overview'),
+  xrayPlayers:     () => request<any[]>('/api/xray/players'),
+  xrayPlayer:      (name: string) => request<any>(`/api/xray/player/${encodeURIComponent(name)}`),
+  xrayRegions:     () => request<{ regions: any[] }>('/api/xray/regions'),
+  xrayResetPlayer: (name: string) =>
+    request<{ ok: boolean; playerName: string }>(`/api/xray/player/${encodeURIComponent(name)}/reset`, { method: 'POST' }),
+  xrayClearPlayer: (name: string) =>
+    request<any>(`/api/xray/player/${encodeURIComponent(name)}/clear`, { method: 'POST' }),
+
   // Audit log
   auditList:    (params: Record<string, any> = {}) => {
     const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))).toString()
