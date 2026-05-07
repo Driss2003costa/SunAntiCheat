@@ -3,11 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
-
-const GLASS  = 'rgba(255,255,255,0.05)'
-const BORDER = 'rgba(255,255,255,0.08)'
-const TEXT   = '#f1f5f9'
-const MUTED  = '#64748b'
+import { GridShell, HeroBanner, SectionDivider, Card, Button, Tag } from '../components/ui'
 
 type PublicQuest = {
   id: string; title: string; description: string; icon: string; color: string
@@ -19,10 +15,6 @@ type QuestProgress = { questId: string; title: string; progress: number; goal: n
 const TYPE_LABELS: Record<string, string> = {
   BREAK_BLOCK: 'Casser', PLACE_BLOCK: 'Placer', KILL_ENTITY: 'Tuer',
   KILL_PLAYER: 'PvP', CRAFT_ITEM: 'Craft', FISH_CATCH: 'Pêche', PLAY_TIME: 'Temps',
-}
-const TYPE_COLORS: Record<string, string> = {
-  BREAK_BLOCK: '#f59e0b', PLACE_BLOCK: '#10b981', KILL_ENTITY: '#ef4444',
-  KILL_PLAYER: '#dc2626', CRAFT_ITEM: '#3b82f6', FISH_CATCH: '#06b6d4', PLAY_TIME: '#8b5cf6',
 }
 
 function fmtTarget(t: string) {
@@ -76,130 +68,6 @@ function QuestTimer({ endsAt, totalMs, onExpired }: { endsAt: number; totalMs: n
   )
 }
 
-function QuestCard({ quest, progress, totalMs, onExpired }: {
-  quest: PublicQuest; progress: QuestProgress | null; totalMs: number; onExpired: (id: string) => void
-}) {
-  const [fading, setFading] = useState(false)
-  const pct    = progress ? Math.min(100, Math.round((progress.progress / quest.goal) * 100)) : 0
-  const done   = progress?.completed ?? false
-  const timed  = quest.endsAt != null
-  const msLeft = timed ? Math.max(0, quest.endsAt! - Date.now()) : null
-  const urgent = msLeft !== null && msLeft < 3_600_000
-  const warn   = msLeft !== null && msLeft < 86_400_000
-
-  const handleExpired = useCallback(() => {
-    setFading(true); setTimeout(() => onExpired(quest.id), 600)
-  }, [quest.id, onExpired])
-
-  return (
-    <div className="rounded-2xl overflow-hidden"
-         style={{
-           background: urgent ? 'rgba(239,68,68,0.05)' : GLASS,
-           border: `1px solid ${done ? 'rgba(16,185,129,0.3)' : urgent ? 'rgba(239,68,68,0.3)' : warn ? 'rgba(251,191,36,0.18)' : BORDER}`,
-           backdropFilter: 'blur(12px)',
-           opacity: fading ? 0 : 1,
-           transform: fading ? 'scale(0.95)' : 'scale(1)',
-           transition: 'opacity 0.6s, transform 0.6s',
-         }}>
-      {/* Accent bar */}
-      <div style={{
-        height: 2,
-        background: done ? '#10b981' : urgent ? '#ef4444' : warn ? '#f59e0b' : quest.color,
-      }} />
-      <div className="p-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
-               style={{ background: `${quest.color}15`, border: `1px solid ${quest.color}28` }}>
-            {quest.icon}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-sm" style={{ color: TEXT }}>{quest.title}</h3>
-              {done && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                            style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>✓ Terminée</span>}
-              {quest.repeatable && <span className="text-[10px] px-1.5 py-0.5 rounded-full"
-                                         style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>🔁</span>}
-            </div>
-            {quest.description && <p className="text-xs mt-0.5 line-clamp-2" style={{ color: MUTED }}>{quest.description}</p>}
-          </div>
-          {timed && msLeft !== null && msLeft > 0 && (
-            <QuestTimer endsAt={quest.endsAt!} totalMs={totalMs} onExpired={handleExpired} />
-          )}
-          {timed && msLeft !== null && msLeft <= 0 && (
-            <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center"
-                 style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171', fontSize: 11, fontWeight: 700 }}>
-              ✕
-            </div>
-          )}
-        </div>
-
-        {/* Badges */}
-        <div className="flex flex-wrap gap-1.5">
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                style={{ background: `${TYPE_COLORS[quest.type] ?? '#6b7280'}18`, color: TYPE_COLORS[quest.type] ?? '#9ca3af' }}>
-            {TYPE_LABELS[quest.type] ?? quest.type}
-          </span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: MUTED }}>
-            {fmtTarget(quest.target)}
-          </span>
-          {quest.rewardLabel && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                  style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
-              🎁 {quest.rewardLabel}
-            </span>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        {progress && (
-          <div>
-            <div className="flex justify-between text-[10px] mb-1.5" style={{ color: MUTED }}>
-              <span>Ma progression</span>
-              <span style={{ color: done ? '#10b981' : TEXT }}>{progress.progress} / {quest.goal}</span>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-              <div className="h-full rounded-full transition-all duration-500"
-                   style={{
-                     width: `${pct}%`,
-                     background: done ? 'linear-gradient(90deg,#10b981,#34d399)' : `linear-gradient(90deg,${quest.color},${quest.color}cc)`,
-                   }} />
-            </div>
-          </div>
-        )}
-
-        {/* Community */}
-        {(quest.completions > 0 || quest.inProgress > 0) && (
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1 text-[11px]" style={{ color: MUTED }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-              {quest.completions} complétée{quest.completions !== 1 ? 's' : ''}
-            </span>
-            {quest.inProgress > 0 && (
-              <span className="flex items-center gap-1 text-[11px]" style={{ color: MUTED }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                {quest.inProgress} en cours
-              </span>
-            )}
-            <div className="ml-auto flex items-center gap-1">
-              <div className="w-14 rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}>
-                <div className="h-full rounded-full"
-                     style={{
-                       width: `${Math.min(100, Math.round(quest.completions / Math.max(quest.completions + quest.inProgress, 1) * 100))}%`,
-                       background: 'linear-gradient(90deg,#10b981,#34d399)',
-                     }} />
-              </div>
-              <span className="text-[10px]" style={{ color: MUTED }}>
-                {Math.round(quest.completions / Math.max(quest.completions + quest.inProgress, 1) * 100)}%
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 type Filter = 'all' | 'active' | 'completed' | 'timed'
 
 export default function Quests() {
@@ -208,6 +76,7 @@ export default function Quests() {
   const [progress, setProgress] = useState<Record<string, QuestProgress>>({})
   const [loading,  setLoading]  = useState(true)
   const [filter,   setFilter]   = useState<Filter>('all')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const token = getToken()
 
   useEffect(() => {
@@ -247,81 +116,183 @@ export default function Quests() {
     { key: 'completed', label: 'Terminées' }, { key: 'timed', label: '⏱ Limitées' },
   ]
 
+  const selected = useMemo(
+    () => filtered.find(q => q.id === selectedId) ?? filtered[0] ?? null,
+    [filtered, selectedId]
+  )
+
+  const totalMs = 7 * 24 * 3600 * 1000
+
   return (
-    <div className="min-h-screen pb-24" style={{ background: '#080d19' }}>
+    <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="quests" />
-
-      {/* Header */}
-      <div className="relative z-10 px-4 pt-12 pb-4 max-w-screen-sm mx-auto">
-        <h1 className="text-xl font-bold mb-1" style={{ color: TEXT }}>Quêtes</h1>
-        <p className="text-sm mb-5" style={{ color: MUTED }}>
-          {quests.length} quête{quests.length !== 1 ? 's' : ''}
-          {token && counts.completed > 0 && (
-            <span className="ml-2 text-emerald-400">· {counts.completed} terminée{counts.completed !== 1 ? 's' : ''}</span>
-          )}
-        </p>
-
-        {/* Community progress */}
-        {(globalComp > 0 || globalInPr > 0) && (
-          <div className="rounded-xl p-3 mb-5" style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
-            <div className="flex justify-between text-[11px] mb-2" style={{ color: MUTED }}>
-              <span>Progression communautaire</span>
-              <span className="text-emerald-400">{globalComp} complétion{globalComp !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="rounded-full overflow-hidden flex" style={{ height: 6, background: 'rgba(255,255,255,0.05)' }}>
-              <div className="h-full transition-all duration-700"
-                   style={{ width: `${Math.round(globalComp / Math.max(globalComp + globalInPr, 1) * 100)}%`, background: 'linear-gradient(90deg,#10b981,#34d399)' }} />
-              <div className="h-full"
-                   style={{ width: `${Math.round(globalInPr / Math.max(globalComp + globalInPr, 1) * 100)}%`, background: 'rgba(251,191,36,0.4)' }} />
-            </div>
-          </div>
-        )}
+      <GridShell>
+        <HeroBanner
+          eyebrow="Aventure"
+          variant="ember"
+          title={<>Tes <span className="text-sun-300">quêtes</span> du moment</>}
+          subtitle={`${quests.length} quête${quests.length !== 1 ? 's' : ''} disponible${quests.length !== 1 ? 's' : ''}${token && counts.completed > 0 ? ` · ${counts.completed} terminée${counts.completed !== 1 ? 's' : ''}` : ''}.`}
+          rightSlot={
+            (globalComp > 0 || globalInPr > 0) && (
+              <div className="w-full max-w-sm">
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] mb-3" style={{ color: '#fb923c' }}>
+                  Progression communautaire
+                </p>
+                <p className="font-display text-4xl font-semibold mb-2" style={{ color: '#f8fafc' }}>
+                  {globalComp.toLocaleString('fr-FR')} <span className="text-base font-normal" style={{ color: 'rgba(241,245,249,0.5)' }}>complétions</span>
+                </p>
+                <div className="rounded-full overflow-hidden flex" style={{ height: 6, background: 'rgba(255,255,255,0.05)' }}>
+                  <div className="h-full transition-all duration-700"
+                       style={{ width: `${Math.round(globalComp / Math.max(globalComp + globalInPr, 1) * 100)}%`, background: 'linear-gradient(90deg,#10b981,#34d399)' }} />
+                  <div className="h-full"
+                       style={{ width: `${Math.round(globalInPr / Math.max(globalComp + globalInPr, 1) * 100)}%`, background: 'rgba(251,191,36,0.4)' }} />
+                </div>
+              </div>
+            )
+          }
+        />
 
         {/* Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar mb-4">
+        <div className="flex flex-wrap gap-2 mb-6">
           {FILTERS.map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+            <button key={f.key} onClick={() => { setFilter(f.key); setSelectedId(null) }}
+              className="px-4 py-2 rounded-full text-xs font-semibold transition-all"
               style={{
                 background: filter === f.key ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${filter === f.key ? 'rgba(251,191,36,0.4)' : BORDER}`,
-                color: filter === f.key ? '#fbbf24' : MUTED,
+                border: `1px solid ${filter === f.key ? 'rgba(251,191,36,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                color: filter === f.key ? '#fbbf24' : 'rgba(241,245,249,0.6)',
               }}>
               {f.label} <span className="ml-1 opacity-60">{counts[f.key]}</span>
             </button>
           ))}
         </div>
 
-        {/* Content */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20" style={{ color: MUTED }}>
-            <div className="w-7 h-7 rounded-full border-2 animate-spin mb-3"
+          <Card padding="lg" className="text-center">
+            <div className="w-7 h-7 rounded-full border-2 animate-spin mx-auto mb-3"
                  style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#f59e0b' }} />
-            <p className="text-sm">Chargement des quêtes…</p>
-          </div>
+            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Chargement des quêtes…</p>
+          </Card>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20" style={{ color: MUTED }}>
-            <span className="text-4xl mb-3">📭</span>
-            <p className="text-sm">Aucune quête dans cette catégorie.</p>
-          </div>
+          <Card padding="lg" className="text-center">
+            <span className="text-4xl block mb-3">📭</span>
+            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Aucune quête dans cette catégorie.</p>
+          </Card>
         ) : (
-          <div className="flex flex-col gap-3">
-            {filtered.map(q => (
-              <QuestCard key={q.id} quest={q} progress={progress[q.id] ?? null}
-                         totalMs={7 * 24 * 3600 * 1000} onExpired={handleExpired} />
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Quests list */}
+            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-2">
+              {filtered.map(q => {
+                const prog = progress[q.id] ?? null
+                const pct = prog ? Math.min(100, Math.round((prog.progress / q.goal) * 100)) : 0
+                const done = prog?.completed ?? false
+                const isActive = selected?.id === q.id
+                return (
+                  <Card key={q.id} hover padding="sm" onClick={() => setSelectedId(q.id)}
+                        style={{ borderColor: isActive ? 'rgba(251,191,36,0.45)' : undefined }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
+                           style={{ background: `${q.color}15`, border: `1px solid ${q.color}28` }}>
+                        {q.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-sm truncate" style={{ color: '#f8fafc' }}>{q.title}</h3>
+                          {done && <Tag tone="jade" size="xs">✓</Tag>}
+                          {q.repeatable && <Tag tone="violet" size="xs">🔁</Tag>}
+                        </div>
+                        {prog && (
+                          <div className="mt-1.5">
+                            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                              <div className="h-full rounded-full"
+                                   style={{ width: `${pct}%`, background: done ? 'linear-gradient(90deg,#10b981,#34d399)' : `linear-gradient(90deg,${q.color},${q.color}cc)` }} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {q.endsAt != null && q.endsAt - Date.now() > 0 && (
+                        <QuestTimer endsAt={q.endsAt} totalMs={totalMs} onExpired={() => handleExpired(q.id)} />
+                      )}
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+
+            {/* Detail panel */}
+            <div className="lg:sticky lg:top-6 lg:self-start">
+              {selected ? (
+                <Card variant="glass-warm" padding="lg">
+                  <div className="flex items-start gap-4 mb-5">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0"
+                         style={{ background: `${selected.color}18`, border: `1px solid ${selected.color}35` }}>
+                      {selected.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="font-display text-2xl font-semibold mb-1" style={{ color: '#f8fafc' }}>{selected.title}</h2>
+                      {selected.description && (
+                        <p className="text-sm" style={{ color: 'rgba(241,245,249,0.6)' }}>{selected.description}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-5">
+                    <Tag tone="sky">{TYPE_LABELS[selected.type] ?? selected.type}</Tag>
+                    <Tag tone="neutral">{fmtTarget(selected.target)}</Tag>
+                    {selected.rewardLabel && <Tag tone="gold">🎁 {selected.rewardLabel}</Tag>}
+                    {selected.repeatable && <Tag tone="violet">🔁 Répétable</Tag>}
+                  </div>
+
+                  {progress[selected.id] && (
+                    <div className="mb-5">
+                      <SectionDivider label="Ma progression" />
+                      <div className="flex justify-between text-xs mb-2" style={{ color: 'rgba(241,245,249,0.6)' }}>
+                        <span>{progress[selected.id].progress} / {selected.goal}</span>
+                        <span style={{ color: progress[selected.id].completed ? '#34d399' : '#fbbf24' }}>
+                          {Math.min(100, Math.round((progress[selected.id].progress / selected.goal) * 100))}%
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-full rounded-full transition-all duration-500"
+                             style={{
+                               width: `${Math.min(100, Math.round((progress[selected.id].progress / selected.goal) * 100))}%`,
+                               background: progress[selected.id].completed
+                                 ? 'linear-gradient(90deg,#10b981,#34d399)'
+                                 : `linear-gradient(90deg,${selected.color},${selected.color}cc)`,
+                             }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {(selected.completions > 0 || selected.inProgress > 0) && (
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <Card padding="sm">
+                        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Complétions</p>
+                        <p className="font-display text-2xl font-semibold" style={{ color: '#34d399' }}>{selected.completions}</p>
+                      </Card>
+                      <Card padding="sm">
+                        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>En cours</p>
+                        <p className="font-display text-2xl font-semibold" style={{ color: '#fbbf24' }}>{selected.inProgress}</p>
+                      </Card>
+                    </div>
+                  )}
+                </Card>
+              ) : (
+                <Card padding="lg" className="text-center">
+                  <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Sélectionne une quête pour voir les détails.</p>
+                </Card>
+              )}
+            </div>
           </div>
         )}
 
         {!token && (
-          <div className="mt-5 rounded-xl p-4 text-center text-sm"
-               style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.18)', color: '#fbbf24' }}>
-            <button onClick={() => navigate('/login')} className="font-semibold underline">Connecte-toi</button>
-            {' '}pour voir ta progression personnelle.
-          </div>
+          <Card padding="md" className="mt-6 text-center">
+            <Button onClick={() => navigate('/login')} variant="secondary">Connecte-toi</Button>
+            <p className="text-xs mt-3" style={{ color: 'rgba(241,245,249,0.55)' }}>pour voir ta progression personnelle.</p>
+          </Card>
         )}
-      </div>
-
+      </GridShell>
       <Navbar />
     </div>
   )
