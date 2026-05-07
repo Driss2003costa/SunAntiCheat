@@ -11,6 +11,7 @@ import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.pve.PveManager;
+import sunanticheat.dashboard.alts.AltAccountStore;
 import sunanticheat.dashboard.sanctions.SanctionCategory;
 import sunanticheat.dashboard.sanctions.SanctionEntry;
 import sunanticheat.dashboard.sanctions.SanctionService;
@@ -29,6 +30,7 @@ public final class ServerHandler {
     private final long startedAt = System.currentTimeMillis();
     private SanctionService sanctionService;
     private PveManager pveManager;
+    private AltAccountStore altAccountStore;
 
     public ServerHandler(JavaPlugin plugin, List<String> allowedCommands) {
         this.plugin = plugin;
@@ -37,6 +39,7 @@ public final class ServerHandler {
 
     public void setSanctionService(SanctionService s) { this.sanctionService = s; }
     public void setPveManager(PveManager p) { this.pveManager = p; }
+    public void setAltAccountStore(AltAccountStore a) { this.altAccountStore = a; }
 
     /** GET /api/server/status */
     public void status(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
@@ -307,6 +310,70 @@ public final class ServerHandler {
         Map<String, Object> result = future.join();
         if (result.containsKey("error")) HttpHelper.error(ex, 404, (String) result.get("error"));
         else HttpHelper.json(ex, 200, result);
+    }
+
+    /**
+     * GET /api/server/players/search?q=xxx
+     * Cherche parmi les joueurs connectés + historique (AltAccountStore).
+     * Retourne max 20 résultats avec name, uuid, online, lastSeen.
+     */
+    public void searchPlayers(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        if (HttpHelper.authenticate(ex, jwt, users) == null) return;
+
+        String query = "";
+        String rawQuery = ex.getRequestURI().getRawQuery();
+        if (rawQuery != null) {
+            for (String part : rawQuery.split("&")) {
+                if (part.startsWith("q=")) {
+                    query = java.net.URLDecoder.decode(part.substring(2), java.nio.charset.StandardCharsets.UTF_8).trim();
+                    break;
+                }
+            }
+        }
+        if (query.length() < 2) {
+            HttpHelper.json(ex, 200, List.of());
+            return;
+        }
+
+        // Online players matching the query (main thread)
+        final String finalQuery = query.toLowerCase(Locale.ROOT);
+        var future = new CompletableFuture<List<Map<String, Object>>>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            List<Map<String, Object>> online = new ArrayList<>();
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getName().toLowerCase(Locale.ROOT).contains(finalQuery)) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", p.getName());
+                    m.put("uuid", p.getUniqueId().toString());
+                    m.put("online", true);
+                    m.put("lastSeen", System.currentTimeMillis());
+                    online.add(m);
+                }
+            }
+            future.complete(online);
+        });
+
+        List<Map<String, Object>> results = new ArrayList<>(future.join());
+        Set<String> seenUuids = new HashSet<>();
+        results.forEach(r -> seenUuids.add((String) r.get("uuid")));
+
+        // Offline players from AltAccountStore
+        if (altAccountStore != null) {
+            for (AltAccountStore.AltEntry e : altAccountStore.searchByName(query, 25)) {
+                if (!seenUuids.contains(e.uuid())) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", e.name());
+                    m.put("uuid", e.uuid());
+                    m.put("online", false);
+                    m.put("lastSeen", e.lastSeen());
+                    results.add(m);
+                    seenUuids.add(e.uuid());
+                }
+                if (results.size() >= 20) break;
+            }
+        }
+
+        HttpHelper.json(ex, 200, results);
     }
 
     private boolean isAllowed(String cmd) {

@@ -181,8 +181,9 @@ export const api = {
   }>('/api/games/arenas'),
 
   // Server
-  serverStatus: () => request<any>('/api/server/status'),
-  players:      () => request<any[]>('/api/server/players'),
+  serverStatus:   () => request<any>('/api/server/status'),
+  players:        () => request<any[]>('/api/server/players'),
+  playersSearch:  (q: string) => request<any[]>(`/api/server/players/search?q=${encodeURIComponent(q)}`),
   worlds:       () => request<any[]>('/api/server/worlds'),
   togglePvp:    (world: string) => request<any>(`/api/server/worlds/${encodeURIComponent(world)}/pvp`, { method: 'POST' }),
   runCommand:   (command: string) => request<any>('/api/server/command', {

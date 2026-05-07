@@ -347,6 +347,7 @@ public final class DashboardModule {
         profileHandler.setAltAccountStore(altAccountStore, sanctionStore);
         ServerHandler   serverHandler   = new ServerHandler(plugin, allowedCmds);
         serverHandler.setSanctionService(sanctionService);
+        serverHandler.setAltAccountStore(altAccountStore);
         sunanticheat.dashboard.pve.PveManager pveManager = new sunanticheat.dashboard.pve.PveManager();
         serverHandler.setPveManager(pveManager);
         Bukkit.getPluginManager().registerEvents(pveManager, plugin);

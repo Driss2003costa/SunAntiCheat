@@ -129,5 +129,27 @@ public final class AltAccountStore {
         return result;
     }
 
+    /** Recherche de joueurs par préfixe/sous-chaîne de nom (insensible à la casse). */
+    public synchronized List<AltEntry> searchByName(String query, int limit) {
+        List<AltEntry> out = new ArrayList<>();
+        if (query == null || query.isBlank()) return out;
+        String pattern = "%" + query.toLowerCase() + "%";
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT ip, uuid, name, first_seen, last_seen FROM alt_ip_accounts " +
+                "WHERE LOWER(name) LIKE ? GROUP BY uuid ORDER BY last_seen DESC LIMIT ?")) {
+            ps.setString(1, pattern);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.add(new AltEntry(
+                        rs.getString("ip"), rs.getString("uuid"),
+                        rs.getString("name"), rs.getLong("first_seen"),
+                        rs.getLong("last_seen")));
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[AltAccounts] searchByName erreur", e);
+        }
+        return out;
+    }
+
     public record AltEntry(String ip, String uuid, String name, long firstSeen, long lastSeen) {}
 }
