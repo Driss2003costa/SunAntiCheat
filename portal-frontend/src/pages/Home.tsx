@@ -3,12 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type DailyStatus } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
-
-const GLASS  = 'rgba(255,255,255,0.05)'
-const BORDER = 'rgba(255,255,255,0.08)'
-const GOLD   = '#fbbf24'
-const TEXT   = '#f1f5f9'
-const MUTED  = '#64748b'
+import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 
 function fmtBalance(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
@@ -46,8 +41,8 @@ export default function Home() {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#080d19' }}>
-      <div className="w-8 h-8 rounded-full border-2 animate-spin"
-           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
+      <div className="w-10 h-10 rounded-full border-2 animate-spin"
+           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#FFB347' }} />
       <Navbar />
     </div>
   )
@@ -57,140 +52,189 @@ export default function Home() {
   const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
 
   const quickLinks = [
-    { to: '/inventory', emoji: '🎒', label: 'Inventaire', desc: 'Objets & clés',      color: 'rgba(139,92,246,0.6)' },
-    { to: '/minigames', emoji: '🎮', label: 'Mini-jeux',  desc: 'Arènes',             color: 'rgba(59,130,246,0.6)'  },
-    { to: '/career',    emoji: '⚡', label: 'Carrière',   desc: 'Métiers & XP',       color: 'rgba(16,185,129,0.6)'  },
-    { to: '/shop',      emoji: '🛒', label: 'Boutique',   desc: 'VIP & avantages',    color: 'rgba(251,191,36,0.6)'  },
+    { to: '/inventory', emoji: '🎒', label: 'Inventaire', desc: 'Tes objets, clés et cosmétiques',  accent: 'violet' as const },
+    { to: '/minigames', emoji: '🎮', label: 'Mini-jeux',  desc: 'Arènes, classements & rewards',    accent: 'sky'    as const },
+    { to: '/career',    emoji: '⚡', label: 'Carrière',   desc: 'Métiers, XP et progression',       accent: 'jade'   as const },
+    { to: '/shop',      emoji: '🛒', label: 'Boutique',   desc: 'VIP, ranks & avantages',           accent: 'gold'   as const },
+    { to: '/quests',    emoji: '🎯', label: 'Quêtes',     desc: 'Défis quotidiens & jalons',        accent: 'rose'   as const },
+    { to: '/leaderboard', emoji: '🏆', label: 'Classement', desc: 'Top joueurs du serveur',         accent: 'gold'   as const },
   ]
 
+  const accentBg: Record<string, string> = {
+    violet: 'rgba(139,92,246,0.12)',
+    sky:    'rgba(56,189,248,0.12)',
+    jade:   'rgba(52,211,153,0.12)',
+    gold:   'rgba(251,191,36,0.12)',
+    rose:   'rgba(244,114,182,0.12)',
+  }
+  const accentBorder: Record<string, string> = {
+    violet: 'rgba(139,92,246,0.30)',
+    sky:    'rgba(56,189,248,0.30)',
+    jade:   'rgba(52,211,153,0.30)',
+    gold:   'rgba(251,191,36,0.30)',
+    rose:   'rgba(244,114,182,0.30)',
+  }
+
   return (
-    <div className="min-h-screen pb-24" style={{ background: '#080d19' }}>
+    <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="home" />
-
-      {/* Hero */}
-      <div className="relative z-10 px-5 pt-14 pb-6 max-w-screen-sm mx-auto">
-        {/* Avatar */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-2xl"
-                 style={{ boxShadow: '0 0 0 2px rgba(251,191,36,0.3)', borderRadius: 16 }} />
-            <img
-              src={`https://mc-heads.net/avatar/${profile.username}/56`}
-              alt={profile.username}
-              className="w-14 h-14 rounded-2xl object-cover"
-            />
-            <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 ${profile.online ? 'bg-emerald-400' : 'bg-slate-600'}`}
-                  style={{ borderColor: '#080d19' }} />
-          </div>
-          <div>
-            <p className="text-xs mb-0.5" style={{ color: MUTED }}>{greeting},</p>
-            <h1 className="text-xl font-bold leading-tight" style={{ color: TEXT }}>{profile.username}</h1>
-            <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(251,191,36,0.12)', color: GOLD, border: '1px solid rgba(251,191,36,0.25)' }}>
-              {profile.role}
-            </span>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-6">
-          {[
-            { label: 'Solde',        value: profile.balance != null ? fmtBalance(profile.balance) : '—' },
-            { label: 'Temps de jeu', value: profile.playtime_formatted ?? '—' },
-            { label: 'Classement',   value: rank != null ? `#${rank}` : '—' },
-          ].map(s => (
-            <div key={s.label} className="rounded-xl p-3 text-center"
-                 style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
-              <p className="text-sm font-bold truncate" style={{ color: TEXT }}>{s.value}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: MUTED }}>{s.label}</p>
+      <GridShell>
+        {/* ─── HERO ──────────────────────────────────────────────────────── */}
+        <HeroBanner
+          eyebrow={greeting}
+          variant="sun"
+          title={<>Bienvenue, <span className="text-sun-300">{profile.username}</span></>}
+          subtitle="Ton tableau de bord SunGuard. Gère ton compte, suis ta progression et plonge dans l'aventure."
+          cta={
+            <>
+              <Button to="/profile" size="lg">Mon profil →</Button>
+              <Button to="/leaderboard" variant="secondary" size="lg">Voir le classement</Button>
+            </>
+          }
+          rightSlot={
+            <div className="relative">
+              <div className="absolute -inset-6 rounded-full blur-3xl opacity-50"
+                   style={{ background: 'radial-gradient(circle, rgba(255,179,71,0.5) 0%, transparent 70%)' }} />
+              <div className="relative">
+                <img src={`https://mc-heads.net/body/${profile.username}/240`}
+                     alt={profile.username}
+                     className="w-44 lg:w-56 drop-shadow-2xl" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2">
+                  <Tag tone={profile.online ? 'jade' : 'neutral'} size="sm">
+                    <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                    {profile.online ? 'En ligne' : 'Hors ligne'}
+                  </Tag>
+                </div>
+              </div>
             </div>
-          ))}
+          }
+        />
+
+        {/* ─── STATS GRID ───────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
+          <StatCard
+            label="Solde" accent="gold" icon="💰" size="md"
+            value={profile.balance != null ? fmtBalance(profile.balance) : '—'}
+            hint="Économie serveur"
+          />
+          <StatCard
+            label="Temps de jeu" accent="jade" icon="⏱" size="md"
+            value={profile.playtime_formatted ?? '—'}
+            hint="Total cumulé"
+          />
+          <StatCard
+            label="Classement" accent="violet" icon="🏆" size="md"
+            value={rank != null ? `#${rank}` : '—'}
+            hint="Top playtime"
+          />
+          <StatCard
+            label="Rôle" accent="sky" icon="✦" size="md"
+            value={profile.role}
+            hint="Statut compte"
+          />
         </div>
 
-        {/* Daily */}
+        {/* ─── DAILY REWARD (full width banner) ─────────────────────────── */}
         {daily?.config?.enabled && (
-          <Link to="/profile"
-            className="flex items-center gap-3 p-4 rounded-2xl mb-6 transition-all active:scale-[0.98]"
-            style={{ background: daily.canClaim ? 'rgba(251,191,36,0.08)' : GLASS,
-                     border: `1px solid ${daily.canClaim ? 'rgba(251,191,36,0.35)' : BORDER}`,
-                     backdropFilter: 'blur(12px)', textDecoration: 'none' }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
-                 style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}>
-              🎁
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold" style={{ color: TEXT }}>Récompense quotidienne</p>
-              <p className="text-xs mt-0.5" style={{ color: MUTED }}>
-                {daily.streak > 0 ? `Série de ${daily.streak} jour${daily.streak > 1 ? 's' : ''}` : 'Commence ta série !'}
-              </p>
-            </div>
-            {daily.canClaim
-              ? <span className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full animate-pulse"
-                      style={{ background: 'linear-gradient(135deg,#f59e0b,#fb923c)', color: '#080d19' }}>
-                  Réclamer
-                </span>
-              : <span className="text-emerald-400 text-sm shrink-0">✓</span>}
-          </Link>
+          <div className="mb-12 lg:mb-16">
+            <Link to="/profile" className="block group no-underline">
+              <Card variant={daily.canClaim ? 'glass-warm' : 'glass'} hover padding="lg"
+                    className="overflow-hidden relative">
+                {daily.canClaim && (
+                  <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full blur-3xl"
+                       style={{ background: 'rgba(251,191,36,0.25)' }} />
+                )}
+                <div className="relative flex items-center gap-5 lg:gap-7">
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center shrink-0 text-3xl lg:text-4xl"
+                       style={{
+                         background: daily.canClaim ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.05)',
+                         border: `1px solid ${daily.canClaim ? 'rgba(251,191,36,0.40)' : 'rgba(255,255,255,0.10)'}`,
+                       }}>
+                    🎁
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-sun-300 mb-1">
+                      Récompense quotidienne
+                    </p>
+                    <h3 className="font-display text-2xl lg:text-3xl font-semibold mb-1" style={{ color: '#f8fafc' }}>
+                      {daily.canClaim ? 'Ta récompense est prête' : 'Reviens demain'}
+                    </h3>
+                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.6)' }}>
+                      {daily.streak > 0 ? `Série de ${daily.streak} jour${daily.streak > 1 ? 's' : ''} 🔥` : 'Commence ta série dès maintenant !'}
+                    </p>
+                  </div>
+                  {daily.canClaim
+                    ? <Button to="/profile" size="lg">Réclamer →</Button>
+                    : <Tag tone="jade" size="sm">✓ Réclamée</Tag>}
+                </div>
+              </Card>
+            </Link>
+          </div>
         )}
 
-        {/* Quick links */}
-        <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: MUTED }}>Navigation</p>
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        {/* ─── NAVIGATION GRID ──────────────────────────────────────────── */}
+        <SectionDivider label="Explorer" hint="Toutes les sections du serveur" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 mb-12 lg:mb-16">
           {quickLinks.map(q => (
-            <Link key={q.to} to={q.to}
-              className="p-4 rounded-2xl transition-all active:scale-[0.97] group"
-              style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)', textDecoration: 'none' }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 text-lg"
-                   style={{ background: `${q.color.replace('0.6', '0.12')}`, border: `1px solid ${q.color.replace('0.6', '0.25')}` }}>
-                {q.emoji}
-              </div>
-              <p className="text-sm font-semibold" style={{ color: TEXT }}>{q.label}</p>
-              <p className="text-xs mt-0.5" style={{ color: MUTED }}>{q.desc}</p>
+            <Link key={q.to} to={q.to} className="no-underline">
+              <Card hover padding="lg" className="h-full group">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-2xl transition-transform group-hover:scale-110"
+                       style={{ background: accentBg[q.accent], border: `1px solid ${accentBorder[q.accent]}` }}>
+                    {q.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-display text-xl font-semibold mb-1" style={{ color: '#f8fafc' }}>{q.label}</h3>
+                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.55)' }}>{q.desc}</p>
+                  </div>
+                  <span className="text-sun-300 opacity-0 group-hover:opacity-100 transition-opacity self-center">→</span>
+                </div>
+              </Card>
             </Link>
           ))}
         </div>
 
-        {/* Account status */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
-          <p className="px-4 py-3 text-xs font-semibold uppercase tracking-widest border-b"
-             style={{ color: MUTED, borderColor: BORDER }}>Statut du compte</p>
-          <div>
-            {[
-              { label: 'Connexion', value: (
-                <span className={`flex items-center gap-1.5 text-xs ${profile.online ? 'text-emerald-400' : ''}`}
-                      style={{ color: profile.online ? '#34d399' : MUTED }}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                  {profile.online ? 'En ligne' : 'Hors ligne'}
-                </span>
-              )},
-              { label: 'Sanctions', value: (profile.active_sanctions?.length ?? 0) > 0
-                ? <span className="text-xs font-semibold text-red-400">{profile.active_sanctions!.length} active(s)</span>
-                : <span className="text-xs text-emerald-400">✓ Aucune</span>
-              },
-            ].map((row, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3"
-                   style={{ borderBottom: i === 0 ? `1px solid ${BORDER}` : undefined }}>
-                <span className="text-sm" style={{ color: MUTED }}>{row.label}</span>
-                <div className="text-sm" style={{ color: TEXT }}>{row.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* ─── ACCOUNT STATUS (2 columns) ───────────────────────────────── */}
+        <SectionDivider label="Statut du compte" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-8">
+          <Card padding="lg">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>
+                Connexion
+              </p>
+              <Tag tone={profile.online ? 'jade' : 'neutral'}>
+                <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                {profile.online ? 'En ligne' : 'Hors ligne'}
+              </Tag>
+            </div>
+            <p className="font-display text-2xl font-semibold" style={{ color: '#f8fafc' }}>
+              {profile.online ? 'Active maintenant' : 'Dernière session'}
+            </p>
+            <p className="text-sm mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>
+              {profile.online ? 'Tu es actuellement connecté au serveur.' : 'Connecte-toi en jeu pour mettre à jour ton statut.'}
+            </p>
+          </Card>
 
-        {/* Footer links */}
-        <div className="flex gap-2 mt-4">
-          <Link to="/leaderboard"
-            className="flex-1 text-center text-xs py-2.5 rounded-xl transition-colors"
-            style={{ background: GLASS, border: `1px solid ${BORDER}`, color: MUTED, textDecoration: 'none' }}>
-            🏆 Classement
-          </Link>
-          <Link to="/profile"
-            className="flex-1 text-center text-xs py-2.5 rounded-xl transition-colors"
-            style={{ background: GLASS, border: `1px solid ${BORDER}`, color: MUTED, textDecoration: 'none' }}>
-            👤 Mon profil
-          </Link>
+          <Card padding="lg">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>
+                Sanctions
+              </p>
+              {(profile.active_sanctions?.length ?? 0) > 0
+                ? <Tag tone="danger">{profile.active_sanctions!.length} active(s)</Tag>
+                : <Tag tone="jade">✓ Compte clean</Tag>}
+            </div>
+            <p className="font-display text-2xl font-semibold" style={{ color: '#f8fafc' }}>
+              {(profile.active_sanctions?.length ?? 0) > 0 ? 'Sanctions en cours' : 'Aucune sanction active'}
+            </p>
+            <p className="text-sm mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>
+              {(profile.active_sanctions?.length ?? 0) > 0
+                ? 'Consulte ton profil pour voir les détails.'
+                : 'Continue comme ça, joueur exemplaire !'}
+            </p>
+          </Card>
         </div>
-      </div>
+      </GridShell>
 
       <Navbar />
     </div>

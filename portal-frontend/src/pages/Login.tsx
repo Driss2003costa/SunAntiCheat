@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, saveToken, getToken } from '../api/client'
 import OtpInput from '../components/OtpInput'
-import SunSky from '../components/SunSky'
-import SunWordmark from '../components/SunWordmark'
-import { Field, PrimaryButton, ErrorBox } from './Register'
+import { Button } from '../components/ui'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -32,57 +30,121 @@ export default function Login() {
   }
 
   return (
-    <SunSky variant="dawn">
-      <div className="min-h-screen flex flex-col items-center justify-center p-5">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-7">
-            <SunWordmark size="md" tagline="Portail Joueur" />
-          </div>
+    <div
+      className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] xl:grid-cols-[1.3fr_1fr]"
+      style={{ background: '#080d19' }}
+    >
+      {/* CÔTÉ GAUCHE — visuel hero immersif */}
+      <aside
+        className="relative hidden lg:flex flex-col justify-between overflow-hidden p-12 xl:p-16"
+        style={{
+          background:
+            'radial-gradient(120% 90% at 0% 0%, rgba(255,179,71,0.22) 0%, transparent 55%), radial-gradient(80% 80% at 100% 100%, rgba(224,127,26,0.18) 0%, transparent 60%), linear-gradient(160deg, #181f3d 0%, #0a1024 100%)',
+        }}
+      >
+        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-25 blur-3xl pointer-events-none" style={{ background: '#FFB347' }} />
+        <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] rounded-full opacity-15 blur-3xl pointer-events-none" style={{ background: '#FFB347' }} />
+        <div
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
+          }}
+        />
 
-          <div className="glass-warm rounded-3xl p-7 space-y-5">
-            <div>
-              <h2 className="font-display text-3xl font-medium text-white leading-tight">Connexion</h2>
-              <p className="text-sand-200/80 text-sm mt-1.5">Bienvenue de retour, aventurier.</p>
-            </div>
+        <div className="relative z-10">
+          <Link to="/" className="inline-flex items-center gap-3 no-underline">
+            <span className="font-display text-2xl font-bold text-white">SunGuard</span>
+          </Link>
+        </div>
 
-            <Field label="Pseudo Minecraft">
+        <div className="relative z-10 max-w-xl">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">Bon retour parmi nous</p>
+          <h1 className="font-display text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-[1.05] tracking-tight text-white mb-6">
+            Reprends ton aventure là où tu l'as laissée.
+          </h1>
+          <p className="text-lg text-white/60 mb-8">
+            Ton portail SunGuard t'attend. Récompenses quotidiennes, statistiques en temps réel, communauté active : tout ce dont tu as besoin pour briller sur le serveur.
+          </p>
+
+          <ul className="space-y-3 text-sm text-white/70">
+            <li className="flex items-start gap-3">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
+              Suis ta progression et grimpe le classement
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
+              Réclame tes récompenses et garde ta série intacte
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
+              Gère ton profil, ton inventaire et tes amis
+            </li>
+          </ul>
+        </div>
+
+        <div className="relative z-10 text-xs text-white/40">© SunGuard · Tous droits réservés</div>
+      </aside>
+
+      {/* CÔTÉ DROIT — formulaire */}
+      <main className="flex flex-col justify-center px-6 sm:px-10 lg:px-12 xl:px-16 py-12 overflow-y-auto">
+        <div className="w-full max-w-md mx-auto">
+          <Link to="/" className="lg:hidden inline-flex items-center gap-2 mb-10 no-underline">
+            <span className="font-display text-xl font-bold text-white">SunGuard</span>
+          </Link>
+
+          <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">Connexion</h2>
+          <p className="text-sm text-white/55 mb-8">Entre ton pseudo Minecraft et ton code PIN à 6 chiffres pour accéder à ton portail.</p>
+
+          <div className="space-y-5">
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">Pseudo Minecraft</span>
               <input
-                type="text" value={username} onChange={e => setUsername(e.target.value)}
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
                 placeholder="ex: Steve"
-                className="w-full px-4 py-3 bg-ink-500/40 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-sun-300/60 focus:bg-ink-500/60 focus:outline-none transition-all backdrop-blur"
+                className="w-full h-12 px-4 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               />
-            </Field>
+            </label>
 
             <div>
-              <label className="block text-xs font-medium text-sand-200/70 mb-3 text-center uppercase tracking-widest">Code PIN</label>
+              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">Code PIN</span>
               <OtpInput value={pin} onChange={setPin} length={6} />
             </div>
 
-            {error && <ErrorBox>{error}</ErrorBox>}
+            {error && (
+              <div
+                className="px-4 py-3 rounded-xl text-sm"
+                style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#fca5a5' }}
+              >
+                {error}
+              </div>
+            )}
 
-            <PrimaryButton onClick={handleLogin} disabled={loading}>
+            <Button size="lg" fullWidth onClick={handleLogin} disabled={loading}>
               {loading ? 'Connexion…' : 'Se connecter'}
-            </PrimaryButton>
+            </Button>
 
-            <div className="pt-1 space-y-2">
-              <p className="text-center text-sm">
-                <Link to="/forgot" className="text-sun-200 hover:text-sun-100 font-medium underline-offset-4 hover:underline transition-colors">
+            <div className="pt-2 space-y-2 text-center">
+              <p className="text-sm">
+                <Link to="/forgot" className="text-sun-300 hover:text-sun-200 font-medium underline-offset-4 hover:underline transition-colors">
                   PIN oublié ?
                 </Link>
               </p>
-              <p className="text-center text-sm text-sand-300/70">
+              <p className="text-sm text-white/55">
                 Pas encore de compte ?{' '}
-                <Link to="/" className="text-sun-200 hover:text-sun-100 font-medium underline-offset-4 hover:underline transition-colors">Inscription</Link>
+                <Link to="/" className="text-sun-300 hover:text-sun-200 font-medium underline-offset-4 hover:underline transition-colors">
+                  Créer un compte
+                </Link>
               </p>
             </div>
           </div>
-
-          <p className="text-center text-[11px] text-sand-300/40 mt-6 font-display italic">
-            « L'aube se lève sur ton aventure »
-          </p>
         </div>
-      </div>
-    </SunSky>
+      </main>
+    </div>
   )
 }
