@@ -68,7 +68,7 @@ export default function Minigames() {
   const totalWaiting = liveData?.waiting ?? 0
 
   // Featured: jeu avec le plus de joueurs en cours
-  const featured = (() => {
+  const featured: { game: typeof GAMES_STATIC[number]; playing: number } | null = (() => {
     let best: typeof GAMES_STATIC[number] | null = null
     let bestPlaying = 0
     GAMES_STATIC.forEach(g => {
@@ -83,7 +83,7 @@ export default function Minigames() {
 
   return (
     <div className="min-h-screen" style={{ background: '#080d19' }}>
-      <PageAura theme="games" />
+      <PageAura theme="home" />
       <GridShell>
         <HeroBanner
           eyebrow="Mini-jeux"

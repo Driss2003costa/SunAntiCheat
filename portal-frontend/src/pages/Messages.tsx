@@ -3,14 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
+import { GridShell, PageHeader, Card, Button } from '../components/ui'
 
-const BG     = '#080d19'
-const CARD   = 'rgba(15,22,40,0.85)'
-const BORDER = 'rgba(251,191,36,0.12)'
-const GOLD   = '#fbbf24'
-const TEXT   = '#f1f5f9'
-const MUTED  = '#64748b'
-const BASE   = '/api/public'
+const BASE = '/api/public'
 
 type Conversation = {
   id: string; participant1: string; participant2: string
@@ -43,7 +38,9 @@ function fmtTime(ts: number) {
 
 // ── Conversation list ─────────────────────────────────────────────────────────
 
-function ConversationList({ onSelect }: { onSelect: (c: Conversation) => void }) {
+function ConversationList({
+  activeId, onSelect,
+}: { activeId?: string; onSelect: (c: Conversation) => void }) {
   const token = getToken()
   const navigate = useNavigate()
   const [convs, setConvs]     = useState<Conversation[]>([])
@@ -53,10 +50,7 @@ function ConversationList({ onSelect }: { onSelect: (c: Conversation) => void })
     if (!token) return
     try {
       const data = await apiFetch(`${BASE}/messages`, token)
-      const mapped = data.conversations.map((c: any) => {
-        return { ...c }
-      })
-      setConvs(mapped)
+      setConvs(data.conversations.map((c: any) => ({ ...c })))
     } catch {} finally { setLoading(false) }
   }, [token])
 
@@ -68,36 +62,45 @@ function ConversationList({ onSelect }: { onSelect: (c: Conversation) => void })
 
   if (loading) return <Spinner />
 
+  if (convs.length === 0) {
+    return (
+      <div className="text-center py-10 px-4">
+        <p className="text-sm mb-3" style={{ color: 'rgba(241,245,249,0.55)' }}>Aucune conversation.</p>
+        <Button onClick={() => navigate('/friends')} variant="secondary" size="sm">Trouver des amis</Button>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-2">
-      {convs.length === 0 && (
-        <p className="text-center py-10 text-sm" style={{ color: MUTED }}>
-          Aucune conversation. Ouvre-en une depuis la page <button onClick={() => navigate('/friends')} style={{ color: GOLD }}>Amis</button>.
-        </p>
-      )}
-      {convs.map(c => (
-        <button key={c.id} onClick={() => onSelect(c)} className="w-full text-left"
-          style={{ display: 'block' }}>
-          <div className="flex items-center gap-3 rounded-2xl px-4 py-3 transition-colors"
-               style={{ background: CARD, border: `1px solid ${c.unread > 0 ? 'rgba(251,191,36,0.3)' : BORDER}` }}>
-            <div className="relative shrink-0">
-              <img src={`https://mc-heads.net/avatar/${c.other_username}/40`} alt={c.other_username}
-                   className="w-10 h-10 rounded-xl" />
-              {c.unread > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
-                      style={{ background: GOLD, color: '#000' }}>{c.unread}</span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-0.5">
-                <p className="font-bold text-sm truncate" style={{ color: TEXT }}>{c.other_username}</p>
-                <p className="text-[10px] shrink-0 ml-2" style={{ color: MUTED }}>{fmtTime(c.last_message_at)}</p>
+    <div className="flex flex-col gap-1.5">
+      {convs.map(c => {
+        const isActive = c.id === activeId
+        return (
+          <button key={c.id} onClick={() => onSelect(c)} className="text-left">
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors"
+                 style={{
+                   background: isActive ? 'rgba(251,191,36,0.10)' : c.unread > 0 ? 'rgba(255,255,255,0.04)' : 'transparent',
+                   border: `1px solid ${isActive ? 'rgba(251,191,36,0.3)' : c.unread > 0 ? 'rgba(251,191,36,0.18)' : 'transparent'}`,
+                 }}>
+              <div className="relative shrink-0">
+                <img src={`https://mc-heads.net/avatar/${c.other_username}/40`} alt={c.other_username}
+                     className="w-10 h-10 rounded-xl" />
+                {c.unread > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
+                        style={{ background: '#fbbf24', color: '#000' }}>{c.unread}</span>
+                )}
               </div>
-              <p className="text-xs truncate" style={{ color: MUTED }}>{c.last_msg ?? 'Nouvelle conversation'}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <p className="font-semibold text-sm truncate" style={{ color: '#f8fafc' }}>{c.other_username}</p>
+                  <p className="text-[10px] shrink-0 ml-2" style={{ color: 'rgba(241,245,249,0.4)' }}>{fmtTime(c.last_message_at)}</p>
+                </div>
+                <p className="text-xs truncate" style={{ color: 'rgba(241,245,249,0.5)' }}>{c.last_msg ?? 'Nouvelle conversation'}</p>
+              </div>
             </div>
-          </div>
-        </button>
-      ))}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -116,7 +119,6 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
 
-  // Charge les données initiales + identifie l'utilisateur courant
   useEffect(() => {
     if (!token) return
     fetch(`${BASE}/player/me`, { headers: { Authorization: `Bearer ${token}` } })
@@ -136,7 +138,6 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
       .catch(() => {})
       .finally(() => setLoading(false))
 
-    // Récupère le nom de l'interlocuteur depuis la liste
     apiFetch(`${BASE}/messages`, token)
       .then(data => {
         const conv = data.conversations.find((c: any) => c.id === convId)
@@ -144,7 +145,6 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
       }).catch(() => {})
   }, [convId, token])
 
-  // Polling léger pour les nouveaux messages
   useEffect(() => {
     if (!token) return
     const poll = async () => {
@@ -190,32 +190,38 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)]">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 shrink-0"
-           style={{ borderBottom: `1px solid ${BORDER}` }}>
-        <button onClick={onBack} className="text-lg" style={{ color: MUTED }}>←</button>
+      <div className="flex items-center gap-3 px-5 py-4 shrink-0"
+           style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <button onClick={onBack} className="lg:hidden text-lg" style={{ color: 'rgba(241,245,249,0.55)' }}>←</button>
         {otherName && (
-          <img src={`https://mc-heads.net/avatar/${otherName}/32`} alt={otherName} className="w-8 h-8 rounded-lg" />
+          <img src={`https://mc-heads.net/avatar/${otherName}/40`} alt={otherName} className="w-10 h-10 rounded-xl" />
         )}
-        <span className="font-bold" style={{ color: TEXT }}>{otherName || '…'}</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{otherName || '…'}</p>
+          <p className="text-[11px]" style={{ color: 'rgba(241,245,249,0.45)' }}>Conversation privée</p>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
         {loading ? <Spinner /> : messages.map(m => {
           const mine = m.sender_uuid === myUuid
           return (
-            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className="max-w-[75%] px-3.5 py-2 rounded-2xl"
+            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'} items-end gap-2`}>
+              {!mine && otherName && (
+                <img src={`https://mc-heads.net/avatar/${otherName}/24`} alt="" className="w-6 h-6 rounded-md shrink-0 mb-1" />
+              )}
+              <div className="max-w-[75%] px-4 py-2.5 rounded-2xl"
                    style={{
-                     background: mine ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.07)',
-                     border: mine ? `1px solid rgba(251,191,36,0.3)` : `1px solid ${BORDER}`,
-                     borderBottomRightRadius: mine ? '4px' : undefined,
-                     borderBottomLeftRadius:  mine ? undefined : '4px',
+                     background: mine ? 'linear-gradient(135deg, rgba(251,191,36,0.18), rgba(251,191,36,0.10))' : 'rgba(255,255,255,0.06)',
+                     border: mine ? '1px solid rgba(251,191,36,0.28)' : '1px solid rgba(255,255,255,0.08)',
+                     borderBottomRightRadius: mine ? '6px' : undefined,
+                     borderBottomLeftRadius:  mine ? undefined : '6px',
                    }}>
-                <p className="text-sm leading-relaxed break-words" style={{ color: TEXT }}>{m.content}</p>
-                <p className="text-[10px] mt-0.5 text-right" style={{ color: MUTED }}>
+                <p className="text-sm leading-relaxed break-words" style={{ color: '#f1f5f9' }}>{m.content}</p>
+                <p className="text-[10px] mt-1 text-right" style={{ color: 'rgba(241,245,249,0.4)' }}>
                   {fmtTime(m.created_at)}{mine && m.read_at ? ' · Lu' : ''}
                 </p>
               </div>
@@ -226,7 +232,7 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
       </div>
 
       {/* Input */}
-      <div className="px-4 pb-4 pt-2 shrink-0" style={{ borderTop: `1px solid ${BORDER}` }}>
+      <div className="px-5 py-4 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="flex gap-2 items-center">
           <input
             ref={inputRef}
@@ -235,17 +241,37 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
             onKeyDown={handleKey}
             placeholder="Écrire un message…"
             maxLength={1000}
-            className="flex-1 rounded-xl px-4 py-2.5 text-sm focus:outline-none"
-            style={{ background: 'rgba(15,22,40,0.9)', border: `1px solid rgba(251,191,36,0.25)`, color: TEXT }}
+            className="flex-1 rounded-xl px-4 py-3 text-sm focus:outline-none"
+            style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(251,191,36,0.25)', color: '#f1f5f9' }}
           />
           <button onClick={sendMessage} disabled={!draft.trim() || sending}
-            className="w-10 h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)' }}>
-            <span className="text-gray-900 font-bold text-sm">➤</span>
+            className="w-11 h-11 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
+            style={{ background: 'linear-gradient(135deg,#FFB347,#F09A2E)' }}>
+            <span className="text-gray-900 font-bold">➤</span>
           </button>
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Profile panel ────────────────────────────────────────────────────────────
+
+function ProfilePanel({ conv }: { conv: Conversation }) {
+  return (
+    <Card padding="lg" className="h-full">
+      <div className="text-center mb-5">
+        <img src={`https://mc-heads.net/body/${conv.other_username}/120`} alt={conv.other_username}
+             className="w-28 mx-auto drop-shadow-lg" />
+        <p className="font-display text-xl font-semibold mt-3" style={{ color: '#f8fafc' }}>{conv.other_username}</p>
+        <p className="text-[11px] mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>
+          Dernier message {fmtTime(conv.last_message_at)}
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Button to={`/u/${conv.other_username}`} variant="secondary" fullWidth size="sm">Voir le profil</Button>
+      </div>
+    </Card>
   )
 }
 
@@ -259,28 +285,58 @@ export default function Messages() {
 
   useEffect(() => { if (!token) navigate('/login', { replace: true }) }, [token, navigate])
 
-  // Si on arrive via /messages/:convId directement (ex: depuis la page Amis)
   useEffect(() => {
-    if (paramConvId && !activeConv) {
+    if (paramConvId && (!activeConv || activeConv.id !== paramConvId)) {
       setActiveConv({ id: paramConvId } as Conversation)
     }
   }, [paramConvId, activeConv])
 
   return (
-    <div className="min-h-screen pb-24 relative" style={{ background: BG }}>
+    <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="messages" />
-      <div className="relative z-10 px-4 pt-10 max-w-screen-sm mx-auto">
+      <GridShell>
+        <PageHeader
+          eyebrow="Messagerie"
+          title="Messages"
+          subtitle="Discute en privé avec tes amis SunGuard."
+        />
 
-        {!activeConv ? (
-          <>
-            <h1 className="text-2xl font-black mb-6" style={{ color: TEXT }}>💬 Messages</h1>
-            <ConversationList onSelect={c => setActiveConv(c)} />
-          </>
-        ) : (
-          <ChatWindow convId={activeConv.id} onBack={() => { setActiveConv(null); navigate('/messages') }} />
-        )}
+        <Card variant="glass" padding="none" className="overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr_280px] h-[calc(100vh-340px)] min-h-[560px]">
+            {/* Conversations sidebar */}
+            <div className={`${activeConv ? 'hidden lg:block' : 'block'} overflow-y-auto p-3`}
+                 style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] px-2 py-2 mb-2" style={{ color: 'rgba(241,245,249,0.5)' }}>
+                Conversations
+              </p>
+              <ConversationList activeId={activeConv?.id} onSelect={c => { setActiveConv(c); navigate(`/messages/${c.id}`) }} />
+            </div>
 
-      </div>
+            {/* Chat */}
+            <div className={`${!activeConv ? 'hidden lg:flex' : 'flex'} flex-col`}>
+              {activeConv ? (
+                <ChatWindow convId={activeConv.id} onBack={() => { setActiveConv(null); navigate('/messages') }} />
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-center px-6">
+                  <div>
+                    <span className="text-5xl block mb-4">💬</span>
+                    <p className="font-display text-xl font-semibold mb-1" style={{ color: '#f8fafc' }}>Aucune conversation sélectionnée</p>
+                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Choisis une conversation à gauche pour commencer.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Profile panel */}
+            <div className="hidden lg:block overflow-y-auto p-4"
+                 style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+              {activeConv && activeConv.other_username
+                ? <ProfilePanel conv={activeConv} />
+                : <p className="text-xs text-center" style={{ color: 'rgba(241,245,249,0.4)' }}>Aucun profil à afficher.</p>}
+            </div>
+          </div>
+        </Card>
+      </GridShell>
       <Navbar />
     </div>
   )
@@ -288,9 +344,9 @@ export default function Messages() {
 
 function Spinner() {
   return (
-    <div className="flex justify-center py-8">
-      <div className="w-8 h-8 rounded-full border-2 animate-spin"
-           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: GOLD }} />
+    <div className="flex justify-center py-10">
+      <div className="w-7 h-7 rounded-full border-2 animate-spin"
+           style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#fbbf24' }} />
     </div>
   )
 }
