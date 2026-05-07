@@ -479,6 +479,7 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/crates/") && path.endsWith("/opens") && GET(method))     { crateHandler.opens(ex, jwt, users, id(path, "/api/crates/", "/opens")); return; }
         if (path.startsWith("/api/crates/") && path.endsWith("/stats") && GET(method))     { crateHandler.stats(ex, jwt, users, id(path, "/api/crates/", "/stats")); return; }
         if (path.startsWith("/api/crates/") && path.endsWith("/key/give") && POST(method)) { crateHandler.giveKey(ex, jwt, users, id(path, "/api/crates/", "/key/give")); return; }
+        if (path.startsWith("/api/crates/") && path.endsWith("/giveblock") && POST(method)) { crateHandler.giveBlock(ex, jwt, users, id(path, "/api/crates/", "/giveblock")); return; }
         if (path.startsWith("/api/crates/")         && GET(method))    { crateHandler.get(ex, jwt, users, id(path, "/api/crates/")); return; }
         if (path.startsWith("/api/crates/")         && (PUT(method) || PATCH(method))) { crateHandler.update(ex, jwt, users, id(path, "/api/crates/")); return; }
         if (path.startsWith("/api/crates/")         && DELETE(method)) { crateHandler.delete(ex, jwt, users, id(path, "/api/crates/")); return; }

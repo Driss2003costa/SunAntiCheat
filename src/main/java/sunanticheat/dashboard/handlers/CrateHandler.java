@@ -144,6 +144,50 @@ public final class CrateHandler {
         HttpHelper.json(ex, 200, resp);
     }
 
+    /**
+     * POST /api/crates/{id}/giveblock — donne au joueur un bloc-crate auto-enregistré.
+     * Body : { playerName: string }
+     */
+    @SuppressWarnings("unchecked")
+    public void giveBlock(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String crateId) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
+        Crate crate = store.getCrate(crateId);
+        if (crate == null) { HttpHelper.error(ex, 404, "Crate introuvable"); return; }
+        Map<String, Object> body;
+        try { body = HttpHelper.GSON.fromJson(HttpHelper.body(ex), Map.class); }
+        catch (Exception e) { HttpHelper.error(ex, 400, "Body invalide"); return; }
+        if (body == null) { HttpHelper.error(ex, 400, "Body vide"); return; }
+        String playerName = (String) body.get("playerName");
+        if (playerName == null || playerName.isEmpty()) { HttpHelper.error(ex, 400, "playerName requis"); return; }
+
+        sunanticheat.dashboard.crates.CrateBlockPlaceListener bpl = listener.getBlockPlaceListener();
+        if (bpl == null) { HttpHelper.error(ex, 500, "Listener bloc non initialisé"); return; }
+
+        var future = new java.util.concurrent.CompletableFuture<String>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player online = Bukkit.getPlayerExact(playerName);
+            if (online == null) { future.complete("OFFLINE"); return; }
+            ItemStack item = bpl.buildBlockItem(crate);
+            if (item == null) { future.complete("BUILD_FAIL"); return; }
+            for (ItemStack leftover : online.getInventory().addItem(item).values()) {
+                online.getWorld().dropItemNaturally(online.getLocation(), leftover);
+            }
+            future.complete("OK");
+        });
+
+        String status = future.join();
+        if ("OFFLINE".equals(status)) { HttpHelper.error(ex, 404, "Joueur hors-ligne — connecte-toi en jeu"); return; }
+        if ("BUILD_FAIL".equals(status)) { HttpHelper.error(ex, 500, "Construction du bloc échouée"); return; }
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("ok", true);
+        resp.put("crateId", crate.id);
+        resp.put("playerName", playerName);
+        HttpHelper.json(ex, 200, resp);
+    }
+
     public void playerKeys(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users, String playerName) throws IOException {
         if (HttpHelper.requireAtLeast(ex, jwt, users, DashboardRole.MOD) == null) return;
         if (playerName == null || playerName.isEmpty()) { HttpHelper.error(ex, 400, "playerName requis"); return; }

@@ -385,6 +385,8 @@ export const api = {
   crateStats:      (id: string) => request<any>(`/api/crates/${id}/stats`),
   crateGiveKey:    (id: string, playerName: string, count: number) =>
     request<any>(`/api/crates/${id}/key/give`, { method: 'POST', body: JSON.stringify({ playerName, count }) }),
+  crateGiveBlock:  (id: string, playerName: string) =>
+    request<any>(`/api/crates/${id}/giveblock`, { method: 'POST', body: JSON.stringify({ playerName }) }),
   cratePlayerKeys: (playerName: string) => request<any>(`/api/crates/keys/${encodeURIComponent(playerName)}`),
   cratesPlaced:    () => request<any[]>('/api/crates/placed'),
 

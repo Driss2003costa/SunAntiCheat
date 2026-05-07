@@ -408,28 +408,19 @@ export default function Crates() {
                            placeholder="itemsadder:mon_bloc"
                            style={inputStyle} className="w-full px-3 py-2 rounded"/>
                   </Field>
-                  <div className="p-4 rounded-lg text-sm space-y-2" style={{ background: 'var(--surface-2)' }}>
-                    <div style={{ color: 'var(--text)' }}><b>Placement en jeu :</b></div>
-                    {editing.itemAdderBlockId && (
-                      <div className="space-y-0.5">
-                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>1. Obtenir le bloc ItemsAdder :</div>
-                        <code className="text-xs block" style={{ color: '#a78bfa' }}>
-                          /iagive {'<joueur>'} {editing.itemAdderBlockId}
-                        </code>
-                      </div>
-                    )}
-                    <div className="space-y-0.5">
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {editing.itemAdderBlockId ? '2.' : ''} Vise le bloc et lance :
-                      </div>
-                      <code className="text-xs block" style={{ color: 'var(--primary)' }}>
-                        /crate place {editing.name}
-                      </code>
-                      <div style={{ color: 'var(--text-muted)' }} className="text-xs">
-                        Il sera enregistré comme crate.
-                      </div>
+                  {editing.id && (
+                    <CratePlacementHelper
+                      crateId={editing.id}
+                      crateName={editing.name}
+                      itemAdderBlockId={editing.itemAdderBlockId}
+                      onFlash={showFlash}
+                    />
+                  )}
+                  {!editing.id && (
+                    <div className="p-4 rounded-lg text-sm" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+                      💾 Enregistre la crate d'abord, puis reviens ici pour les options de placement.
                     </div>
-                  </div>
+                  )}
                 </>
               )}
 
@@ -809,6 +800,120 @@ function CrateItemsEditor({ crate, setCrate }: { crate: any; setCrate: (c: any) 
           </div>
         </Modal>
       )}
+    </div>
+  )
+}
+
+function CratePlacementHelper({
+  crateId, crateName, itemAdderBlockId, onFlash,
+}: {
+  crateId: string
+  crateName: string
+  itemAdderBlockId?: string
+  onFlash: (msg: string) => void
+}) {
+  const [playerName, setPlayerName] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const giveBlock = async () => {
+    if (!playerName.trim()) return
+    setBusy(true)
+    try {
+      await api.crateGiveBlock(crateId, playerName.trim())
+      onFlash(`✓ Bloc-crate envoyé à ${playerName.trim()}`)
+    } catch (e: any) {
+      onFlash('✗ ' + e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copyCmd = (cmd: string) => {
+    try { navigator.clipboard.writeText(cmd); onFlash('✓ Copié dans le presse-papier') } catch {}
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* ── Méthode A : pose auto via dashboard ───────────────────────────── */}
+      <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--surface-2)', border: '1px solid #10b98140' }}>
+        <div className="flex items-center gap-2">
+          <span className="text-xl">📦</span>
+          <div>
+            <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
+              Méthode 1 — Pose ultra-simple (recommandée)
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Le joueur reçoit un bloc spécial. Il le pose, c'est enregistré auto.
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={playerName}
+            onChange={e => setPlayerName(e.target.value)}
+            placeholder="Pseudo du joueur (en ligne)"
+            style={inputStyle}
+            className="flex-1 px-3 py-2 rounded text-sm"
+          />
+          <button
+            onClick={giveBlock}
+            disabled={!playerName.trim() || busy}
+            className="px-4 py-2 rounded text-sm text-white font-medium disabled:opacity-40"
+            style={{ background: '#10b981' }}>
+            {busy ? '…' : '📦 Donner le bloc'}
+          </button>
+        </div>
+        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          {itemAdderBlockId
+            ? <>Le bloc apparaîtra avec le visuel ItemsAdder <code className="px-1 rounded" style={{ background: 'var(--surface)', color: '#a78bfa' }}>{itemAdderBlockId}</code> dès qu'il sera posé.</>
+            : <>Le bloc sera vanilla. Définis un ItemsAdder Block ID au-dessus pour un visuel custom.</>}
+        </div>
+      </div>
+
+      {/* ── Méthode B : commandes en jeu ───────────────────────────────────── */}
+      <div className="rounded-lg p-4 space-y-2" style={{ background: 'var(--surface-2)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">⌨️</span>
+          <div>
+            <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
+              Méthode 2 — Commandes en jeu
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Pour les admins qui veulent contrôler manuellement.
+            </div>
+          </div>
+        </div>
+
+        {itemAdderBlockId && (
+          <div>
+            <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+              Tu as déjà posé un bloc ItemsAdder avec <code style={{ color: '#a78bfa' }}>/iagive</code> ? Vise-le et :
+            </div>
+            <button onClick={() => copyCmd(`/crate attach ${crateName}`)}
+                    className="w-full text-left px-3 py-2 rounded font-mono text-xs hover:opacity-80"
+                    style={{ background: 'var(--surface)', color: 'var(--primary)', border: '1px solid var(--border)' }}>
+              /crate attach {crateName} <span style={{ color: 'var(--text-muted)', float: 'right' }}>📋 copier</span>
+            </button>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              ✓ N'écrase PAS le bloc — l'enregistre tel quel (orientation/données ItemsAdder préservées).
+            </div>
+          </div>
+        )}
+
+        <div className="pt-2">
+          <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+            Vise un emplacement vide et :
+          </div>
+          <button onClick={() => copyCmd(`/crate place ${crateName}`)}
+                  className="w-full text-left px-3 py-2 rounded font-mono text-xs hover:opacity-80"
+                  style={{ background: 'var(--surface)', color: 'var(--primary)', border: '1px solid var(--border)' }}>
+            /crate place {crateName} <span style={{ color: 'var(--text-muted)', float: 'right' }}>📋 copier</span>
+          </button>
+          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+            Pose le bloc {itemAdderBlockId ? 'ItemsAdder' : 'vanilla'} à l'endroit visé et l'enregistre.
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

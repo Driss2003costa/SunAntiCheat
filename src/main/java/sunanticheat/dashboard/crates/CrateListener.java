@@ -35,12 +35,16 @@ public final class CrateListener implements Listener, CommandExecutor {
     private final CrateStore store;
     private final NamespacedKey keyTag;
     private final Random rng = new Random();
+    private CrateBlockPlaceListener blockPlaceListener;
 
     public CrateListener(JavaPlugin plugin, CrateStore store) {
         this.plugin = plugin;
         this.store = store;
         this.keyTag = new NamespacedKey(plugin, "crate_id");
     }
+
+    public void setBlockPlaceListener(CrateBlockPlaceListener l) { this.blockPlaceListener = l; }
+    public CrateBlockPlaceListener getBlockPlaceListener() { return blockPlaceListener; }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent e) {
@@ -214,12 +218,21 @@ public final class CrateListener implements Listener, CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage("\u00a7eUsage: /crate <place|preview|givekey|list>");
+            sender.sendMessage("\u00a7eUsage: /crate <place|attach|giveblock|preview|givekey|list>");
+            sender.sendMessage("\u00a77 - place <name>      \u00a78pose le bloc et l'enregistre comme crate");
+            sender.sendMessage("\u00a77 - attach <name>     \u00a78enregistre le bloc vis\u00e9 sans le remplacer");
+            sender.sendMessage("\u00a77 - giveblock <name>  \u00a78donne un bloc sp\u00e9cial : pose-le, il devient crate");
+            sender.sendMessage("\u00a77 - preview <name>    \u00a78affiche les loots possibles");
+            sender.sendMessage("\u00a77 - givekey <p> <n>   \u00a78donne une cl\u00e9");
+            sender.sendMessage("\u00a77 - list              \u00a78liste les crates");
             return true;
         }
         String sub = args[0].toLowerCase();
         switch (sub) {
             case "place": return cmdPlace(sender, args);
+            case "attach": return cmdAttach(sender, args);
+            case "giveblock":
+            case "give": return cmdGiveBlock(sender, args);
             case "preview": return cmdPreview(sender, args);
             case "givekey": return cmdGiveKey(sender, args);
             case "list": return cmdList(sender);
@@ -227,6 +240,91 @@ public final class CrateListener implements Listener, CommandExecutor {
                 sender.sendMessage("\u00a7cSous-commande inconnue.");
                 return true;
         }
+    }
+
+    /**
+     * /crate attach &lt;name&gt; \u2014 enregistre le bloc actuellement vis\u00e9 comme une
+     * crate, SANS le remplacer. Id\u00e9al si tu as d\u00e9j\u00e0 pos\u00e9 un bloc ItemsAdder
+     * manuellement avec /iagive et que tu veux juste le marquer.
+     */
+    private boolean cmdAttach(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) { sender.sendMessage("\u00a7cJoueur uniquement."); return true; }
+        if (!sender.hasPermission("sunguard.dashboard")) { sender.sendMessage("\u00a7cPermission requise."); return true; }
+        if (args.length < 2) { sender.sendMessage("\u00a7eUsage: /crate attach <crateName>"); return true; }
+        Player p = (Player) sender;
+        Crate crate = store.getCrateByName(args[1]);
+        if (crate == null) { p.sendMessage("\u00a7cCrate introuvable: " + args[1]); return true; }
+
+        Block target = p.getTargetBlockExact(6);
+        if (target == null || target.getType().isAir()) {
+            p.sendMessage("\u00a7cVise un bloc plein (max 6 blocs)."); return true;
+        }
+
+        // V\u00e9rifie que le bloc n'est pas d\u00e9j\u00e0 enregistr\u00e9
+        PlacedCrate existing = store.getPlacedCrate(target.getWorld().getName(),
+                target.getX(), target.getY(), target.getZ());
+        if (existing != null) {
+            Crate existingCrate = store.getCrate(existing.crateId);
+            p.sendMessage("\u00a7e\u26a0 Ce bloc est d\u00e9j\u00e0 enregistr\u00e9 comme crate: \u00a76"
+                    + (existingCrate == null ? existing.crateId : existingCrate.name));
+            return true;
+        }
+
+        store.addPlacedCrate(new PlacedCrate(crate.id,
+                target.getWorld().getName(),
+                target.getX(), target.getY(), target.getZ()));
+
+        // Confirmation visuelle
+        try {
+            target.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER,
+                    target.getLocation().add(0.5, 1.0, 0.5), 25, 0.4, 0.4, 0.4, 0.05);
+            p.playSound(target.getLocation(), org.bukkit.Sound.BLOCK_BEACON_ACTIVATE, 1f, 1.6f);
+        } catch (Throwable ignored) {}
+
+        // D\u00e9tection ItemsAdder pour info
+        String iaId = ItemAdderBridge.getCustomBlockId(target);
+        p.sendMessage("\u00a7a\u2713 Crate \u00ab\u00a76" + crate.name + "\u00a7a\u00bb attach\u00e9e au bloc \u00e0 \u00a7e"
+                + target.getX() + "\u00a77, \u00a7e" + target.getY() + "\u00a77, \u00a7e" + target.getZ()
+                + " \u00a78(" + target.getWorld().getName() + ")"
+                + (iaId != null ? " \u00a77[ItemsAdder: " + iaId + "]" : ""));
+        p.sendMessage("\u00a77Clique-droit sur le bloc pour ouvrir la crate.");
+        return true;
+    }
+
+    /**
+     * /crate giveblock &lt;name&gt; [player] \u2014 donne au joueur un item-bloc sp\u00e9cial.
+     * Quand le joueur pose ce bloc, il sera auto-enregistr\u00e9 comme crate
+     * via {@link CrateBlockPlaceListener}.
+     */
+    private boolean cmdGiveBlock(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("sunguard.dashboard")) { sender.sendMessage("\u00a7cPermission requise."); return true; }
+        if (args.length < 2) { sender.sendMessage("\u00a7eUsage: /crate giveblock <crateName> [player]"); return true; }
+        Crate crate = store.getCrateByName(args[1]);
+        if (crate == null) { sender.sendMessage("\u00a7cCrate introuvable: " + args[1]); return true; }
+        if (blockPlaceListener == null) { sender.sendMessage("\u00a7cListener non initialis\u00e9."); return true; }
+
+        // Cible par d\u00e9faut = le sender s'il est joueur
+        Player target;
+        if (args.length >= 3) {
+            target = Bukkit.getPlayerExact(args[2]);
+            if (target == null) { sender.sendMessage("\u00a7cJoueur introuvable ou hors-ligne."); return true; }
+        } else if (sender instanceof Player) {
+            target = (Player) sender;
+        } else {
+            sender.sendMessage("\u00a7cSp\u00e9cifie un joueur (console)."); return true;
+        }
+
+        ItemStack item = blockPlaceListener.buildBlockItem(crate);
+        if (item == null) { sender.sendMessage("\u00a7cImpossible de construire le bloc."); return true; }
+
+        for (ItemStack leftover : target.getInventory().addItem(item).values()) {
+            target.getWorld().dropItemNaturally(target.getLocation(), leftover);
+        }
+        target.sendMessage("\u00a7a\u2713 Bloc-crate \u00ab\u00a76" + crate.name + "\u00a7a\u00bb re\u00e7u. Pose-le o\u00f9 tu veux.");
+        if (sender != target) {
+            sender.sendMessage("\u00a7a\u2713 Bloc-crate \u00ab" + crate.name + "\u00bb donn\u00e9 \u00e0 " + target.getName() + ".");
+        }
+        return true;
     }
 
     /**

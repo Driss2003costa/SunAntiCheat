@@ -436,6 +436,10 @@ public final class DashboardModule {
         Bukkit.getPluginManager().registerEvents(new QuestListener(questStore), plugin);
         Bukkit.getPluginManager().registerEvents(crateListener, plugin);
         Bukkit.getPluginManager().registerEvents(new sunanticheat.dashboard.crates.CrateAnimationListener(), plugin);
+        sunanticheat.dashboard.crates.CrateBlockPlaceListener crateBlockPlaceListener =
+                new sunanticheat.dashboard.crates.CrateBlockPlaceListener(plugin, crateStore);
+        Bukkit.getPluginManager().registerEvents(crateBlockPlaceListener, plugin);
+        crateListener.setBlockPlaceListener(crateBlockPlaceListener);
         Bukkit.getPluginManager().registerEvents(
                 new CratePendingClaimListener(plugin, crateStore, cratePendingClaimStore, crateListener), plugin);
         Bukkit.getPluginManager().registerEvents(dailyRewardListener, plugin);
