@@ -129,5 +129,60 @@ public final class AltAccountStore {
         return result;
     }
 
+    /** Recherche de joueurs par préfixe/sous-chaîne de nom (insensible à la casse). */
+    public synchronized List<AltEntry> searchByName(String query, int limit) {
+        List<AltEntry> out = new ArrayList<>();
+        if (query == null || query.isBlank()) return out;
+        String pattern = "%" + query.toLowerCase() + "%";
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT ip, uuid, name, first_seen, last_seen FROM alt_ip_accounts " +
+                "WHERE LOWER(name) LIKE ? GROUP BY uuid ORDER BY last_seen DESC LIMIT ?")) {
+            ps.setString(1, pattern);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.add(new AltEntry(
+                        rs.getString("ip"), rs.getString("uuid"),
+                        rs.getString("name"), rs.getLong("first_seen"),
+                        rs.getLong("last_seen")));
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[AltAccounts] searchByName erreur", e);
+        }
+        return out;
+    }
+
+    /** Liste paginée de tous les joueurs connus, triés par last_seen DESC. */
+    public synchronized List<AltEntry> listAll(int limit, int offset) {
+        List<AltEntry> out = new ArrayList<>();
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT ip, uuid, name, first_seen, last_seen FROM alt_ip_accounts " +
+                "GROUP BY uuid ORDER BY last_seen DESC LIMIT ? OFFSET ?")) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.add(new AltEntry(
+                        rs.getString("ip"), rs.getString("uuid"),
+                        rs.getString("name"), rs.getLong("first_seen"),
+                        rs.getLong("last_seen")));
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[AltAccounts] listAll erreur", e);
+        }
+        return out;
+    }
+
+    /** Nombre total de joueurs uniques (par UUID). */
+    public synchronized int countAll() {
+        try (PreparedStatement ps = db.conn().prepareStatement(
+                "SELECT COUNT(DISTINCT uuid) FROM alt_ip_accounts")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[AltAccounts] countAll erreur", e);
+        }
+        return 0;
+    }
+
     public record AltEntry(String ip, String uuid, String name, long firstSeen, long lastSeen) {}
 }

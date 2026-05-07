@@ -181,8 +181,12 @@ export const api = {
   }>('/api/games/arenas'),
 
   // Server
-  serverStatus: () => request<any>('/api/server/status'),
-  players:      () => request<any[]>('/api/server/players'),
+  serverStatus:   () => request<any>('/api/server/status'),
+  players:        () => request<any[]>('/api/server/players'),
+  playersSearch:  (q: string) => request<any[]>(`/api/server/players/search?q=${encodeURIComponent(q)}`),
+  playersAll:     (limit = 100, offset = 0) =>
+    request<{ total: number; limit: number; offset: number; players: any[] }>(
+      `/api/server/players/all?limit=${limit}&offset=${offset}`),
   worlds:       () => request<any[]>('/api/server/worlds'),
   togglePvp:    (world: string) => request<any>(`/api/server/worlds/${encodeURIComponent(world)}/pvp`, { method: 'POST' }),
   runCommand:   (command: string) => request<any>('/api/server/command', {
@@ -381,6 +385,8 @@ export const api = {
   crateStats:      (id: string) => request<any>(`/api/crates/${id}/stats`),
   crateGiveKey:    (id: string, playerName: string, count: number) =>
     request<any>(`/api/crates/${id}/key/give`, { method: 'POST', body: JSON.stringify({ playerName, count }) }),
+  crateGiveBlock:  (id: string, playerName: string) =>
+    request<any>(`/api/crates/${id}/giveblock`, { method: 'POST', body: JSON.stringify({ playerName }) }),
   cratePlayerKeys: (playerName: string) => request<any>(`/api/crates/keys/${encodeURIComponent(playerName)}`),
   cratesPlaced:    () => request<any[]>('/api/crates/placed'),
 

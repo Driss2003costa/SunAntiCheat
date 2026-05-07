@@ -11,6 +11,7 @@ import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.pve.PveManager;
+import sunanticheat.dashboard.alts.AltAccountStore;
 import sunanticheat.dashboard.sanctions.SanctionCategory;
 import sunanticheat.dashboard.sanctions.SanctionEntry;
 import sunanticheat.dashboard.sanctions.SanctionService;
@@ -29,6 +30,7 @@ public final class ServerHandler {
     private final long startedAt = System.currentTimeMillis();
     private SanctionService sanctionService;
     private PveManager pveManager;
+    private AltAccountStore altAccountStore;
 
     public ServerHandler(JavaPlugin plugin, List<String> allowedCommands) {
         this.plugin = plugin;
@@ -37,6 +39,7 @@ public final class ServerHandler {
 
     public void setSanctionService(SanctionService s) { this.sanctionService = s; }
     public void setPveManager(PveManager p) { this.pveManager = p; }
+    public void setAltAccountStore(AltAccountStore a) { this.altAccountStore = a; }
 
     /** GET /api/server/status */
     public void status(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
@@ -117,6 +120,76 @@ public final class ServerHandler {
         });
 
         HttpHelper.json(ex, 200, future.join());
+    }
+
+    /**
+     * GET /api/server/players/all?limit=100&offset=0
+     * Retourne tous les joueurs connus (en ligne d'abord, puis hors-ligne paginés depuis AltAccountStore).
+     * Réponse : { total, limit, offset, players: [...] }
+     */
+    public void allPlayers(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        if (HttpHelper.authenticate(ex, jwt, users) == null) return;
+
+        int limit = 100, offset = 0;
+        String rawQuery = ex.getRequestURI().getRawQuery();
+        if (rawQuery != null) {
+            for (String part : rawQuery.split("&")) {
+                if (part.startsWith("limit="))  { try { limit  = Integer.parseInt(part.substring(6));  } catch (Exception ignored) {} }
+                if (part.startsWith("offset=")) { try { offset = Integer.parseInt(part.substring(7)); } catch (Exception ignored) {} }
+            }
+        }
+
+        // Joueurs en ligne (main thread)
+        var future = new CompletableFuture<Map<String, Object>>();
+        final int fLimit = Math.min(limit, 500);
+        final int fOffset = Math.max(offset, 0);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Set<String> onlineUuids = new java.util.HashSet<>();
+            List<Map<String, Object>> onlinePlayers = new ArrayList<>();
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                onlineUuids.add(p.getUniqueId().toString());
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("name", p.getName());
+                m.put("uuid", p.getUniqueId().toString());
+                m.put("online", true);
+                m.put("lastSeen", System.currentTimeMillis());
+                onlinePlayers.add(m);
+            }
+            future.complete(Map.of("onlinePlayers", onlinePlayers, "onlineUuids", onlineUuids));
+        });
+
+        var onlineData = future.join();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = new ArrayList<>((List<Map<String, Object>>) onlineData.get("onlinePlayers"));
+        @SuppressWarnings("unchecked")
+        Set<String> onlineUuids = (Set<String>) onlineData.get("onlineUuids");
+
+        int total = onlineUuids.size();
+        if (altAccountStore != null) {
+            total += altAccountStore.countAll();
+            // On pagine uniquement sur les hors-ligne pour la cohérence
+            int offlineOffset = Math.max(0, fOffset - onlineUuids.size());
+            int offlineLimit  = Math.max(0, fLimit - result.size());
+            if (offlineLimit > 0) {
+                for (AltAccountStore.AltEntry e : altAccountStore.listAll(offlineLimit + onlineUuids.size(), offlineOffset)) {
+                    if (onlineUuids.contains(e.uuid())) continue;
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", e.name());
+                    m.put("uuid", e.uuid());
+                    m.put("online", false);
+                    m.put("lastSeen", e.lastSeen());
+                    result.add(m);
+                    if (result.size() >= fLimit) break;
+                }
+            }
+        }
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("total", total);
+        resp.put("limit", fLimit);
+        resp.put("offset", fOffset);
+        resp.put("players", result);
+        HttpHelper.json(ex, 200, resp);
     }
 
     /** POST /api/server/command — MOD+ (whitelist restrictive via config) */
@@ -307,6 +380,70 @@ public final class ServerHandler {
         Map<String, Object> result = future.join();
         if (result.containsKey("error")) HttpHelper.error(ex, 404, (String) result.get("error"));
         else HttpHelper.json(ex, 200, result);
+    }
+
+    /**
+     * GET /api/server/players/search?q=xxx
+     * Cherche parmi les joueurs connectés + historique (AltAccountStore).
+     * Retourne max 20 résultats avec name, uuid, online, lastSeen.
+     */
+    public void searchPlayers(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        if (HttpHelper.authenticate(ex, jwt, users) == null) return;
+
+        String query = "";
+        String rawQuery = ex.getRequestURI().getRawQuery();
+        if (rawQuery != null) {
+            for (String part : rawQuery.split("&")) {
+                if (part.startsWith("q=")) {
+                    query = java.net.URLDecoder.decode(part.substring(2), java.nio.charset.StandardCharsets.UTF_8).trim();
+                    break;
+                }
+            }
+        }
+        if (query.length() < 2) {
+            HttpHelper.json(ex, 200, List.of());
+            return;
+        }
+
+        // Online players matching the query (main thread)
+        final String finalQuery = query.toLowerCase(Locale.ROOT);
+        var future = new CompletableFuture<List<Map<String, Object>>>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            List<Map<String, Object>> online = new ArrayList<>();
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getName().toLowerCase(Locale.ROOT).contains(finalQuery)) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", p.getName());
+                    m.put("uuid", p.getUniqueId().toString());
+                    m.put("online", true);
+                    m.put("lastSeen", System.currentTimeMillis());
+                    online.add(m);
+                }
+            }
+            future.complete(online);
+        });
+
+        List<Map<String, Object>> results = new ArrayList<>(future.join());
+        Set<String> seenUuids = new HashSet<>();
+        results.forEach(r -> seenUuids.add((String) r.get("uuid")));
+
+        // Offline players from AltAccountStore
+        if (altAccountStore != null) {
+            for (AltAccountStore.AltEntry e : altAccountStore.searchByName(query, 25)) {
+                if (!seenUuids.contains(e.uuid())) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", e.name());
+                    m.put("uuid", e.uuid());
+                    m.put("online", false);
+                    m.put("lastSeen", e.lastSeen());
+                    results.add(m);
+                    seenUuids.add(e.uuid());
+                }
+                if (results.size() >= 20) break;
+            }
+        }
+
+        HttpHelper.json(ex, 200, results);
     }
 
     private boolean isAllowed(String cmd) {

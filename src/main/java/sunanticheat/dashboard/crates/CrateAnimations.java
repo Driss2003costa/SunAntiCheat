@@ -85,10 +85,13 @@ public final class CrateAnimations {
      * - Slots 9-17 (row centre): items qui défilent vers la gauche
      * - Slot 13 (centre du centre) : c'est là que le won item s'arrête
      *
-     * Easing : démarre rapide (1 tick/shift), ralentit jusqu'à 10 ticks/shift.
-     * Total : ~80 ticks (4 secondes) avec ~32 shifts.
-     * Sons : pitch dégressif (2.0 → 0.5) sur chaque tick.
-     * Fin : flash vert sur les bordures, particules, firework, wonItem reste.
+     * IMPORTANT — animation honnête :
+     * - Tous les items affichés pendant le défilement utilisent leurs vrais
+     *   attributs (displayName, lore, ItemsAdder ID, CustomModelData) pour
+     *   éviter la sensation de "transformation" au reveal.
+     * - Le wonItem est injecté au slot 17 puis défile naturellement jusqu'au
+     *   slot 13 où il s'arrête. Au final flash, on n'écrase PAS le slot 13
+     *   (l'item visible est déjà exactement ce que le joueur a gagné).
      */
     private static void playCsgoChest(Plugin plugin, Player player, Crate crate,
                                        CrateItem wonItem, Runnable onComplete) {
@@ -110,19 +113,22 @@ public final class CrateAnimations {
         for (int i = 0; i < 9; i++) inv.setItem(i, i == 4 ? pointerDown : borderFiller);
         for (int i = 18; i < 27; i++) inv.setItem(i, i == 22 ? pointerUp : borderFiller);
 
-        // Pré-remplit la row centrale avec items aléatoires
+        // Pré-remplit la row centrale avec items aléatoires (vrais visuels)
         for (int i = 9; i < 18; i++) {
-            inv.setItem(i, ItemBuilder.build(
-                    pool.get(RNG.nextInt(pool.size())).material,
-                    0, null, 1, null, null, null));
+            inv.setItem(i, buildPreviewItem(pool.get(RNG.nextInt(pool.size()))));
         }
 
         player.openInventory(inv);
 
-        // Total shifts pour atteindre le bout. Le won item sera injecté
-        // 4 shifts avant la fin (pour finir au slot 13 = centre).
+        // Le wonItem est injecté au slot 17 puis défile vers la gauche.
+        // Pour terminer EXACTEMENT au slot 13 (centre), on doit injecter
+        // le wonItem au moment où il restera (17 - 13) = 4 shifts à effectuer
+        // après l'injection. Comme l'injection se fait DANS le shift courant
+        // (insertion à 17 après avoir poussé tout vers la gauche), il faut
+        // injecter à `totalShifts - 5` : ainsi 4 shifts supplémentaires
+        // l'amèneront au slot 13.
         final int totalShifts = 32;
-        final int wonItemInjectAt = totalShifts - 4;
+        final int wonItemInjectAt = totalShifts - 5;
 
         new BukkitRunnable() {
             int shifts = 0;
@@ -138,7 +144,7 @@ public final class CrateAnimations {
                 }
 
                 if (shifts >= totalShifts) {
-                    // Animation terminée — flash final + fin
+                    // Animation terminée — wonItem est déjà au slot 13.
                     cancel();
                     finalFlash(plugin, player, inv, holder, crate, wonItem, onComplete);
                     return;
@@ -151,15 +157,12 @@ public final class CrateAnimations {
                     for (int s = 9; s < 17; s++) {
                         inv.setItem(s, inv.getItem(s + 1));
                     }
-                    // Insère un nouvel item au slot 17 (le won item à un moment précis)
-                    CrateItem next;
-                    if (shifts == wonItemInjectAt) {
-                        next = wonItem;
-                    } else {
-                        next = pool.get(RNG.nextInt(pool.size()));
-                    }
-                    inv.setItem(17, ItemBuilder.build(
-                            next.material, 0, null, 1, null, null, null));
+                    // Insère un nouvel item au slot 17. Au moment précis
+                    // d'injection, c'est le wonItem qui entre dans la file.
+                    CrateItem next = (shifts == wonItemInjectAt)
+                            ? wonItem
+                            : pool.get(RNG.nextInt(pool.size()));
+                    inv.setItem(17, buildPreviewItem(next));
 
                     // Son tick — pitch dégressif (2.0 → 0.5)
                     float progress = (float) shifts / totalShifts;
@@ -172,9 +175,6 @@ public final class CrateAnimations {
                     shifts++;
 
                     // Easing : delay augmente progressivement
-                    // 0-15 shifts: delay 1 (rapide)
-                    // 16-25 shifts: delay 2-4 (ralentit)
-                    // 26-32 shifts: delay 5-10 (très lent, suspense)
                     if (shifts < 16) delay = 1;
                     else if (shifts < 22) delay = 2;
                     else if (shifts < 26) delay = 4;
@@ -188,24 +188,42 @@ public final class CrateAnimations {
     }
 
     /**
+     * Construit l'ItemStack visuel d'un CrateItem pour l'animation.
+     * Utilise TOUS les attributs (material, ItemsAdder ID, customModelData,
+     * displayName, lore) pour que l'item visible soit EXACTEMENT ce que le
+     * joueur peut gagner. Aucune transformation au reveal.
+     */
+    private static ItemStack buildPreviewItem(CrateItem it) {
+        if (it == null) return new ItemStack(Material.STONE);
+        ItemStack is = ItemBuilder.build(
+                it.material, it.customModelData, it.itemAdderId,
+                1,                                  // qty toujours 1 pour le défilement
+                it.displayName,
+                it.lore,
+                it.enchantments);
+        if (is == null) is = new ItemStack(Material.STONE);
+        return is;
+    }
+
+    /**
      * Effet final : les bordures clignotent vert, le won item est mis en valeur,
      * fireworks à la position du joueur, puis fermeture après 60 ticks.
+     *
+     * NOTE : on ne REMPLACE PAS l'item du slot 13 — il est déjà exactement
+     * le wonItem que le joueur a vu s'arrêter sous l'indicateur. On l'enrichit
+     * juste avec un lore "Gagné !" pour le mettre en valeur, en conservant
+     * material/displayName/customModelData pour zéro transformation visuelle.
      */
     private static void finalFlash(Plugin plugin, Player player, Inventory inv,
                                     CrateAnimationHolder holder, Crate crate,
                                     CrateItem wonItem, Runnable onComplete) {
-        // Met le won item en valeur dans le slot 13 avec un meta amélioré
-        ItemStack winShowcase = ItemBuilder.build(
-                wonItem.material,
-                wonItem.customModelData,
-                wonItem.itemAdderId,
-                1,
-                wonItem.displayName != null ? wonItem.displayName
-                        : (wonItem.rarity != null ? wonItem.rarity.prefix : "") + wonItem.material,
-                buildShowcaseLore(wonItem),
-                wonItem.enchantments);
-        if (winShowcase == null) winShowcase = ItemBuilder.build(wonItem.material, 0, null, 1, null, null, null);
-        inv.setItem(13, winShowcase);
+        // Enrichit l'item du slot 13 avec le lore "Gagné !". Le material et
+        // displayName étaient déjà ceux du wonItem (injecté par l'animation),
+        // donc aucune transformation visuelle perceptible côté client.
+        ItemStack showcase = ItemBuilder.build(
+                wonItem.material, wonItem.customModelData, wonItem.itemAdderId, 1,
+                wonItem.displayName, buildShowcaseLore(wonItem), wonItem.enchantments);
+        if (showcase != null) inv.setItem(13, showcase);
 
         // Son final : level up
         try {
@@ -301,10 +319,9 @@ public final class CrateAnimations {
             }
         }
 
-        // Pré-remplit le périmètre avec items random
+        // Pré-remplit le périmètre avec items random (vrais visuels)
         for (int slot : perim) {
-            inv.setItem(slot, ItemBuilder.build(
-                    pool.get(RNG.nextInt(pool.size())).material, 0, null, 1, null, null, null));
+            inv.setItem(slot, buildPreviewItem(pool.get(RNG.nextInt(pool.size()))));
         }
 
         player.openInventory(inv);
@@ -342,8 +359,7 @@ public final class CrateAnimations {
                     // Replace 1 item au hasard pour de la variété
                     if (t % 5 == 0) {
                         int rand = perim[RNG.nextInt(perim.length)];
-                        inv.setItem(rand, ItemBuilder.build(
-                                pool.get(RNG.nextInt(pool.size())).material, 0, null, 1, null, null, null));
+                        inv.setItem(rand, buildPreviewItem(pool.get(RNG.nextInt(pool.size()))));
                     }
                     try {
                         float pitch = Math.max(0.5f, 2.0f - (t / 30f));
