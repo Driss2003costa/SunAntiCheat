@@ -330,6 +330,7 @@ public final class DashboardRouter implements HttpHandler {
 
         // ── Server ────────────────────────────────────────────────────────────
         if (eq(path, "/api/server/status")         && GET(method))  { serverHandler.status(ex, jwt, users); return; }
+        if (eq(path, "/api/server/players/all")    && GET(method))  { serverHandler.allPlayers(ex, jwt, users); return; }
         if (eq(path, "/api/server/players/search") && GET(method))  { serverHandler.searchPlayers(ex, jwt, users); return; }
         if (eq(path, "/api/server/players")        && GET(method))  { serverHandler.players(ex, jwt, users); return; }
         if (eq(path, "/api/server/worlds")  && GET(method))  { serverHandler.worlds(ex, jwt, users); return; }
