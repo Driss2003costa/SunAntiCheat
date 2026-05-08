@@ -9,6 +9,7 @@ import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.auth.Permission;
 import sunanticheat.dashboard.shop.Shop;
 import sunanticheat.dashboard.shop.ShopItem;
+import sunanticheat.dashboard.shop.ShopPage;
 import sunanticheat.dashboard.shop.ShopStore;
 import sunanticheat.dashboard.shop.ShopSyncService;
 import sunanticheat.dashboard.shop.ShopSyncService.SyncResult;
@@ -44,6 +45,18 @@ public final class ShopHandler {
             List<Map<String, Object>> out = new ArrayList<>();
             for (Shop s : store.listShops()) {
                 if (s == null) continue;
+                int itemCount = 0;
+                int firstRows = 3;
+                int pageCount = 0;
+                if (s.pages != null) {
+                    pageCount = s.pages.size();
+                    boolean firstSet = false;
+                    for (ShopPage p : s.pages) {
+                        if (p == null) continue;
+                        if (!firstSet) { firstRows = p.rows > 0 ? p.rows : 3; firstSet = true; }
+                        if (p.items != null) itemCount += p.items.size();
+                    }
+                }
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("id", s.id);
                 row.put("name", s.name);
@@ -51,8 +64,9 @@ public final class ShopHandler {
                 row.put("description", s.description);
                 row.put("category", s.category);
                 row.put("order", s.order);
-                row.put("rows", s.rows);
-                row.put("itemCount", s.items != null ? s.items.size() : 0);
+                row.put("rows", firstRows);
+                row.put("pageCount", pageCount);
+                row.put("itemCount", itemCount);
                 row.put("enabled", s.enabled);
                 row.put("totalTransactions", s.totalTransactions);
                 row.put("totalRevenue", s.totalRevenue);

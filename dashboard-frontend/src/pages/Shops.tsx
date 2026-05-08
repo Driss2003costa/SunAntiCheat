@@ -158,6 +158,15 @@ function materialIcon(m: string): string {
   return '📦'
 }
 
+function blankPage(name = 'Page 1', rows = 3) {
+  return {
+    id: uuid(),
+    name,
+    rows,
+    items: [] as any[],
+  }
+}
+
 function blankShop() {
   return {
     name: 'new_shop',
@@ -168,16 +177,41 @@ function blankShop() {
     iconItemAdderId: '',
     category: 'Général',
     order: 0,
-    rows: 3,
+    pages: [blankPage('Page 1', 3)],
     permission: '',
     commandToOpen: '',
-    items: [] as any[],
     enabled: true,
     createdAt: Date.now(),
     modifiedAt: Date.now(),
     totalTransactions: 0,
     totalRevenue: 0,
   }
+}
+
+/** Normalise un shop côté client : assure pages[] non-vide, migre legacy items+rows. */
+function normalizeShop(shop: any): any {
+  if (!shop) return shop
+  let pages: any[] = Array.isArray(shop.pages) ? shop.pages.slice() : []
+  // Migration legacy → page unique
+  if (pages.length === 0 && Array.isArray(shop.items) && shop.items.length > 0) {
+    pages = [{
+      id: uuid(),
+      name: 'Page 1',
+      rows: shop.rows || 3,
+      items: shop.items,
+    }]
+  }
+  if (pages.length === 0) {
+    pages = [blankPage('Page 1', shop.rows || 3)]
+  }
+  // Hygiène
+  pages = pages.map((p: any, i: number) => ({
+    id: p.id || uuid(),
+    name: p.name || `Page ${i + 1}`,
+    rows: Math.max(1, Math.min(6, p.rows || 3)),
+    items: Array.isArray(p.items) ? p.items : [],
+  }))
+  return { ...shop, pages }
 }
 
 function blankItem(slot: number, material = 'DIAMOND') {
@@ -247,7 +281,7 @@ export default function Shops() {
   const openEditor = async (shop: any) => {
     try {
       const full = await api.shopGet(shop.id)
-      setEditing(full)
+      setEditing(normalizeShop(full))
       setView('editor')
     } catch (e: any) { showFlash('✗ ' + e.message, false) }
   }
@@ -498,30 +532,48 @@ export default function Shops() {
         <ImportModal shops={importing}
                      onImport={async (selected: any) => {
                        try {
+                         const mapItem = (it: any) => ({
+                           ...blankItem(it.slot || 0, it.material),
+                           slot: it.slot || 0,
+                           material: it.material,
+                           amount: it.amount || 1,
+                           displayName: it.name || '',
+                           lore: it.lore || [],
+                           buyPrice: it.buyPrice ?? null,
+                           sellPrice: it.sellPrice ?? null,
+                           stockLimit: it.stock || 0,
+                           buyLimit: it.limit || 0,
+                           priceType: it.priceType || 'MONEY',
+                           permission: it.permission || '',
+                           customModelData: it.customModelData || 0,
+                           enchantments: it.enchantments || [],
+                           commandsOnBuy: it.commandsOnBuy || [],
+                         })
+                         // Le backend Premium renvoie selected.pages = [{name, rows, items}]
+                         // ESG Free renvoie selected.items + rows. On gère les deux.
+                         let pages: any[]
+                         if (Array.isArray(selected.pages) && selected.pages.length > 0) {
+                           pages = selected.pages.map((p: any, i: number) => ({
+                             id: uuid(),
+                             name: p.name || `Page ${i + 1}`,
+                             rows: p.rows || 3,
+                             items: (p.items || []).map(mapItem),
+                           }))
+                         } else {
+                           pages = [{
+                             id: uuid(),
+                             name: 'Page 1',
+                             rows: selected.rows || 3,
+                             items: (selected.items || []).map(mapItem),
+                           }]
+                         }
                          const mapped = {
                            ...blankShop(),
                            name: selected.name,
                            displayName: selected.displayName,
                            iconMaterial: selected.displayItem || 'CHEST',
-                           rows: selected.rows || 3,
                            permission: selected.permission || '',
-                           items: (selected.items || []).map((it: any) => ({
-                             ...blankItem(it.slot || 0, it.material),
-                             slot: it.slot || 0,
-                             material: it.material,
-                             amount: it.amount || 1,
-                             displayName: it.name || '',
-                             lore: it.lore || [],
-                             buyPrice: it.buyPrice ?? null,
-                             sellPrice: it.sellPrice ?? null,
-                             stockLimit: it.stock || 0,
-                             buyLimit: it.limit || 0,
-                             priceType: it.priceType || 'MONEY',
-                             permission: it.permission || '',
-                             customModelData: it.customModelData || 0,
-                             enchantments: it.enchantments || [],
-                             commandsOnBuy: it.commandsOnBuy || [],
-                           })),
+                           pages,
                          }
                          await api.shopCreate(mapped)
                          showFlash(`✓ ${selected.name} importé`)
@@ -558,7 +610,7 @@ function ShopCard({ shop, onOpen, onStats, canEdit }: any) {
         )}
 
         <div className="mt-3 space-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-          <div>🎁 {shop.itemCount || 0} items</div>
+          <div>🎁 {shop.itemCount || 0} items{shop.pageCount > 1 ? ` · 📄 ${shop.pageCount} pages` : ''}</div>
           <div>💰 {shop.totalTransactions || 0} transactions</div>
           <div>💵 {(shop.totalRevenue || 0).toLocaleString('fr-FR')} $ CA total</div>
         </div>
@@ -581,15 +633,22 @@ function ShopCard({ shop, onOpen, onStats, canEdit }: any) {
 }
 
 // ── Éditeur visuel de shop ──────────────────────────────────────────────────
+const MAX_PAGES = 6 // limite ESG Premium
+
 function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash }: any) {
-  const [draft, setDraft] = useState<any>(shop)
+  const [draft, setDraft] = useState<any>(() => normalizeShop(shop))
+  const [pageIndex, setPageIndex] = useState(0)
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
   const [paletteCategory, setPaletteCategory] = useState(PALETTE_GROUPS[0].category)
   const [paletteSearch, setPaletteSearch] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
 
-  const items: any[] = draft.items || []
+  const pages: any[] = draft.pages || []
+  const safePageIndex = Math.max(0, Math.min(pages.length - 1, pageIndex))
+  const currentPage = pages[safePageIndex] || { rows: 3, items: [] }
+  const items: any[] = currentPage.items || []
+
   const itemsBySlot = useMemo(() => {
     const m: Record<number, any> = {}
     for (const it of items) m[it.slot] = it
@@ -598,23 +657,27 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
 
   const selectedItem = selectedSlot !== null ? itemsBySlot[selectedSlot] : null
 
-  const visibleRows = Math.max(1, Math.min(6, draft.rows || 3))
+  const visibleRows = Math.max(1, Math.min(6, currentPage.rows || 3))
   const totalSlots = visibleRows * 9
 
+  // Helpers : modifications de la page courante
+  const updateCurrentPage = (patch: any) => {
+    const next = pages.map((p, i) => i === safePageIndex ? { ...p, ...patch } : p)
+    setDraft({ ...draft, pages: next })
+  }
+
   const updateItem = (slot: number, updates: any) => {
-    setDraft({
-      ...draft,
+    updateCurrentPage({
       items: items.map(i => i.slot === slot ? { ...i, ...updates } : i),
     })
   }
 
   const placeItem = (slot: number, material: string) => {
-    // Si déjà un item à ce slot : update le material
     if (itemsBySlot[slot]) {
       updateItem(slot, { material })
     } else {
       const newItem = blankItem(slot, material)
-      setDraft({ ...draft, items: [...items, newItem] })
+      updateCurrentPage({ items: [...items, newItem] })
     }
     setSelectedSlot(slot)
   }
@@ -630,13 +693,40 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
       if (destItem && i.slot === toSlot) return { ...i, slot: fromSlot }
       return i
     })
-    setDraft({ ...draft, items: updated })
+    updateCurrentPage({ items: updated })
     setSelectedSlot(toSlot)
   }
 
   const removeItem = (slot: number) => {
-    setDraft({ ...draft, items: items.filter(i => i.slot !== slot) })
+    updateCurrentPage({ items: items.filter(i => i.slot !== slot) })
     setSelectedSlot(null)
+  }
+
+  // ── Gestion des pages ─────────────────────────────────────────────────────
+  const addPage = () => {
+    if (pages.length >= MAX_PAGES) return
+    const newPage = blankPage(`Page ${pages.length + 1}`, 3)
+    setDraft({ ...draft, pages: [...pages, newPage] })
+    setPageIndex(pages.length)
+    setSelectedSlot(null)
+  }
+
+  const deletePage = (idx: number) => {
+    if (pages.length <= 1) return
+    if (!confirm(`Supprimer la page "${pages[idx]?.name}" et tous ses items ?`)) return
+    const next = pages.filter((_, i) => i !== idx)
+    setDraft({ ...draft, pages: next })
+    if (safePageIndex >= next.length) setPageIndex(next.length - 1)
+    else if (idx < safePageIndex) setPageIndex(safePageIndex - 1)
+    setSelectedSlot(null)
+  }
+
+  const renamePage = (idx: number) => {
+    const current = pages[idx]?.name || `Page ${idx + 1}`
+    const name = prompt('Nom de la page :', current)
+    if (!name || !name.trim()) return
+    const next = pages.map((p, i) => i === idx ? { ...p, name: name.trim() } : p)
+    setDraft({ ...draft, pages: next })
   }
 
   // Palette filtrée
@@ -775,25 +865,88 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
         {/* Colonne grille centrale */}
         <div className="rounded-xl overflow-hidden flex flex-col"
              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="p-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="p-3 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              🎨 Grille du shop · {items.length} item{items.length > 1 ? 's' : ''}
+              🎨 {currentPage.name || `Page ${safePageIndex + 1}`} · {items.length} item{items.length > 1 ? 's' : ''}
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
               <span>Rows :</span>
               {[1,2,3,4,5,6].map(r => (
                 <button key={r}
-                        onClick={() => canEdit && setDraft({ ...draft, rows: r })}
+                        onClick={() => canEdit && updateCurrentPage({ rows: r })}
                         disabled={!canEdit}
                         className="w-7 h-7 rounded text-xs font-bold"
                         style={{
-                          background: draft.rows === r ? 'var(--primary)' : 'var(--surface-2)',
-                          color: draft.rows === r ? 'white' : 'var(--text-muted)',
+                          background: currentPage.rows === r ? 'var(--primary)' : 'var(--surface-2)',
+                          color: currentPage.rows === r ? 'white' : 'var(--text-muted)',
                         }}>
                   {r}
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Onglets pages */}
+          <div className="px-3 py-2 flex items-center gap-1 overflow-x-auto"
+               style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+            {pages.map((p: any, i: number) => {
+              const active = i === safePageIndex
+              return (
+                <div key={p.id || i} className="flex items-center">
+                  <button onClick={() => { setPageIndex(i); setSelectedSlot(null) }}
+                          onDoubleClick={() => canEdit && renamePage(i)}
+                          title={canEdit ? 'Double-clic pour renommer' : ''}
+                          className="px-3 py-1.5 rounded-l text-sm whitespace-nowrap transition"
+                          style={{
+                            background: active ? 'var(--primary)' : 'var(--surface)',
+                            color: active ? 'white' : 'var(--text-muted)',
+                            border: '1px solid var(--border)',
+                            borderRight: 'none',
+                          }}>
+                    📄 {p.name || `Page ${i + 1}`}
+                    <span className="ml-2 text-xs opacity-70">{p.items?.length || 0}</span>
+                  </button>
+                  {canEdit && pages.length > 1 && (
+                    <button onClick={() => deletePage(i)}
+                            title="Supprimer cette page"
+                            className="px-2 py-1.5 rounded-r text-sm transition hover:bg-red-500/20"
+                            style={{
+                              background: active ? 'var(--primary)' : 'var(--surface)',
+                              color: active ? 'white' : 'var(--text-muted)',
+                              border: '1px solid var(--border)',
+                              borderLeft: 'none',
+                            }}>
+                      ✕
+                    </button>
+                  )}
+                  {canEdit && pages.length === 1 && (
+                    <span className="px-2 py-1.5 rounded-r text-sm"
+                          style={{
+                            background: active ? 'var(--primary)' : 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderLeft: 'none',
+                          }}/>
+                  )}
+                </div>
+              )
+            })}
+            {canEdit && pages.length < MAX_PAGES && (
+              <button onClick={addPage}
+                      title="Ajouter une page"
+                      className="px-3 py-1.5 rounded text-sm font-bold transition hover:scale-105"
+                      style={{
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        border: '1px dashed var(--border)',
+                      }}>
+                + Page
+              </button>
+            )}
+            {canEdit && pages.length >= MAX_PAGES && (
+              <span className="px-3 py-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                (max {MAX_PAGES} pages)
+              </span>
+            )}
           </div>
 
           <div className="flex-1 p-6 flex items-center justify-center overflow-auto">
@@ -1229,7 +1382,12 @@ function ImportModal({ shops, onImport, onClose }: any) {
                  style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--text)', border: '1px solid rgba(59,130,246,0.3)' }}>
               💡 L'import crée une copie éditable dans le dashboard. Les fichiers ESG d'origine ne sont PAS modifiés. Tu peux éditer puis re-synchroniser.
             </div>
-            {shops.map((s: any, i: number) => (
+            {shops.map((s: any, i: number) => {
+              const pageCount = Array.isArray(s.pages) ? s.pages.length : 0
+              const totalItems = pageCount > 0
+                ? s.pages.reduce((acc: number, p: any) => acc + (p.items?.length || 0), 0)
+                : (s.items?.length || 0)
+              return (
               <div key={i} className="flex items-center gap-3 p-3 rounded-lg"
                    style={{ background: 'var(--surface-2)' }}>
                 <div className="text-3xl">{materialIcon(s.displayItem || 'CHEST')}</div>
@@ -1237,7 +1395,8 @@ function ImportModal({ shops, onImport, onClose }: any) {
                   <div className="font-bold" style={{ color: 'var(--text)' }}
                        dangerouslySetInnerHTML={{ __html: mcFormat(s.displayName || s.name) }}/>
                   <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    /{s.name} · {s.items?.length || 0} items · {s.rows || 3} lignes
+                    /{s.name} · {totalItems} items
+                    {pageCount > 1 ? ` · ${pageCount} pages` : ` · ${s.rows || 3} lignes`}
                   </div>
                 </div>
                 <button onClick={() => onImport(s)}
@@ -1246,7 +1405,8 @@ function ImportModal({ shops, onImport, onClose }: any) {
                   Importer
                 </button>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

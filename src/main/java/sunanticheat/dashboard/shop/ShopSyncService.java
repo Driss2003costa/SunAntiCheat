@@ -252,46 +252,38 @@ public final class ShopSyncService {
 
     /**
      * Construit le YAML du contenu d'un shop au format ESG attendu.
-     * Premium : pages.page1.gui-rows + pages.page1.items.{slot}
-     * Free    : clé racine {slot}.* + settings (rows, title, etc.)
+     * Premium : pages.page{n}.gui-rows + pages.page{n}.items.{slot} pour chaque page
+     * Free    : ESG Free ne supporte pas le multipage, on aplatit la 1ère page uniquement
      */
     private void buildShopItemsYaml(YamlConfiguration yaml, Shop shop, boolean premium) {
-        List<ShopItem> items = shop.items != null ? new ArrayList<>(shop.items) : new ArrayList<>();
-        items.removeIf(i -> i == null);
-        items.sort(Comparator.comparingInt(i -> i.slot));
-        int rows = Math.max(1, Math.min(6, shop.rows));
+        List<ShopPage> pages = shop.pages != null ? new ArrayList<>(shop.pages) : new ArrayList<>();
+        pages.removeIf(p -> p == null);
+        if (pages.isEmpty()) return;
 
         if (premium) {
-            ConfigurationSection page = yaml.createSection("pages.page1");
-            page.set("gui-rows", rows);
-            page.set("title", shop.displayName != null ? shop.displayName : shop.name);
-            ConfigurationSection itemsSec = page.createSection("items");
-            for (ShopItem item : items) {
-                ConfigurationSection iSec = itemsSec.createSection(String.valueOf(item.slot + 1));
-                iSec.set("material", item.material != null ? item.material : "STONE");
-                if (item.amount > 1) iSec.set("amount", item.amount);
-                if (item.buyPrice != null) iSec.set("buy", item.buyPrice);
-                if (item.sellPrice != null) iSec.set("sell", item.sellPrice);
-                if (item.displayName != null && !item.displayName.isBlank()) iSec.set("name", item.displayName);
-                if (item.lore != null && !item.lore.isEmpty()) iSec.set("lore", item.lore);
-                if (item.permission != null && !item.permission.isBlank()) iSec.set("permission", item.permission);
-                if (item.buyLimit > 0) iSec.set("buy-limit", item.buyLimit);
-                if (item.sellLimit > 0) iSec.set("sell-limit", item.sellLimit);
-                if (item.stockLimit > 0) iSec.set("stock", item.stockLimit);
-                if (item.customModelData > 0) iSec.set("model-data", item.customModelData);
-                if (item.enchantments != null && !item.enchantments.isEmpty()) {
-                    iSec.set("enchantments", item.enchantments);
-                }
-                if (item.commandsOnBuy != null && !item.commandsOnBuy.isEmpty()) {
-                    iSec.set("commands", item.commandsOnBuy);
-                }
+            int idx = 1;
+            for (ShopPage page : pages) {
+                int rows = Math.max(1, Math.min(6, page.rows == 0 ? 3 : page.rows));
+                ConfigurationSection sec = yaml.createSection("pages.page" + idx);
+                sec.set("gui-rows", rows);
+                String title = page.name != null && !page.name.isBlank()
+                        ? page.name
+                        : (shop.displayName != null ? shop.displayName : shop.name);
+                sec.set("title", title);
+                writePremiumItems(sec, page.items, rows);
+                idx++;
             }
         } else {
-            // Free : settings en haut, puis chaque slot en clé racine
+            // Free : pas de multipage, on prend uniquement la 1ère page
+            ShopPage first = pages.get(0);
+            int rows = Math.max(1, Math.min(6, first.rows == 0 ? 3 : first.rows));
             yaml.set("displayName", shop.displayName != null ? shop.displayName : shop.name);
             yaml.set("rows", rows);
             if (shop.permission != null && !shop.permission.isBlank()) yaml.set("permission", shop.permission);
 
+            List<ShopItem> items = first.items != null ? new ArrayList<>(first.items) : new ArrayList<>();
+            items.removeIf(i -> i == null);
+            items.sort(Comparator.comparingInt(i -> i.slot));
             for (ShopItem item : items) {
                 ConfigurationSection iSec = yaml.createSection(String.valueOf(item.slot + 1));
                 iSec.set("material", item.material != null ? item.material : "STONE");
@@ -308,6 +300,35 @@ public final class ShopSyncService {
                 if (item.commandsOnBuy != null && !item.commandsOnBuy.isEmpty()) {
                     iSec.set("commands", item.commandsOnBuy);
                 }
+            }
+        }
+    }
+
+    /** Écrit les items d'une page Premium sous une section pages.page{n}. */
+    private void writePremiumItems(ConfigurationSection page, List<ShopItem> items, int rows) {
+        if (items == null || items.isEmpty()) return;
+        List<ShopItem> sorted = new ArrayList<>(items);
+        sorted.removeIf(i -> i == null);
+        sorted.sort(Comparator.comparingInt(i -> i.slot));
+        ConfigurationSection itemsSec = page.createSection("items");
+        for (ShopItem item : sorted) {
+            ConfigurationSection iSec = itemsSec.createSection(String.valueOf(item.slot + 1));
+            iSec.set("material", item.material != null ? item.material : "STONE");
+            if (item.amount > 1) iSec.set("amount", item.amount);
+            if (item.buyPrice != null) iSec.set("buy", item.buyPrice);
+            if (item.sellPrice != null) iSec.set("sell", item.sellPrice);
+            if (item.displayName != null && !item.displayName.isBlank()) iSec.set("name", item.displayName);
+            if (item.lore != null && !item.lore.isEmpty()) iSec.set("lore", item.lore);
+            if (item.permission != null && !item.permission.isBlank()) iSec.set("permission", item.permission);
+            if (item.buyLimit > 0) iSec.set("buy-limit", item.buyLimit);
+            if (item.sellLimit > 0) iSec.set("sell-limit", item.sellLimit);
+            if (item.stockLimit > 0) iSec.set("stock", item.stockLimit);
+            if (item.customModelData > 0) iSec.set("model-data", item.customModelData);
+            if (item.enchantments != null && !item.enchantments.isEmpty()) {
+                iSec.set("enchantments", item.enchantments);
+            }
+            if (item.commandsOnBuy != null && !item.commandsOnBuy.isEmpty()) {
+                iSec.set("commands", item.commandsOnBuy);
             }
         }
     }
@@ -407,10 +428,6 @@ public final class ShopSyncService {
 
                     // ── Premium ───────────────────────────────────────────────
                     if (premium) {
-                        ConfigurationSection page1 = shopYaml.getConfigurationSection("pages.page1");
-                        int rows = page1 != null ? page1.getInt("gui-rows", 6) : 6;
-                        shopMap.put("rows", rows);
-
                         String displayName = shopName;
                         String displayItem = "CHEST";
                         String permission = "";
@@ -428,16 +445,49 @@ public final class ShopSyncService {
                         shopMap.put("displayItem", displayItem);
                         shopMap.put("permission", permission);
 
-                        List<Map<String, Object>> items = new ArrayList<>();
-                        ConfigurationSection itemsSec = page1 != null ? page1.getConfigurationSection("items") : null;
-                        if (itemsSec != null) {
-                            for (String slotKey : itemsSec.getKeys(false)) {
-                                ConfigurationSection iSec = itemsSec.getConfigurationSection(slotKey);
-                                if (iSec == null) continue;
-                                items.add(parseItemPremium(slotKey, iSec));
+                        // Multipage : on parcourt toutes les pages.pageN
+                        List<Map<String, Object>> pages = new ArrayList<>();
+                        ConfigurationSection pagesRoot = shopYaml.getConfigurationSection("pages");
+                        if (pagesRoot != null) {
+                            // Trie page1, page2, ... numériquement
+                            List<String> pageKeys = new ArrayList<>(pagesRoot.getKeys(false));
+                            pageKeys.sort(Comparator.comparingInt(k -> {
+                                String num = k.replaceFirst("(?i)^page", "");
+                                return parseIntSafe(num, 9999);
+                            }));
+                            for (String pageKey : pageKeys) {
+                                ConfigurationSection pSec = pagesRoot.getConfigurationSection(pageKey);
+                                if (pSec == null) continue;
+                                Map<String, Object> pMap = new LinkedHashMap<>();
+                                pMap.put("name", pSec.getString("title", pageKey));
+                                pMap.put("rows", pSec.getInt("gui-rows", 6));
+                                List<Map<String, Object>> items = new ArrayList<>();
+                                ConfigurationSection itemsSec = pSec.getConfigurationSection("items");
+                                if (itemsSec != null) {
+                                    for (String slotKey : itemsSec.getKeys(false)) {
+                                        ConfigurationSection iSec = itemsSec.getConfigurationSection(slotKey);
+                                        if (iSec == null) continue;
+                                        items.add(parseItemPremium(slotKey, iSec));
+                                    }
+                                }
+                                pMap.put("items", items);
+                                pages.add(pMap);
                             }
                         }
-                        shopMap.put("items", items);
+                        // Aggrégats pour rétro-compat de l'aperçu
+                        int totalItems = 0;
+                        int firstRows = 6;
+                        if (!pages.isEmpty()) {
+                            firstRows = (int) ((Number) pages.get(0).getOrDefault("rows", 6)).intValue();
+                            for (Map<String, Object> p : pages) {
+                                @SuppressWarnings("unchecked")
+                                List<?> its = (List<?>) p.getOrDefault("items", List.of());
+                                totalItems += its.size();
+                            }
+                        }
+                        shopMap.put("rows", firstRows);
+                        shopMap.put("pages", pages);
+                        shopMap.put("itemCount", totalItems);
                     }
 
                     // ── Free ──────────────────────────────────────────────────

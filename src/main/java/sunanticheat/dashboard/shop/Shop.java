@@ -6,6 +6,10 @@ import java.util.List;
 /**
  * POJO représentant un shop du dashboard (qui sera synchronisé vers EconomyShopGUI+).
  * Champs publics pour compatibilité directe avec Gson.
+ *
+ * Multipage : la source de vérité est {@link #pages}. Les champs legacy
+ * {@link #rows} et {@link #items} sont conservés uniquement pour la
+ * désérialisation des anciens fichiers shops.json (migration au chargement).
  */
 public class Shop {
     public String id;
@@ -19,12 +23,17 @@ public class Shop {
 
     public String category;
     public int order;
-    public int rows; // 1-6
+
+    /** @deprecated remplacé par pages[].rows — conservé pour migration uniquement */
+    @Deprecated public Integer rows;
+    /** @deprecated remplacé par pages[].items — conservé pour migration uniquement */
+    @Deprecated public List<ShopItem> items;
+
+    public List<ShopPage> pages = new ArrayList<>();
 
     public String permission;
     public String commandToOpen;
 
-    public List<ShopItem> items = new ArrayList<>();
     public boolean enabled = true;
 
     public long createdAt;
