@@ -118,8 +118,11 @@ export default function App() {
                   <Route path="/moderation"    element={<SanctionsModern />} />
                   <Route path="/games"         element={<Games />} />
                   <Route path="/config"         element={<Config />} />
-                  <Route path="/portal/sections"  element={<PortalSections />} />
-                  <Route path="/portal/activity" element={<PortalActivity />} />
+                  <Route path="/portal-sections"  element={<PortalSections />} />
+                  <Route path="/portal-activity" element={<PortalActivity />} />
+                  {/* Anciens chemins → redirige (les utilisateurs ayant l'URL en favoris) */}
+                  <Route path="/portal/sections"  element={<Navigate to="/portal-sections" replace />} />
+                  <Route path="/portal/activity" element={<Navigate to="/portal-activity" replace />} />
                 </Routes>
               </Suspense>
             </Layout>
