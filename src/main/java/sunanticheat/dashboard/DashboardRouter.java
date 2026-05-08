@@ -74,6 +74,7 @@ public final class DashboardRouter implements HttpHandler {
     private final XRayAnalysisHandler xrayAnalysisHandler;
     private sunanticheat.dashboard.portal.PortalActivityStore portalActivityStore;
     private sunanticheat.dashboard.portal.PlayerJwtUtil portalJwt;
+    private sunanticheat.dashboard.portal.PortalSectionsStore portalSectionsStore;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -186,6 +187,31 @@ public final class DashboardRouter implements HttpHandler {
         this.portalJwt           = pjwt;
     }
 
+    /** Injecté après construction — utilisé pour le gate MAINTENANCE/DISABLED des routes publiques. */
+    public void setPortalSectionsStore(sunanticheat.dashboard.portal.PortalSectionsStore s) {
+        this.portalSectionsStore = s;
+    }
+
+    /**
+     * Mapping route public → section portail. Les chemins préfixés par une de ces clés
+     * passent par le gate (MAINTENANCE bloque non-OP, DISABLED bloque tout le monde).
+     * Les endpoints d'auth (register/login) ne sont PAS gatés ici — ils ont leur propre
+     * SectionGuard côté frontend pour la section "register".
+     */
+    private static String sectionKeyFor(String path) {
+        if (path.startsWith("/api/public/leaderboard"))                   return "leaderboard";
+        if (path.startsWith("/api/public/profile/"))                      return "public_profiles";
+        if (path.startsWith("/api/public/quests"))                        return "quests";
+        if (path.startsWith("/api/public/games/arenas"))                  return "minigames";
+        if (path.startsWith("/api/public/friends"))                       return "friends";
+        if (path.startsWith("/api/public/messages"))                      return "messages";
+        if (path.startsWith("/api/public/crates/shop"))                   return "shop";
+        if (path.startsWith("/api/public/player/me/crates"))              return "shop";
+        if (path.startsWith("/api/public/vip/"))                          return "shop";
+        if (path.startsWith("/api/custom-jobs/me/"))                      return "career";
+        return null;
+    }
+
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
@@ -216,6 +242,14 @@ public final class DashboardRouter implements HttpHandler {
                         }
                     } catch (Exception ignored) { /* token invalide ou absent — pas de log */ }
                 }
+                // Gate MAINTENANCE/DISABLED : bloque les non-OP sur les sections concernées
+                String sec = sectionKeyFor(path);
+                if (sec != null && portalSectionsStore != null && portalJwt != null) {
+                    if (!sunanticheat.dashboard.portal.PortalSectionGate.checkOrFail(
+                            exchange, portalSectionsStore, portalJwt, sec)) {
+                        return;
+                    }
+                }
                 dispatch(exchange, path, method);
                 return;
             }
@@ -224,6 +258,13 @@ public final class DashboardRouter implements HttpHandler {
             // Auth gérée en interne via playerJwt (token joueur 30 jours).
             // Ne pas faire passer par le pare-feu VIEWER (JWT admin).
             if (path.startsWith("/api/custom-jobs/me/")) {
+                String sec = sectionKeyFor(path);
+                if (sec != null && portalSectionsStore != null && portalJwt != null) {
+                    if (!sunanticheat.dashboard.portal.PortalSectionGate.checkOrFail(
+                            exchange, portalSectionsStore, portalJwt, sec)) {
+                        return;
+                    }
+                }
                 dispatch(exchange, path, method);
                 return;
             }
@@ -708,6 +749,11 @@ public final class DashboardRouter implements HttpHandler {
         // ── Sections portail (admin) ──────────────────────────────────────────
         if (eq(path, "/api/portal/sections")  && GET(method))   { portalSectionsHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/portal/sections")  && PATCH(method)) { portalSectionsHandler.update(ex, jwt, users); return; }
+        if (path.matches("/api/portal/sections/[^/]+/status") && PATCH(method)) {
+            String key = path.substring("/api/portal/sections/".length(),
+                    path.length() - "/status".length());
+            portalSectionsHandler.updateStatus(ex, jwt, users, key); return;
+        }
 
         // ── Activité portail (admin) ──────────────────────────────────────────
         if (eq(path, "/api/portal/activity/logins")     && GET(method)) { portalActivityHandler.logins(ex, jwt, users); return; }

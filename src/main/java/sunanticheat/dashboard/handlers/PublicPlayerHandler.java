@@ -51,8 +51,15 @@ public final class PublicPlayerHandler {
         boolean online = Bukkit.getOnlinePlayers().stream()
                 .anyMatch(p -> p.getUniqueId().toString().equals(uuid));
 
+        boolean isOp = false;
+        try {
+            org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(UUID.fromString(uuid));
+            isOp = op != null && op.isOp();
+        } catch (Throwable ignored) {}
+
         Map<String, Object> result = new LinkedHashMap<>(account);
         result.put("online", online);
+        result.put("isOp", isOp);
 
         // Playtime
         try {

@@ -9,6 +9,7 @@ import {
 import Navbar from '../components/Navbar'
 import MinecraftIcon from '../components/MinecraftIcon'
 import PageAura from '../components/PageAura'
+import DegradedNotice from '../components/DegradedNotice'
 
 const GLASS  = 'rgba(255,255,255,0.05)'
 const BORDER = 'rgba(255,255,255,0.08)'
@@ -125,6 +126,7 @@ export default function Career() {
 
       {/* Header */}
       <div className="relative z-10 px-5 pt-12 pb-6 max-w-screen-sm mx-auto">
+        <DegradedNotice sectionKey="career"/>
         <h1 className="text-xl font-bold mb-1" style={{ color: TEXT }}>Carrière</h1>
         <p className="text-sm mb-6" style={{ color: MUTED }}>{profile.username}</p>
 

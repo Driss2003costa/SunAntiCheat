@@ -4,6 +4,7 @@ import { api, getToken, clearToken, type PlayerProfile, type DailyStatus } from 
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
 import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
+import ServerStatusCard from '../components/ServerStatusCard'
 
 function fmtBalance(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
@@ -171,6 +172,9 @@ export default function Home() {
             </Link>
           </div>
         )}
+
+        {/* ─── STATUT DES SERVICES ──────────────────────────────────────── */}
+        <ServerStatusCard />
 
         {/* ─── NAVIGATION GRID ──────────────────────────────────────────── */}
         <SectionDivider label="Explorer" hint="Toutes les sections du serveur" />

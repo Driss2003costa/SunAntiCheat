@@ -481,11 +481,21 @@ export const api = {
   vipGateways:     () => request<any>('/api/vip/gateways/status'),
 
   // Portal sections
-  portalSectionsList:   () => request<{ sections: any[] }>('/api/portal/sections'),
+  portalSectionsList:   () => request<{ sections: Array<{
+    key: string; label: string; description: string; icon: string;
+    enabled: boolean;
+    status: 'OPERATIONAL' | 'DEGRADED' | 'MAINTENANCE' | 'DISABLED';
+    message: string; updatedAt: number; updatedBy: string;
+  }> }>('/api/portal/sections'),
   portalSectionsUpdate: (sections: Record<string, boolean>) =>
     request<{ ok: boolean; sections: Record<string, boolean> }>('/api/portal/sections', {
       method: 'PATCH', body: JSON.stringify({ sections }),
     }),
+  portalSectionStatusUpdate: (key: string, status: 'OPERATIONAL' | 'DEGRADED' | 'MAINTENANCE' | 'DISABLED', message = '') =>
+    request<{ ok: boolean; section: any }>(
+      `/api/portal/sections/${encodeURIComponent(key)}/status`,
+      { method: 'PATCH', body: JSON.stringify({ status, message }) }
+    ),
 
   // Portal activity (admin monitoring)
   portalActivityStats: () => request<any>('/api/portal/activity/stats'),

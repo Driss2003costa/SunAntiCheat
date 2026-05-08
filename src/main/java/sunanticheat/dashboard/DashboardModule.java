@@ -551,6 +551,7 @@ public final class DashboardModule {
                 geoIpHandler, publicCrateShopHandler, friendHandler, chatHandler, referralHandler,
                 portalSectionsHandler, portalActivityHandler, xrayAnalysisHandler);
         router.setPortalActivityDeps(portalActivityStore, playerJwtUtil);
+        router.setPortalSectionsStore(portalSectionsStore);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

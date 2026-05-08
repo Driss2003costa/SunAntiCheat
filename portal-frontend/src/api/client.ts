@@ -53,9 +53,25 @@ export type ActiveSanction = {
 export type PlayerProfile = {
   uuid: string; username: string; email: string | null
   created_at: number; last_login: number | null; role: string; online: boolean
+  isOp?: boolean
   playtime_seconds?: number; playtime_formatted?: string
   balance?: number
   active_sanctions?: ActiveSanction[]
+}
+
+// ── Sections / status portail ────────────────────────────────────────────────
+export type FeatureStatus = 'OPERATIONAL' | 'DEGRADED' | 'MAINTENANCE' | 'DISABLED'
+export type SectionDetail = {
+  key: string; label: string; description: string; icon: string
+  enabled: boolean
+  status: FeatureStatus
+  message: string
+  updatedAt: number
+  updatedBy: string
+}
+export type PortalSectionsResponse = {
+  sections: Record<string, boolean>
+  details: SectionDetail[]
 }
 
 export type DailyConfigDay = {

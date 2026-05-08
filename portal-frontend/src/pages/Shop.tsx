@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type VipPlan, type CrateShopEntry } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
+import DegradedNotice from '../components/DegradedNotice'
 
 const GLASS  = 'rgba(255,255,255,0.05)'
 const BORDER = 'rgba(255,255,255,0.08)'
@@ -92,6 +93,7 @@ export default function Shop() {
 
       {/* Header */}
       <div className="relative z-10 px-5 pt-12 pb-6 max-w-screen-sm mx-auto">
+        <DegradedNotice sectionKey="shop"/>
         <div className="flex items-end justify-between mb-8">
           <div>
             <h1 className="text-xl font-bold" style={{ color: TEXT }}>Boutique</h1>
