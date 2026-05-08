@@ -74,10 +74,7 @@ public final class ShopStore {
         long now = System.currentTimeMillis();
         s.createdAt = now;
         s.modifiedAt = now;
-        if (s.items == null) s.items = new ArrayList<>();
-        for (ShopItem it : s.items) {
-            if (it != null && (it.id == null || it.id.isBlank())) it.id = UUID.randomUUID().toString();
-        }
+        normalizePages(s);
         shops.add(s);
         save();
         return s;
@@ -94,15 +91,63 @@ public final class ShopStore {
         incoming.totalTransactions = existing.totalTransactions;
         incoming.totalRevenue = existing.totalRevenue;
         incoming.modifiedAt = System.currentTimeMillis();
-        if (incoming.items == null) incoming.items = new ArrayList<>();
-        for (ShopItem it : incoming.items) {
-            if (it != null && (it.id == null || it.id.isBlank())) it.id = UUID.randomUUID().toString();
-        }
+        normalizePages(incoming);
 
         int idx = shops.indexOf(existing);
         shops.set(idx, incoming);
         save();
         return incoming;
+    }
+
+    /**
+     * Normalise un shop : migre l'ancien format (rows + items à la racine)
+     * vers le nouveau format multipage, garantit qu'au moins une page existe,
+     * et attribue des UUID aux pages/items qui n'en ont pas.
+     */
+    private void normalizePages(Shop s) {
+        if (s.pages == null) s.pages = new ArrayList<>();
+
+        // Migration legacy → page unique si pages vide
+        if (s.pages.isEmpty() && s.items != null && !s.items.isEmpty()) {
+            ShopPage migrated = new ShopPage();
+            migrated.id = UUID.randomUUID().toString();
+            migrated.name = "Page 1";
+            migrated.rows = clampRows(s.rows != null ? s.rows : 3);
+            migrated.items = new ArrayList<>(s.items);
+            s.pages.add(migrated);
+        }
+
+        // Garantit au moins une page
+        if (s.pages.isEmpty()) {
+            ShopPage p = new ShopPage();
+            p.id = UUID.randomUUID().toString();
+            p.name = "Page 1";
+            p.rows = clampRows(s.rows != null ? s.rows : 3);
+            p.items = new ArrayList<>();
+            s.pages.add(p);
+        }
+
+        // Hygiène : ids/uuids/clamp + numérotation par défaut
+        int idx = 1;
+        for (ShopPage p : s.pages) {
+            if (p == null) continue;
+            if (p.id == null || p.id.isBlank()) p.id = UUID.randomUUID().toString();
+            if (p.name == null || p.name.isBlank()) p.name = "Page " + idx;
+            p.rows = clampRows(p.rows);
+            if (p.items == null) p.items = new ArrayList<>();
+            for (ShopItem it : p.items) {
+                if (it != null && (it.id == null || it.id.isBlank())) it.id = UUID.randomUUID().toString();
+            }
+            idx++;
+        }
+
+        // Nettoie les champs legacy (la source de vérité est désormais pages)
+        s.items = null;
+        s.rows = null;
+    }
+
+    private static int clampRows(int rows) {
+        return Math.max(1, Math.min(6, rows == 0 ? 3 : rows));
     }
 
     public synchronized void deleteShop(String id) {
@@ -112,36 +157,47 @@ public final class ShopStore {
     }
 
     // ── Écriture items ───────────────────────────────────────────────────────
+    //
+    // Les API item-level opèrent sur la page courante (la 1ère par défaut). Le
+    // dashboard sauvegarde toujours le shop entier, donc ces endpoints ne sont
+    // utilisés que par d'éventuels clients tiers ; ils restent rétro-compatibles.
 
     public synchronized void addItem(String shopId, ShopItem item) {
         Shop s = getShop(shopId);
         if (s == null || item == null) return;
         if (item.id == null || item.id.isBlank()) item.id = UUID.randomUUID().toString();
-        if (s.items == null) s.items = new ArrayList<>();
-        s.items.add(item);
+        ShopPage page = ensureFirstPage(s);
+        page.items.add(item);
         s.modifiedAt = System.currentTimeMillis();
         save();
     }
 
     public synchronized void updateItem(String shopId, String itemId, ShopItem item) {
         Shop s = getShop(shopId);
-        if (s == null || itemId == null || item == null || s.items == null) return;
-        for (int i = 0; i < s.items.size(); i++) {
-            ShopItem existing = s.items.get(i);
-            if (existing != null && itemId.equals(existing.id)) {
-                item.id = itemId;
-                s.items.set(i, item);
-                s.modifiedAt = System.currentTimeMillis();
-                save();
-                return;
+        if (s == null || itemId == null || item == null || s.pages == null) return;
+        for (ShopPage page : s.pages) {
+            if (page == null || page.items == null) continue;
+            for (int i = 0; i < page.items.size(); i++) {
+                ShopItem existing = page.items.get(i);
+                if (existing != null && itemId.equals(existing.id)) {
+                    item.id = itemId;
+                    page.items.set(i, item);
+                    s.modifiedAt = System.currentTimeMillis();
+                    save();
+                    return;
+                }
             }
         }
     }
 
     public synchronized void removeItem(String shopId, String itemId) {
         Shop s = getShop(shopId);
-        if (s == null || itemId == null || s.items == null) return;
-        boolean removed = s.items.removeIf(it -> it != null && itemId.equals(it.id));
+        if (s == null || itemId == null || s.pages == null) return;
+        boolean removed = false;
+        for (ShopPage page : s.pages) {
+            if (page == null || page.items == null) continue;
+            removed |= page.items.removeIf(it -> it != null && itemId.equals(it.id));
+        }
         if (removed) {
             s.modifiedAt = System.currentTimeMillis();
             save();
@@ -150,9 +206,27 @@ public final class ShopStore {
 
     public synchronized ShopItem getItemAt(String shopId, int slot) {
         Shop s = getShop(shopId);
-        if (s == null || s.items == null) return null;
-        for (ShopItem it : s.items) if (it != null && it.slot == slot) return it;
+        if (s == null || s.pages == null) return null;
+        for (ShopPage page : s.pages) {
+            if (page == null || page.items == null) continue;
+            for (ShopItem it : page.items) if (it != null && it.slot == slot) return it;
+        }
         return null;
+    }
+
+    private ShopPage ensureFirstPage(Shop s) {
+        if (s.pages == null) s.pages = new ArrayList<>();
+        if (s.pages.isEmpty()) {
+            ShopPage p = new ShopPage();
+            p.id = UUID.randomUUID().toString();
+            p.name = "Page 1";
+            p.rows = 3;
+            p.items = new ArrayList<>();
+            s.pages.add(p);
+        }
+        ShopPage page = s.pages.get(0);
+        if (page.items == null) page.items = new ArrayList<>();
+        return page;
     }
 
     // ── Transactions ─────────────────────────────────────────────────────────
@@ -312,7 +386,18 @@ public final class ShopStore {
                 List<Shop> loaded = GSON.fromJson(raw, t);
                 if (loaded != null) {
                     loaded.removeIf(Objects::isNull);
+                    boolean anyMigrated = false;
+                    for (Shop s : loaded) {
+                        boolean wasLegacy = (s.pages == null || s.pages.isEmpty())
+                                && s.items != null && !s.items.isEmpty();
+                        normalizePages(s);
+                        if (wasLegacy) anyMigrated = true;
+                    }
                     shops.addAll(loaded);
+                    if (anyMigrated) {
+                        logger.info("[Dashboard/Shop] Shops legacy migrés vers le format multipage");
+                        save();
+                    }
                 }
             }
         } catch (Exception e) {
