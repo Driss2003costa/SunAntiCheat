@@ -37,6 +37,21 @@ export const api = {
   totpVerify:  (code: string) => request<any>('/api/auth/totp/verify', { method: 'POST', body: JSON.stringify({ code }) }),
   totpDisable: (password: string) => request<any>('/api/auth/totp/disable', { method: 'POST', body: JSON.stringify({ password }) }),
 
+  // X-Ray Analysis (analyse approfondie par joueur, profils région/pays)
+  xrayOverview:    () => request<{
+    totalPlayers: number; totalBlocks: number; totalDiamond: number; totalAncientDebris: number;
+    levels: Record<string, number>;
+    topSuspects: any[];
+    regions: any[];
+  }>('/api/xray/overview'),
+  xrayPlayers:     () => request<any[]>('/api/xray/players'),
+  xrayPlayer:      (name: string) => request<any>(`/api/xray/player/${encodeURIComponent(name)}`),
+  xrayRegions:     () => request<{ regions: any[] }>('/api/xray/regions'),
+  xrayResetPlayer: (name: string) =>
+    request<{ ok: boolean; playerName: string }>(`/api/xray/player/${encodeURIComponent(name)}/reset`, { method: 'POST' }),
+  xrayClearPlayer: (name: string) =>
+    request<any>(`/api/xray/player/${encodeURIComponent(name)}/clear`, { method: 'POST' }),
+
   // Audit log
   auditList:    (params: Record<string, any> = {}) => {
     const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))).toString()
@@ -466,10 +481,31 @@ export const api = {
   vipGateways:     () => request<any>('/api/vip/gateways/status'),
 
   // Portal sections
-  portalSectionsList:   () => request<{ sections: any[] }>('/api/portal/sections'),
+  portalSectionsList:   () => request<{ sections: Array<{
+    key: string; label: string; description: string; icon: string;
+    enabled: boolean;
+    status: 'OPERATIONAL' | 'DEGRADED' | 'MAINTENANCE' | 'DISABLED';
+    message: string; updatedAt: number; updatedBy: string;
+  }> }>('/api/portal/sections'),
   portalSectionsUpdate: (sections: Record<string, boolean>) =>
     request<{ ok: boolean; sections: Record<string, boolean> }>('/api/portal/sections', {
       method: 'PATCH', body: JSON.stringify({ sections }),
+    }),
+  portalSectionStatusUpdate: (key: string, status: 'OPERATIONAL' | 'DEGRADED' | 'MAINTENANCE' | 'DISABLED',
+                              message = '', endsAt = 0) =>
+    request<{ ok: boolean; section: any }>(
+      `/api/portal/sections/${encodeURIComponent(key)}/status`,
+      { method: 'PATCH', body: JSON.stringify({ status, message, endsAt }) }
+    ),
+
+  // Portal global maintenance (lockdown total du portail joueur)
+  portalMaintenanceGet: () => request<{
+    enabled: boolean; message: string; endsAt: number;
+    startedAt: number; startedBy: string; updatedAt: number; updatedBy: string;
+  }>('/api/portal/maintenance'),
+  portalMaintenanceSet: (data: { enabled: boolean; message?: string; endsAt?: number }) =>
+    request<{ ok: boolean; state: any }>('/api/portal/maintenance', {
+      method: 'PATCH', body: JSON.stringify(data),
     }),
 
   // Portal activity (admin monitoring)

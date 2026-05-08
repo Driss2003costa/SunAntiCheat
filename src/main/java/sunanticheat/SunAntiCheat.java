@@ -47,6 +47,8 @@ import sunanticheat.xray.XRayCommand;
 import sunanticheat.xray.XRayGui;
 import sunanticheat.xray.XRayLogManager;
 import sunanticheat.xray.XRayTracker;
+import sunanticheat.xray.analysis.RegionResolver;
+import sunanticheat.xray.analysis.XRayAnalysisStore;
 import sunanticheat.dashboard.DashboardModule;
 import sunanticheat.weaponmechanics.MultiverseInventoriesSpawnWmJoinListener;
 import sunanticheat.weaponmechanics.MultiverseInventoriesSpawnWeaponFileScanner;
@@ -57,6 +59,8 @@ import sunanticheat.weaponmechanics.WorldContainerWeaponMechanicsScanner;
 public class SunAntiCheat extends JavaPlugin {
 
     private XRayTracker xRayTracker;
+    private XRayAnalysisStore xRayAnalysisStore;
+    private RegionResolver xRayRegionResolver;
     private WeaponMechanicsMainWorldGuard weaponMechanicsMainWorldGuard;
     private MultiverseInventoriesSpawnWeaponFileScanner multiverseInventoriesSpawnWeaponFileScanner;
     private WorldContainerWeaponMechanicsScanner worldContainerWeaponMechanicsScanner;
@@ -76,6 +80,10 @@ public class SunAntiCheat extends JavaPlugin {
     private sunanticheat.jobs.CustomJobModule customJobModule;
 
     public sunanticheat.alerts.StaffAlertService getStaffAlertService() { return staffAlertServiceRef; }
+    public XRayAnalysisStore getXRayAnalysisStore() { return xRayAnalysisStore; }
+    public RegionResolver getXRayRegionResolver()   { return xRayRegionResolver; }
+    public XRayTracker getXRayTracker()             { return xRayTracker; }
+    public sunanticheat.xray.XRayLogManager getXRayLogManager() { return xRayLogManager; }
     /** Scan MV-Inv spawn (armes WM) — ex. commande {@code /sunguard mvinvscan}. */
     public MultiverseInventoriesSpawnWeaponFileScanner getMultiverseInventoriesSpawnWeaponFileScanner() {
         return multiverseInventoriesSpawnWeaponFileScanner;
@@ -117,6 +125,8 @@ public class SunAntiCheat extends JavaPlugin {
         xRayTracker = new XRayTracker();
         xRayLogManager = new XRayLogManager(this, xRayTracker);
         xRayLogManager.onEnable();
+        xRayRegionResolver = new RegionResolver(this);
+        xRayAnalysisStore  = new XRayAnalysisStore(this, xRayRegionResolver);
         int saveMinutes = getConfig().getInt("xray-log.save-interval-minutes", 5);
         long saveTicks = Math.max(20, 20L * 60 * saveMinutes);
         getServer().getScheduler().runTaskTimer(this, () -> xRayLogManager.saveToday(), saveTicks, saveTicks);
@@ -132,7 +142,9 @@ public class SunAntiCheat extends JavaPlugin {
         getServer().getPluginManager().registerEvents(
                 new MultiverseInventoriesSpawnWmJoinListener(this, multiverseInventoriesSpawnWeaponFileScanner), this);
         getServer().getPluginManager().registerEvents(new SpawnWorldWeaponStripListener(this), this);
-        getServer().getPluginManager().registerEvents(new BlockBreakListener(xRayTracker, this, staffAlertService), this);
+        BlockBreakListener xrayListener = new BlockBreakListener(xRayTracker, this, staffAlertService);
+        xrayListener.setAnalysisStore(xRayAnalysisStore);
+        getServer().getPluginManager().registerEvents(xrayListener, this);
         FreecamTracker freecamTracker = new FreecamTracker();
         boolean cancelFreecam = getConfig().getBoolean("freecam.cancel-suspicious-actions", false);
         getServer().getPluginManager().registerEvents(new FreecamBlockBreakListener(freecamTracker, cancelFreecam, this, staffAlertService), this);

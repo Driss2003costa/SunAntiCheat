@@ -8,12 +8,14 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import sunanticheat.Permissions;
 import sunanticheat.alerts.StaffAlertService;
+import sunanticheat.xray.analysis.XRayAnalysisStore;
 
 public class BlockBreakListener implements Listener {
 
     private final XRayTracker tracker;
     private final JavaPlugin plugin;
     private final StaffAlertService staffAlerts;
+    private XRayAnalysisStore analysisStore;
 
     public BlockBreakListener(XRayTracker tracker) {
         this.tracker = tracker;
@@ -27,11 +29,16 @@ public class BlockBreakListener implements Listener {
         this.staffAlerts = staffAlerts;
     }
 
+    public void setAnalysisStore(XRayAnalysisStore store) { this.analysisStore = store; }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         if (player.hasPermission(Permissions.BYPASS_XRAY)) return;
         tracker.recordBlockBreak(player, event.getBlock().getType());
+        if (analysisStore != null) {
+            try { analysisStore.recordBreak(player, event.getBlock()); } catch (Throwable ignored) {}
+        }
         if (staffAlerts != null && plugin != null && plugin.getConfig().getBoolean("alerts.xray.enabled", true)) {
             BlockMiningStats stats = tracker.getStats(player.getUniqueId());
             if (stats != null) {

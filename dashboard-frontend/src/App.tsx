@@ -47,6 +47,7 @@ const Games           = lazy(() => import('./pages/Games'))
 const Roadmap         = lazy(() => import('./pages/Roadmap'))
 const PortalSections  = lazy(() => import('./pages/PortalSections'))
 const PortalActivity  = lazy(() => import('./pages/PortalActivity'))
+const XRay            = lazy(() => import('./pages/XRay'))
 
 function Protected({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated())
@@ -87,6 +88,7 @@ export default function App() {
                   <Route path="/economy/shop"  element={<ShopTracking />} />
                   <Route path="/sanctions"     element={<Sanctions />} />
                   <Route path="/reports"       element={<Reports />} />
+                  <Route path="/xray"          element={<XRay />} />
                   <Route path="/tasks"         element={<Tasks />} />
                   <Route path="/plugins"       element={<Plugins />} />
                   <Route path="/configs"       element={<ConfigEditor />} />

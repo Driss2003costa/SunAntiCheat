@@ -411,6 +411,16 @@ public final class DashboardModule {
         ViolationPointsHandler vpHandler = new ViolationPointsHandler(vpService);
         profileHandler.setViolationPointsService(vpService);
 
+        // ── X-Ray Analysis (page d'analyse approfondie par joueur) ────────────
+        sunanticheat.dashboard.handlers.XRayAnalysisHandler xrayAnalysisHandler;
+        if (plugin.getXRayAnalysisStore() != null) {
+            xrayAnalysisHandler = new sunanticheat.dashboard.handlers.XRayAnalysisHandler(
+                    plugin.getXRayAnalysisStore(), plugin);
+            plugin.getLogger().info("[Dashboard] X-Ray Analysis activée — endpoints /api/xray/*");
+        } else {
+            xrayAnalysisHandler = null;
+        }
+
         // ── GeoIP ──────────────────────────────────────────────────────────────
         sunanticheat.dashboard.handlers.GeoIpHandler geoIpHandler =
                 new sunanticheat.dashboard.handlers.GeoIpHandler(plugin.getGeoIpCache());
@@ -526,6 +536,12 @@ public final class DashboardModule {
                 new sunanticheat.dashboard.handlers.PortalActivityHandler(portalActivityStore, database, plugin.getLogger());
         publicRegisterHandler.setActivityStore(portalActivityStore);
 
+        // ── Maintenance globale du portail (verrouille tout pour les non-OP) ──
+        sunanticheat.dashboard.portal.PortalMaintenanceMode portalMaintenanceMode =
+                new sunanticheat.dashboard.portal.PortalMaintenanceMode(plugin.getDataFolder(), plugin.getLogger(), blobs);
+        sunanticheat.dashboard.handlers.PortalMaintenanceHandler portalMaintenanceHandler =
+                new sunanticheat.dashboard.handlers.PortalMaintenanceHandler(portalMaintenanceMode);
+
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
@@ -539,8 +555,10 @@ public final class DashboardModule {
                 publicRegisterHandler, publicPlayerHandler, publicProfileHandler,
                 publicDailyHandler, publicLeaderboardHandler, customJobsApiHandler,
                 geoIpHandler, publicCrateShopHandler, friendHandler, chatHandler, referralHandler,
-                portalSectionsHandler, portalActivityHandler);
+                portalSectionsHandler, portalActivityHandler, xrayAnalysisHandler);
         router.setPortalActivityDeps(portalActivityStore, playerJwtUtil);
+        router.setPortalSectionsStore(portalSectionsStore);
+        router.setPortalMaintenance(portalMaintenanceMode, portalMaintenanceHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

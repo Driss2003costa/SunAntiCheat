@@ -9,6 +9,7 @@ import {
 import Navbar from '../components/Navbar'
 import MinecraftIcon from '../components/MinecraftIcon'
 import PageAura from '../components/PageAura'
+import DegradedNotice from '../components/DegradedNotice'
 import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 
 function fmtEarned(n: number) {
@@ -120,6 +121,7 @@ export default function Career() {
     <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="career" />
       <GridShell>
+        <DegradedNotice sectionKey="career"/>
         <HeroBanner
           eyebrow="Carrière"
           variant="jade"

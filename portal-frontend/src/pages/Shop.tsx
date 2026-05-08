@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type VipPlan, type CrateShopEntry } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
+import DegradedNotice from '../components/DegradedNotice'
 import { GridShell, HeroBanner, SectionDivider, Card, Button, Tag } from '../components/ui'
 
 function fmtBalance(n: number) {
@@ -97,6 +98,7 @@ export default function Shop() {
     <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="shop" />
       <GridShell>
+        <DegradedNotice sectionKey="shop"/>
         <HeroBanner
           eyebrow="Boutique"
           variant="sun"
