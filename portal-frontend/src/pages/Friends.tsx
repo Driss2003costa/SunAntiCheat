@@ -3,13 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
+import { GridShell, HeroBanner, SectionDivider, Card, Button, Tag } from '../components/ui'
 
-const GLASS  = 'rgba(255,255,255,0.05)'
-const BORDER = 'rgba(255,255,255,0.08)'
-const TEAL   = '#2dd4bf'
-const TEXT   = '#f1f5f9'
-const MUTED  = '#64748b'
-const BASE   = '/api/public'
+const BASE = '/api/public'
 
 type Friend     = { uuid: string; username: string; since: number }
 type FriendReq  = { id: string; uuid: string; username: string; sender_uuid: string; receiver_uuid: string; created_at: number }
@@ -94,200 +90,202 @@ export default function Friends() {
     } catch {}
   }
 
-  const tabs = [
-    { key: 'friends'  as Tab, label: 'Amis',       badge: friends.length  },
-    { key: 'incoming' as Tab, label: 'Reçues',      badge: incoming.length },
-    { key: 'outgoing' as Tab, label: 'Envoyées',    badge: outgoing.length },
-    { key: 'search'   as Tab, label: 'Rechercher' },
+  const tabs: { key: Tab; label: string; icon: string; badge?: number }[] = [
+    { key: 'friends',  label: 'Amis',       icon: '👥', badge: friends.length  },
+    { key: 'incoming', label: 'Reçues',     icon: '📥', badge: incoming.length },
+    { key: 'outgoing', label: 'Envoyées',   icon: '📤', badge: outgoing.length },
+    { key: 'search',   label: 'Rechercher', icon: '🔍' },
   ]
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: '#080d19' }}>
+    <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="friends" />
+      <GridShell>
+        <HeroBanner
+          eyebrow="Communauté"
+          variant="aurora"
+          title={<>Tes <span className="text-emerald-300">amis</span> SunGuard</>}
+          subtitle={`${friends.length} ami${friends.length !== 1 ? 's' : ''}${incoming.length > 0 ? ` · ${incoming.length} demande${incoming.length > 1 ? 's' : ''} en attente` : ''}.`}
+          cta={
+            <Button onClick={() => setTab('search')} size="lg">+ Trouver des joueurs</Button>
+          }
+        />
 
-      <div className="relative z-10 px-4 pt-12 max-w-screen-sm mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-xl font-bold" style={{ color: TEXT }}>Amis</h1>
-          <p className="text-sm mt-0.5" style={{ color: MUTED }}>
-            {friends.length} ami{friends.length !== 1 ? 's' : ''}
-            {incoming.length > 0 && <span className="ml-2 text-amber-400">· {incoming.length} demande{incoming.length > 1 ? 's' : ''} en attente</span>}
-          </p>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 p-1 rounded-xl mb-5"
-             style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}` }}>
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
-              style={{
-                background: tab === t.key ? 'rgba(45,212,191,0.12)' : 'transparent',
-                color: tab === t.key ? TEAL : MUTED,
-                border: tab === t.key ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
-              }}>
-              {t.label}
-              {t.badge != null && t.badge > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                      style={{
-                        background: tab === t.key ? 'rgba(45,212,191,0.2)' : 'rgba(255,255,255,0.08)',
-                        color: tab === t.key ? TEAL : MUTED,
-                      }}>
-                  {t.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
-
-        {/* Friends */}
-        {tab === 'friends' && (
-          <div className="space-y-2">
-            {loading ? <Spinner color={TEAL} /> : friends.length === 0
-              ? <Empty text="Aucun ami pour l'instant. Utilise la recherche !" />
-              : friends.map(f => (
-                <div key={f.uuid} className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
-                  <img src={`https://mc-heads.net/avatar/${f.username}/40`} alt={f.username}
-                       className="w-10 h-10 rounded-xl shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{f.username}</p>
-                    <p className="text-xs" style={{ color: MUTED }}>
-                      Ami depuis {new Date(f.since).toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={() => openChat(f.uuid)}
-                      className="text-xs px-2.5 py-1.5 rounded-lg transition-all"
-                      style={{ background: 'rgba(45,212,191,0.1)', color: TEAL, border: '1px solid rgba(45,212,191,0.25)' }}>
-                      💬
-                    </button>
-                    <button onClick={() => remove(f.uuid)}
-                      className="text-xs px-2.5 py-1.5 rounded-lg transition-all"
-                      style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
+        {error && (
+          <Card padding="md" className="mb-6 text-center" style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)' }}>
+            <p className="text-red-400 text-sm">{error}</p>
+          </Card>
         )}
 
-        {/* Incoming */}
-        {tab === 'incoming' && (
-          <div className="space-y-2">
-            {loading ? <Spinner color={TEAL} /> : incoming.length === 0
-              ? <Empty text="Aucune demande reçue." />
-              : incoming.map(r => (
-                <div key={r.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
-                  <img src={`https://mc-heads.net/avatar/${r.username}/40`} alt={r.username}
-                       className="w-10 h-10 rounded-xl shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{r.username}</p>
-                    <p className="text-xs" style={{ color: MUTED }}>veut être votre ami</p>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={() => accept(r.id)}
-                      className="text-xs px-3 py-1.5 rounded-lg font-semibold"
-                      style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>
-                      ✓
-                    </button>
-                    <button onClick={() => decline(r.id)}
-                      className="text-xs px-3 py-1.5 rounded-lg"
-                      style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
-        )}
-
-        {/* Outgoing */}
-        {tab === 'outgoing' && (
-          <div className="space-y-2">
-            {loading ? <Spinner color={TEAL} /> : outgoing.length === 0
-              ? <Empty text="Aucune demande envoyée." />
-              : outgoing.map(r => (
-                <div key={r.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
-                  <img src={`https://mc-heads.net/avatar/${r.username}/40`} alt={r.username}
-                       className="w-10 h-10 rounded-xl shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{r.username}</p>
-                    <p className="text-xs" style={{ color: MUTED }}>demande en attente</p>
-                  </div>
-                  <button onClick={() => cancel(r.id)}
-                    className="text-xs px-3 py-1.5 rounded-lg"
-                    style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
-                    Annuler
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          {/* Sidebar */}
+          <aside className="lg:sticky lg:top-6 lg:self-start">
+            <Card padding="sm">
+              <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
+                {tabs.map(t => (
+                  <button key={t.key} onClick={() => setTab(t.key)}
+                    className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0 lg:w-full text-left"
+                    style={{
+                      background: tab === t.key ? 'rgba(45,212,191,0.12)' : 'transparent',
+                      color: tab === t.key ? '#5eead4' : 'rgba(241,245,249,0.65)',
+                      border: tab === t.key ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
+                    }}>
+                    <span className="flex items-center gap-2">
+                      <span>{t.icon}</span>
+                      <span>{t.label}</span>
+                    </span>
+                    {t.badge != null && t.badge > 0 && (
+                      <Tag tone={tab === t.key ? 'jade' : 'neutral'} size="xs">{t.badge}</Tag>
+                    )}
                   </button>
-                </div>
-              ))}
-          </div>
-        )}
+                ))}
+              </nav>
+            </Card>
+          </aside>
 
-        {/* Search */}
-        {tab === 'search' && (
-          <div className="space-y-3">
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher un joueur…"
-              className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
-              style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(45,212,191,0.2)', color: TEXT }} />
-            {searching && <Spinner color={TEAL} />}
-            {!searching && search.trim().length >= 2 && results.length === 0 && (
-              <Empty text="Aucun joueur trouvé." />
-            )}
-            <div className="space-y-2">
-              {results.map(u => (
-                <div key={u.uuid} className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                     style={{ background: GLASS, border: `1px solid ${BORDER}`, backdropFilter: 'blur(12px)' }}>
-                  <img src={`https://mc-heads.net/avatar/${u.username}/40`} alt={u.username}
-                       className="w-10 h-10 rounded-xl shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: TEXT }}>{u.username}</p>
+          {/* Main */}
+          <section>
+            {tab === 'friends' && (
+              <>
+                <SectionDivider label={`Mes amis · ${friends.length}`} />
+                {loading ? <Spinner /> : friends.length === 0 ? (
+                  <EmptyCard text="Aucun ami pour l'instant. Utilise la recherche !" />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {friends.map(f => (
+                      <Card key={f.uuid} padding="md" hover>
+                        <div className="flex items-center gap-3">
+                          <img src={`https://mc-heads.net/avatar/${f.username}/48`} alt={f.username}
+                               className="w-12 h-12 rounded-xl shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{f.username}</p>
+                            <p className="text-[11px]" style={{ color: 'rgba(241,245,249,0.5)' }}>
+                              Ami depuis {new Date(f.since).toLocaleDateString('fr-FR')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <Button onClick={() => openChat(f.uuid)} variant="secondary" size="sm" fullWidth>💬 Message</Button>
+                          <Button onClick={() => remove(f.uuid)} variant="danger" size="sm">✕</Button>
+                        </div>
+                      </Card>
+                    ))}
                   </div>
-                  <RelationBtn relation={u.relation} onAdd={() => sendRequest(u.uuid)} teal={TEAL} />
+                )}
+              </>
+            )}
+
+            {tab === 'incoming' && (
+              <>
+                <SectionDivider label={`Demandes reçues · ${incoming.length}`} />
+                {loading ? <Spinner /> : incoming.length === 0 ? (
+                  <EmptyCard text="Aucune demande reçue." />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {incoming.map(r => (
+                      <Card key={r.id} padding="md">
+                        <div className="flex items-center gap-3">
+                          <img src={`https://mc-heads.net/avatar/${r.username}/48`} alt={r.username}
+                               className="w-12 h-12 rounded-xl shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{r.username}</p>
+                            <p className="text-xs" style={{ color: 'rgba(241,245,249,0.55)' }}>veut être votre ami</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <Button onClick={() => accept(r.id)} size="sm" fullWidth>✓ Accepter</Button>
+                          <Button onClick={() => decline(r.id)} variant="danger" size="sm">✕</Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {tab === 'outgoing' && (
+              <>
+                <SectionDivider label={`Demandes envoyées · ${outgoing.length}`} />
+                {loading ? <Spinner /> : outgoing.length === 0 ? (
+                  <EmptyCard text="Aucune demande envoyée." />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {outgoing.map(r => (
+                      <Card key={r.id} padding="md">
+                        <div className="flex items-center gap-3">
+                          <img src={`https://mc-heads.net/avatar/${r.username}/48`} alt={r.username}
+                               className="w-12 h-12 rounded-xl shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{r.username}</p>
+                            <p className="text-xs" style={{ color: 'rgba(241,245,249,0.55)' }}>en attente</p>
+                          </div>
+                          <Button onClick={() => cancel(r.id)} variant="danger" size="sm">Annuler</Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {tab === 'search' && (
+              <>
+                <SectionDivider label="Rechercher des joueurs" />
+                <Card padding="md" className="mb-5">
+                  <input value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Rechercher un joueur…"
+                    className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(45,212,191,0.2)', color: '#f1f5f9' }} />
+                </Card>
+                {searching && <Spinner />}
+                {!searching && search.trim().length >= 2 && results.length === 0 && (
+                  <EmptyCard text="Aucun joueur trouvé." />
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {results.map(u => (
+                    <Card key={u.uuid} padding="md">
+                      <div className="flex items-center gap-3">
+                        <img src={`https://mc-heads.net/avatar/${u.username}/48`} alt={u.username}
+                             className="w-12 h-12 rounded-xl shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{u.username}</p>
+                        </div>
+                        <RelationBtn relation={u.relation} onAdd={() => sendRequest(u.uuid)} />
+                      </div>
+                    </Card>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+              </>
+            )}
+          </section>
+        </div>
+      </GridShell>
 
       <Navbar />
     </div>
   )
 }
 
-function RelationBtn({ relation, onAdd, teal }: { relation: string; onAdd: () => void; teal: string }) {
-  if (relation === 'friends')
-    return <span className="text-xs px-2.5 py-1 rounded-lg" style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>✓ Ami</span>
-  if (relation === 'request_sent')
-    return <span className="text-xs px-2.5 py-1 rounded-lg" style={{ color: MUTED, border: `1px solid rgba(255,255,255,0.08)` }}>Envoyée</span>
-  if (relation === 'request_received')
-    return <span className="text-xs px-2.5 py-1 rounded-lg" style={{ color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>Reçue</span>
-  return (
-    <button onClick={onAdd}
-      className="text-xs px-3 py-1.5 rounded-lg font-semibold"
-      style={{ background: 'rgba(45,212,191,0.1)', color: teal, border: '1px solid rgba(45,212,191,0.25)' }}>
-      + Ajouter
-    </button>
-  )
+function RelationBtn({ relation, onAdd }: { relation: string; onAdd: () => void }) {
+  if (relation === 'friends')         return <Tag tone="jade">✓ Ami</Tag>
+  if (relation === 'request_sent')    return <Tag tone="neutral">Envoyée</Tag>
+  if (relation === 'request_received') return <Tag tone="gold">Reçue</Tag>
+  return <Button onClick={onAdd} size="sm">+ Ajouter</Button>
 }
 
-function Spinner({ color }: { color: string }) {
+function Spinner() {
   return (
-    <div className="flex justify-center py-10">
-      <div className="w-7 h-7 rounded-full border-2 animate-spin"
-           style={{ borderColor: `${color}30`, borderTopColor: color }} />
+    <div className="flex justify-center py-12">
+      <div className="w-8 h-8 rounded-full border-2 animate-spin"
+           style={{ borderColor: 'rgba(45,212,191,0.2)', borderTopColor: '#2dd4bf' }} />
     </div>
   )
 }
 
-function Empty({ text }: { text: string }) {
-  return <p className="text-center py-10 text-sm" style={{ color: MUTED }}>{text}</p>
+function EmptyCard({ text }: { text: string }) {
+  return (
+    <Card padding="lg" className="text-center">
+      <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{text}</p>
+    </Card>
+  )
 }
