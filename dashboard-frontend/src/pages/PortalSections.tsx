@@ -11,8 +11,14 @@ type Section = {
   enabled: boolean
   status: Status
   message: string
+  endsAt: number
   updatedAt: number
   updatedBy: string
+}
+
+type GlobalMaint = {
+  enabled: boolean; message: string; endsAt: number;
+  startedAt: number; startedBy: string; updatedAt: number; updatedBy: string;
 }
 
 const STATUS_META: Record<Status, { label: string; color: string; bg: string; icon: string; help: string }> = {
@@ -31,17 +37,56 @@ function fmtAgo(ts: number) {
   return `il y a ${Math.floor(s / 86400)}j`
 }
 
+function fmtRemaining(endsAt: number) {
+  if (!endsAt) return null
+  const ms = endsAt - Date.now()
+  if (ms <= 0) return 'expiré'
+  const s = Math.floor(ms / 1000)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`
+  if (m > 0) return `${m}m ${sec.toString().padStart(2, '0')}s`
+  return `${sec}s`
+}
+
+/** datetime-local <input> → epoch ms (and inverse). */
+function toLocalInputValue(epochMs: number): string {
+  if (!epochMs) return ''
+  const d = new Date(epochMs)
+  // YYYY-MM-DDTHH:mm
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function fromLocalInputValue(v: string): number {
+  if (!v) return 0
+  const t = new Date(v).getTime()
+  return isNaN(t) ? 0 : t
+}
+
 export default function PortalSections() {
   const [sections, setSections] = useState<Section[]>([])
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [editing, setEditing] = useState<{ key: string; status: Status; message: string } | null>(null)
+  const [editing, setEditing] = useState<{ key: string; status: Status; message: string; endsAt: number } | null>(null)
+
+  const [global, setGlobal] = useState<GlobalMaint | null>(null)
+  const [globalEdit, setGlobalEdit] = useState<{ message: string; endsAt: number } | null>(null)
+  const [globalBusy, setGlobalBusy] = useState(false)
+
+  // Tick pour rafraîchir les compteurs "fmtRemaining" toutes les secondes
+  const [, setTick] = useState(0)
+  useEffect(() => { const i = setInterval(() => setTick(t => t + 1), 1000); return () => clearInterval(i) }, [])
 
   const load = async () => {
     try {
-      const data = await api.portalSectionsList()
+      const [data, g] = await Promise.all([
+        api.portalSectionsList(),
+        api.portalMaintenanceGet().catch(() => null),
+      ])
       setSections(data.sections as Section[])
+      if (g) setGlobal(g)
     } catch (e: any) {
       setError(e.message)
     }
@@ -54,10 +99,10 @@ export default function PortalSections() {
     return c
   }, [sections])
 
-  const setStatus = async (key: string, status: Status, message: string) => {
+  const setStatus = async (key: string, status: Status, message: string, endsAt: number) => {
     setSavingKey(key); setError('')
     try {
-      await api.portalSectionStatusUpdate(key, status, message)
+      await api.portalSectionStatusUpdate(key, status, message, endsAt)
       setSavedKey(key); setTimeout(() => setSavedKey(null), 1800)
       await load()
       setEditing(null)
@@ -65,6 +110,29 @@ export default function PortalSections() {
       setError(e.message)
     } finally {
       setSavingKey(null)
+    }
+  }
+
+  const applyGlobal = async (enabled: boolean) => {
+    if (enabled && !globalEdit) return
+    if (enabled && !confirm(
+      'Activer la MAINTENANCE GLOBALE ?\n\n' +
+      'Toutes les sections du portail seront verrouillées pour les non-OP. ' +
+      'Seuls les comptes OP du serveur Minecraft pourront accéder au portail.'
+    )) return
+    setGlobalBusy(true); setError('')
+    try {
+      await api.portalMaintenanceSet({
+        enabled,
+        message: enabled ? (globalEdit?.message ?? '') : '',
+        endsAt:  enabled ? (globalEdit?.endsAt ?? 0)  : 0,
+      })
+      setGlobalEdit(null)
+      await load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setGlobalBusy(false)
     }
   }
 
@@ -77,14 +145,150 @@ export default function PortalSections() {
             🌐 Sections du portail joueur
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-            Pilote l'état de chaque feature publique du portail. <strong>Le statut MAINTENANCE
-            bloque l'accès aux non-OP côté serveur</strong> — seul un joueur OP peut continuer à utiliser
-            la feature pendant que tu travailles dessus.
+            Pilote l'état de chaque feature publique. Le statut <strong>MAINTENANCE bloque
+            l'accès aux non-OP côté serveur</strong> ; le mode global ci-dessous verrouille
+            <strong> tout le portail</strong> en une fois.
           </p>
         </div>
       </div>
 
-      {/* KPI strip */}
+      {/* ── MAINTENANCE GLOBALE ─────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5"
+           style={{
+             background: global?.enabled
+               ? 'linear-gradient(135deg, rgba(239,68,68,0.18), rgba(239,68,68,0.05))'
+               : 'var(--card, var(--surface))',
+             border: `1px solid ${global?.enabled ? 'rgba(239,68,68,0.45)' : 'var(--border)'}`,
+           }}>
+        <div className="flex items-start gap-4">
+          <div className="text-3xl">{global?.enabled ? '🚧' : '🛡️'}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-base" style={{ color: 'var(--text)' }}>
+                Mode maintenance globale
+              </span>
+              {global?.enabled ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider animate-pulse"
+                      style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                  ⚠ ACTIF — Portail verrouillé
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+                      style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
+                  ✅ INACTIF — Portail ouvert
+                </span>
+              )}
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Verrouille <strong>l'intégralité</strong> du portail joueur. Les non-OP sont
+              redirigés vers un écran lockdown plein écran avec compte à rebours. Les
+              <strong> OP du serveur conservent l'accès</strong>.
+            </div>
+            {global?.enabled && (
+              <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Message</div>
+                  <div className="mt-0.5 italic" style={{ color: '#fca5a5' }}>
+                    {global.message || '(aucun)'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Fin estimée</div>
+                  <div className="mt-0.5 font-mono" style={{ color: '#fca5a5' }}>
+                    {global.endsAt > 0
+                      ? `${new Date(global.endsAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} (${fmtRemaining(global.endsAt) ?? '—'})`
+                      : 'Pas de minuteur'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Démarré par</div>
+                  <div className="mt-0.5" style={{ color: '#fca5a5' }}>
+                    {global.startedBy || '?'} · {fmtAgo(global.startedAt)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {!global?.enabled && (
+            <button
+              onClick={() => setGlobalEdit(globalEdit ? null : {
+                message: 'Maintenance programmée — retour rapide',
+                endsAt:  Date.now() + 30 * 60 * 1000,
+              })}
+              disabled={globalBusy}
+              className="shrink-0 px-3 py-2 rounded text-xs font-bold transition disabled:opacity-50"
+              style={{ background: '#ef4444', color: 'white' }}>
+              {globalEdit ? 'Annuler' : '🔒 Activer la maintenance globale'}
+            </button>
+          )}
+          {global?.enabled && (
+            <button
+              onClick={() => applyGlobal(false)}
+              disabled={globalBusy}
+              className="shrink-0 px-3 py-2 rounded text-xs font-bold transition disabled:opacity-50"
+              style={{ background: '#10b981', color: 'white' }}>
+              {globalBusy ? '...' : '✅ Désactiver maintenant'}
+            </button>
+          )}
+        </div>
+
+        {globalEdit && !global?.enabled && (
+          <div className="mt-4 pt-4 grid grid-cols-3 gap-4"
+               style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wider"
+                     style={{ color: 'var(--text-muted)' }}>
+                Message public (visible sur l'écran lockdown)
+              </label>
+              <input
+                value={globalEdit.message}
+                onChange={e => setGlobalEdit({ ...globalEdit, message: e.target.value })}
+                placeholder="ex: Migration DB en cours, retour estimé 14h00"
+                maxLength={200}
+                className="w-full mt-1 px-3 py-2 rounded text-sm"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider"
+                     style={{ color: 'var(--text-muted)' }}>
+                Fin estimée (ETA)
+              </label>
+              <input type="datetime-local"
+                value={toLocalInputValue(globalEdit.endsAt)}
+                onChange={e => setGlobalEdit({ ...globalEdit, endsAt: fromLocalInputValue(e.target.value) })}
+                className="w-full mt-1 px-3 py-2 rounded text-sm"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+              <div className="flex gap-1 mt-1.5">
+                {[15, 30, 60, 120].map(min => (
+                  <button key={min}
+                          onClick={() => setGlobalEdit({ ...globalEdit, endsAt: Date.now() + min * 60_000 })}
+                          className="text-[10px] px-1.5 py-0.5 rounded"
+                          style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                    +{min}min
+                  </button>
+                ))}
+                <button onClick={() => setGlobalEdit({ ...globalEdit, endsAt: 0 })}
+                        className="text-[10px] px-1.5 py-0.5 rounded"
+                        style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                  ✕ Aucune
+                </button>
+              </div>
+            </div>
+            <div className="col-span-3 flex justify-end">
+              <button
+                onClick={() => applyGlobal(true)}
+                disabled={globalBusy}
+                className="px-4 py-2 rounded text-sm font-bold text-white transition disabled:opacity-60"
+                style={{ background: '#ef4444' }}>
+                {globalBusy ? 'Activation…' : 'Verrouiller le portail'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* KPI strip per-section */}
       <div className="grid grid-cols-4 gap-3">
         {(Object.keys(STATUS_META) as Status[]).map(st => {
           const meta = STATUS_META[st]
@@ -124,6 +328,7 @@ export default function PortalSections() {
           const isSaving = savingKey === section.key
           const isSaved  = savedKey === section.key
           const isEditing = editing?.key === section.key
+          const remain = fmtRemaining(section.endsAt)
           return (
             <div key={section.key}
                  className="rounded-xl p-4 transition-opacity"
@@ -143,6 +348,12 @@ export default function PortalSections() {
                           style={{ background: meta.bg, color: meta.color }}>
                       {meta.icon} {meta.label}
                     </span>
+                    {remain && remain !== 'expiré' && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded font-mono"
+                            style={{ background: meta.bg, color: meta.color }}>
+                        ⏱ {remain}
+                      </span>
+                    )}
                     {isSaved && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
                             style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>
@@ -168,6 +379,7 @@ export default function PortalSections() {
                 <button
                   onClick={() => setEditing(isEditing ? null : {
                     key: section.key, status: section.status, message: section.message,
+                    endsAt: section.endsAt,
                   })}
                   className="shrink-0 px-3 py-1.5 rounded text-xs font-semibold transition"
                   style={{
@@ -205,24 +417,51 @@ export default function PortalSections() {
                     })}
                   </div>
 
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider"
-                           style={{ color: 'var(--text-muted)' }}>
-                      Message public (visible par les joueurs)
-                    </label>
-                    <input
-                      value={editing.message}
-                      onChange={e => setEditing({ ...editing, message: e.target.value })}
-                      placeholder="ex: Reset hebdo en cours, retour estimé 14h00"
-                      maxLength={140}
-                      className="w-full mt-1 px-3 py-2 rounded text-sm"
-                      style={{
-                        background: 'var(--surface-2)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text)',
-                      }}/>
-                    <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      {editing.message.length}/140 — visible dans le bandeau du portail joueur
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className="text-xs font-semibold uppercase tracking-wider"
+                             style={{ color: 'var(--text-muted)' }}>
+                        Message public
+                      </label>
+                      <input
+                        value={editing.message}
+                        onChange={e => setEditing({ ...editing, message: e.target.value })}
+                        placeholder="ex: Reset hebdo en cours, retour estimé 14h00"
+                        maxLength={140}
+                        className="w-full mt-1 px-3 py-2 rounded text-sm"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {editing.message.length}/140
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider"
+                             style={{ color: 'var(--text-muted)' }}>
+                        Fin estimée (ETA)
+                      </label>
+                      <input type="datetime-local"
+                        value={toLocalInputValue(editing.endsAt)}
+                        onChange={e => setEditing({ ...editing, endsAt: fromLocalInputValue(e.target.value) })}
+                        disabled={editing.status === 'OPERATIONAL'}
+                        className="w-full mt-1 px-3 py-2 rounded text-sm disabled:opacity-50"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }}/>
+                      <div className="flex gap-1 mt-1.5 flex-wrap">
+                        {[15, 30, 60, 120].map(min => (
+                          <button key={min}
+                                  disabled={editing.status === 'OPERATIONAL'}
+                                  onClick={() => setEditing({ ...editing, endsAt: Date.now() + min * 60_000 })}
+                                  className="text-[10px] px-1.5 py-0.5 rounded disabled:opacity-50"
+                                  style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                            +{min}min
+                          </button>
+                        ))}
+                        <button disabled={editing.status === 'OPERATIONAL'}
+                                onClick={() => setEditing({ ...editing, endsAt: 0 })}
+                                className="text-[10px] px-1.5 py-0.5 rounded disabled:opacity-50"
+                                style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -234,7 +473,7 @@ export default function PortalSections() {
                       Annuler
                     </button>
                     <button
-                      onClick={() => setStatus(editing.key, editing.status, editing.message)}
+                      onClick={() => setStatus(editing.key, editing.status, editing.message, editing.endsAt)}
                       disabled={isSaving}
                       className="px-3 py-1.5 rounded text-xs font-semibold text-white transition disabled:opacity-60"
                       style={{ background: STATUS_META[editing.status].color }}>
@@ -253,10 +492,11 @@ export default function PortalSections() {
            style={{ background: 'var(--card, var(--surface))', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
         <div style={{ color: 'var(--text)' }} className="font-semibold mb-1">Comportement des statuts</div>
         <ul className="space-y-1">
-          <li>✅ <strong>Opérationnel</strong> — accès normal, aucun bandeau côté joueur</li>
-          <li>⚠️ <strong>Dégradé</strong> — accès libre, mais un bandeau jaune affiche le message d'incident</li>
-          <li>🛠️ <strong>Maintenance</strong> — l'accès est <strong>bloqué côté serveur</strong> pour tout joueur non-OP. Les routes API renvoient 503. Les OP peuvent continuer à tester la feature.</li>
-          <li>⛔ <strong>Désactivé</strong> — coupé pour tout le monde (équivalent legacy enabled=false)</li>
+          <li>🚧 <strong>Maintenance globale</strong> — verrouille TOUTES les routes <code>/api/public/*</code> pour les non-OP. Le portail affiche un écran lockdown avec compte à rebours. OP serveur exemptés.</li>
+          <li>🛠️ <strong>Maintenance par section</strong> — bloque uniquement la section concernée côté API + UI</li>
+          <li>⚠️ <strong>Dégradé</strong> — accès libre, bandeau jaune sur la page concernée</li>
+          <li>✅ <strong>Opérationnel</strong> — accès normal, aucun bandeau</li>
+          <li>⛔ <strong>Désactivé</strong> — coupé pour tout le monde</li>
         </ul>
       </div>
     </div>

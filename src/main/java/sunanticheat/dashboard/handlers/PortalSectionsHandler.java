@@ -76,15 +76,20 @@ public final class PortalSectionsHandler {
         if (body == null) { HttpHelper.error(ex, 400, "body manquant"); return; }
         String statusStr = body.get("status") != null ? body.get("status").toString() : "OPERATIONAL";
         String message   = body.get("message") != null ? body.get("message").toString() : "";
+        long endsAt = 0;
+        if (body.get("endsAt") instanceof Number n) endsAt = n.longValue();
+        else if (body.get("endsAt") != null) {
+            try { endsAt = Long.parseLong(body.get("endsAt").toString()); } catch (Exception ignored) {}
+        }
 
         FeatureStatus newStatus;
         try { newStatus = FeatureStatus.valueOf(statusStr); }
         catch (Exception e) { HttpHelper.error(ex, 400, "status invalide (OPERATIONAL/DEGRADED/MAINTENANCE/DISABLED)"); return; }
 
-        store.setStatus(key, newStatus, message, u.username());
+        store.setStatus(key, newStatus, message, u.username(), endsAt);
         Audit.log(u, ex, "PORTAL_SECTION_STATUS", key,
                 "Statut → " + newStatus + (message.isBlank() ? "" : " (" + message + ")"),
-                Map.of("status", newStatus.name(), "message", message));
+                Map.of("status", newStatus.name(), "message", message, "endsAt", endsAt));
         var def = PortalSectionsStore.ALL_SECTIONS.stream().filter(d -> d.key.equals(key)).findFirst().orElseThrow();
         HttpHelper.json(ex, 200, Map.of("ok", true, "section", serialize(def, store.stateOf(key))));
     }
@@ -117,6 +122,7 @@ public final class PortalSectionsHandler {
         m.put("enabled",     s.enabled && s.status != FeatureStatus.DISABLED);
         m.put("status",      s.status.name());
         m.put("message",     s.message);
+        m.put("endsAt",      s.endsAt);
         m.put("updatedAt",   s.updatedAt);
         m.put("updatedBy",   s.updatedBy);
         return m;

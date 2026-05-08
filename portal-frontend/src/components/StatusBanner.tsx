@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSections } from '../App'
 import { Link, useLocation } from 'react-router-dom'
+import Countdown from './Countdown'
 
 /**
- * Bandeau sticky global affiché en haut du portail dès qu'au moins une section
- * est en MAINTENANCE ou DEGRADED. Cliquable → /home (carte statut détaillée).
- * Auto-dismiss session via localStorage (clé incident updatedAt).
+ * Bandeau sticky global affiché en haut du portail :
+ *  - quand au moins une section est en MAINTENANCE/DEGRADED/DISABLED
+ *  - OU quand le mode maintenance globale est activé (visible aux OP qui passent à travers)
+ *
+ * Cliquable → /home (carte statut détaillée). Auto-dismiss session-based.
+ * Inclut un compte à rebours sous le bandeau si une fin estimée est définie.
  */
 export default function StatusBanner() {
   const ctx = useSections()
@@ -21,30 +25,67 @@ export default function StatusBanner() {
     )
   }, [ctx.details])
 
-  // Persiste les dismissals
   useEffect(() => {
     localStorage.setItem('portal_status_dismissed', JSON.stringify(dismissed))
   }, [dismissed])
 
-  // Pas d'incidents ? rien à afficher.
-  if (!ctx.loaded || incidents.length === 0) return null
+  if (!ctx.loaded) return null
 
-  // On masque sur /login et / (Register) pour ne pas polluer le funnel d'inscription
+  // Cache sur les pages d'auth pour ne pas polluer
   if (location.pathname === '/login' || location.pathname === '/' || location.pathname === '/forgot') {
     return null
   }
 
-  // Si tous les incidents en cours ont été dismissés (sur la dernière updatedAt), on cache
+  // Cas 1 : maintenance globale active (l'utilisateur est forcément OP sinon il serait sur le lockdown)
+  if (ctx.maintenance.enabled) {
+    return (
+      <div role="alert"
+           className="sticky top-0 z-40 backdrop-blur-md"
+           style={{
+             background: 'linear-gradient(180deg, rgba(239,68,68,0.20), rgba(239,68,68,0.06))',
+             borderBottom: '1px solid rgba(239,68,68,0.45)',
+           }}>
+        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-3 text-sm">
+          <span className="text-base">🚧</span>
+          <span className="font-semibold tracking-wide" style={{ color: '#fca5a5' }}>
+            MAINTENANCE GLOBALE EN COURS
+          </span>
+          <span className="hidden md:inline text-white/70">·</span>
+          <span className="hidden md:inline truncate text-white/80">
+            {ctx.maintenance.message || 'Portail verrouillé pour les non-OP'}
+          </span>
+          <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest"
+                style={{ background: 'rgba(251,191,36,0.18)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>
+            ★ Mode OP — accès accordé
+          </span>
+        </div>
+        {ctx.maintenance.endsAt > 0 && (
+          <div className="max-w-6xl mx-auto px-4 pb-2 flex items-center gap-2 text-xs"
+               style={{ color: '#fca5a5' }}>
+            <span>Retour estimé dans</span>
+            <Countdown endsAt={ctx.maintenance.endsAt} variant="inline" color="#fca5a5"/>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Cas 2 : incidents par section
   const visibleIncidents = incidents.filter(s =>
     dismissed[`${s.key}:${s.updatedAt}`] !== true
   )
   if (visibleIncidents.length === 0) return null
 
-  // Couleur du bandeau : rouge si au moins 1 maintenance/disabled, sinon orange
   const hasBlocking = visibleIncidents.some(s => s.status === 'MAINTENANCE' || s.status === 'DISABLED')
   const color  = hasBlocking ? '#ef4444' : '#f59e0b'
   const bgFrom = hasBlocking ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.18)'
   const bgTo   = hasBlocking ? 'rgba(239,68,68,0.05)' : 'rgba(245,158,11,0.05)'
+
+  // Plus proche endsAt parmi les incidents visibles
+  const earliestEndsAt = visibleIncidents
+    .map(s => s.endsAt)
+    .filter(t => t > Date.now())
+    .sort((a, b) => a - b)[0] ?? 0
 
   const dismissAll = () => {
     const next = { ...dismissed }
@@ -57,13 +98,12 @@ export default function StatusBanner() {
     : `${visibleIncidents.length} services impactés`
 
   return (
-    <div
-      role="alert"
-      className="sticky top-0 z-40 backdrop-blur-md"
-      style={{
-        background: `linear-gradient(180deg, ${bgFrom}, ${bgTo})`,
-        borderBottom: `1px solid ${color}66`,
-      }}>
+    <div role="alert"
+         className="sticky top-0 z-40 backdrop-blur-md"
+         style={{
+           background: `linear-gradient(180deg, ${bgFrom}, ${bgTo})`,
+           borderBottom: `1px solid ${color}66`,
+         }}>
       <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-3 text-sm">
         <span className="text-base" style={{ color }}>
           {hasBlocking ? '🛠️' : '⚠️'}
@@ -90,6 +130,12 @@ export default function StatusBanner() {
           ×
         </button>
       </div>
+      {earliestEndsAt > 0 && (
+        <div className="max-w-6xl mx-auto px-4 pb-2 flex items-center gap-2 text-xs" style={{ color }}>
+          <span>Retour estimé dans</span>
+          <Countdown endsAt={earliestEndsAt} variant="inline" color={color}/>
+        </div>
+      )}
     </div>
   )
 }

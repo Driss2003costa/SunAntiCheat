@@ -536,6 +536,12 @@ public final class DashboardModule {
                 new sunanticheat.dashboard.handlers.PortalActivityHandler(portalActivityStore, database, plugin.getLogger());
         publicRegisterHandler.setActivityStore(portalActivityStore);
 
+        // ── Maintenance globale du portail (verrouille tout pour les non-OP) ──
+        sunanticheat.dashboard.portal.PortalMaintenanceMode portalMaintenanceMode =
+                new sunanticheat.dashboard.portal.PortalMaintenanceMode(plugin.getDataFolder(), plugin.getLogger(), blobs);
+        sunanticheat.dashboard.handlers.PortalMaintenanceHandler portalMaintenanceHandler =
+                new sunanticheat.dashboard.handlers.PortalMaintenanceHandler(portalMaintenanceMode);
+
         // ── HTTP Server ───────────────────────────────────────────────────────
         DashboardRouter router = new DashboardRouter(jwtUtil, users,
                 authHandler, serverHandler, securityHandler, economyHandler, analyticsHandler,
@@ -552,6 +558,7 @@ public final class DashboardModule {
                 portalSectionsHandler, portalActivityHandler, xrayAnalysisHandler);
         router.setPortalActivityDeps(portalActivityStore, playerJwtUtil);
         router.setPortalSectionsStore(portalSectionsStore);
+        router.setPortalMaintenance(portalMaintenanceMode, portalMaintenanceHandler);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

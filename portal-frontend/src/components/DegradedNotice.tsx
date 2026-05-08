@@ -1,4 +1,5 @@
 import { useSections } from '../App'
+import Countdown from './Countdown'
 
 /**
  * Encart inline à insérer en haut d'une page de feature : si la section est
@@ -26,6 +27,12 @@ export default function DegradedNotice({ sectionKey }: { sectionKey: string }) {
         <div style={{ color: 'rgba(254,243,199,0.85)' }}>
           {detail.message || 'Cette section fonctionne actuellement avec un problème connu.'}
         </div>
+        {detail.endsAt > 0 && detail.endsAt > Date.now() && (
+          <div className="mt-1.5 flex items-center gap-2 text-xs">
+            <span style={{ color: 'rgba(254,243,199,0.6)' }}>Retour normal estimé dans</span>
+            <Countdown endsAt={detail.endsAt} variant="compact" color="#fbbf24"/>
+          </div>
+        )}
       </div>
     </div>
   )

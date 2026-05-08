@@ -45,6 +45,8 @@ public final class PortalSectionsStore {
         public String message;
         public long updatedAt;
         public String updatedBy;
+        /** Epoch-ms de fin de maintenance/incident estimée. 0 = pas de minuteur. */
+        public long endsAt;
 
         public FeatureState() {
             this.enabled = true;
@@ -52,14 +54,22 @@ public final class PortalSectionsStore {
             this.message = "";
             this.updatedAt = 0;
             this.updatedBy = "";
+            this.endsAt = 0;
         }
 
-        public FeatureState(boolean enabled, FeatureStatus status, String message, long updatedAt, String updatedBy) {
+        public FeatureState(boolean enabled, FeatureStatus status, String message,
+                            long updatedAt, String updatedBy, long endsAt) {
             this.enabled = enabled;
             this.status = status != null ? status : FeatureStatus.OPERATIONAL;
             this.message = message != null ? message : "";
             this.updatedAt = updatedAt;
             this.updatedBy = updatedBy != null ? updatedBy : "";
+            this.endsAt = endsAt;
+        }
+
+        public FeatureState(boolean enabled, FeatureStatus status, String message,
+                            long updatedAt, String updatedBy) {
+            this(enabled, status, message, updatedAt, updatedBy, 0);
         }
 
         /** True si cette section est utilisable par un joueur normal (non-OP). */
@@ -159,6 +169,10 @@ public final class PortalSectionsStore {
     }
 
     public void setStatus(String key, FeatureStatus status, String message, String by) {
+        setStatus(key, status, message, by, 0);
+    }
+
+    public void setStatus(String key, FeatureStatus status, String message, String by, long endsAt) {
         FeatureState s = stateOf(key);
         s.status = status != null ? status : FeatureStatus.OPERATIONAL;
         s.message = message != null ? message : "";
@@ -166,6 +180,8 @@ public final class PortalSectionsStore {
         else s.enabled = true;
         s.updatedAt = System.currentTimeMillis();
         s.updatedBy = by != null ? by : "";
+        // Reset endsAt si statut redevient OPERATIONAL ; sinon on garde la valeur fournie
+        s.endsAt = (status == FeatureStatus.OPERATIONAL) ? 0 : endsAt;
         save();
     }
 
@@ -207,7 +223,8 @@ public final class PortalSectionsStore {
                     String msg = so.has("message") ? so.get("message").getAsString() : "";
                     long ts = so.has("updatedAt") ? so.get("updatedAt").getAsLong() : 0;
                     String by = so.has("updatedBy") ? so.get("updatedBy").getAsString() : "";
-                    states.put(entry.getKey(), new FeatureState(enabled, st, msg, ts, by));
+                    long endsAt = so.has("endsAt") ? so.get("endsAt").getAsLong() : 0;
+                    states.put(entry.getKey(), new FeatureState(enabled, st, msg, ts, by, endsAt));
                 }
             }
         } catch (Exception e) {
@@ -221,6 +238,6 @@ public final class PortalSectionsStore {
     }
 
     private static FeatureState copy(FeatureState s) {
-        return new FeatureState(s.enabled, s.status, s.message, s.updatedAt, s.updatedBy);
+        return new FeatureState(s.enabled, s.status, s.message, s.updatedAt, s.updatedBy, s.endsAt);
     }
 }

@@ -491,11 +491,22 @@ export const api = {
     request<{ ok: boolean; sections: Record<string, boolean> }>('/api/portal/sections', {
       method: 'PATCH', body: JSON.stringify({ sections }),
     }),
-  portalSectionStatusUpdate: (key: string, status: 'OPERATIONAL' | 'DEGRADED' | 'MAINTENANCE' | 'DISABLED', message = '') =>
+  portalSectionStatusUpdate: (key: string, status: 'OPERATIONAL' | 'DEGRADED' | 'MAINTENANCE' | 'DISABLED',
+                              message = '', endsAt = 0) =>
     request<{ ok: boolean; section: any }>(
       `/api/portal/sections/${encodeURIComponent(key)}/status`,
-      { method: 'PATCH', body: JSON.stringify({ status, message }) }
+      { method: 'PATCH', body: JSON.stringify({ status, message, endsAt }) }
     ),
+
+  // Portal global maintenance (lockdown total du portail joueur)
+  portalMaintenanceGet: () => request<{
+    enabled: boolean; message: string; endsAt: number;
+    startedAt: number; startedBy: string; updatedAt: number; updatedBy: string;
+  }>('/api/portal/maintenance'),
+  portalMaintenanceSet: (data: { enabled: boolean; message?: string; endsAt?: number }) =>
+    request<{ ok: boolean; state: any }>('/api/portal/maintenance', {
+      method: 'PATCH', body: JSON.stringify(data),
+    }),
 
   // Portal activity (admin monitoring)
   portalActivityStats: () => request<any>('/api/portal/activity/stats'),

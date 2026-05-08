@@ -75,6 +75,8 @@ public final class DashboardRouter implements HttpHandler {
     private sunanticheat.dashboard.portal.PortalActivityStore portalActivityStore;
     private sunanticheat.dashboard.portal.PlayerJwtUtil portalJwt;
     private sunanticheat.dashboard.portal.PortalSectionsStore portalSectionsStore;
+    private sunanticheat.dashboard.portal.PortalMaintenanceMode portalMaintenance;
+    private sunanticheat.dashboard.handlers.PortalMaintenanceHandler portalMaintenanceHandler;
 
     public DashboardRouter(JwtUtil jwt,
                            Map<String, DashboardUser> users,
@@ -192,6 +194,45 @@ public final class DashboardRouter implements HttpHandler {
         this.portalSectionsStore = s;
     }
 
+    /** Injecté après construction — mode maintenance global du portail. */
+    public void setPortalMaintenance(sunanticheat.dashboard.portal.PortalMaintenanceMode mode,
+                                      sunanticheat.dashboard.handlers.PortalMaintenanceHandler handler) {
+        this.portalMaintenance = mode;
+        this.portalMaintenanceHandler = handler;
+    }
+
+    /**
+     * Routes toujours autorisées même en mode maintenance globale, pour que le portail
+     * puisse afficher l'écran lockdown et que les OP puissent se connecter.
+     */
+    private static boolean isMaintenanceExempt(String path) {
+        if (path.equals("/api/public/maintenance"))                 return true;
+        if (path.equals("/api/public/sections"))                    return true;
+        if (path.startsWith("/api/public/register/login"))          return true;
+        if (path.startsWith("/api/public/register/forgot"))         return true;
+        if (path.startsWith("/api/public/register/reset"))          return true;
+        if (path.equals("/api/public/player/me"))                   return true; // pour détecter isOp
+        return false;
+    }
+
+    /**
+     * Renvoie {@code true} si l'accès est autorisé. Si le mode maintenance global est
+     * activé ET que le requesteur n'est pas OP, écrit 503 et renvoie {@code false}.
+     */
+    private boolean checkGlobalMaintenance(com.sun.net.httpserver.HttpExchange ex) throws java.io.IOException {
+        if (portalMaintenance == null || !portalMaintenance.isActive()) return true;
+        if (portalJwt != null
+                && sunanticheat.dashboard.portal.PortalSectionGate.isRequestorOp(ex, portalJwt)) {
+            return true;
+        }
+        HttpHelper.json(ex, 503, java.util.Map.of(
+                "error",   "Portail en maintenance",
+                "global",  true,
+                "message", portalMaintenance.message(),
+                "endsAt",  portalMaintenance.endsAt()));
+        return false;
+    }
+
     /**
      * Mapping route public → section portail. Les chemins préfixés par une de ces clés
      * passent par le gate (MAINTENANCE bloque non-OP, DISABLED bloque tout le monde).
@@ -242,7 +283,12 @@ public final class DashboardRouter implements HttpHandler {
                         }
                     } catch (Exception ignored) { /* token invalide ou absent — pas de log */ }
                 }
-                // Gate MAINTENANCE/DISABLED : bloque les non-OP sur les sections concernées
+                // Gate MAINTENANCE GLOBALE — bloque toutes les routes /api/public/*
+                // pour les non-OP, sauf l'endpoint d'état de maintenance lui-même
+                // (sinon le portail ne pourrait pas afficher l'écran lockdown).
+                if (!isMaintenanceExempt(path) && !checkGlobalMaintenance(exchange)) return;
+
+                // Gate MAINTENANCE/DISABLED par section : bloque les non-OP sur les sections concernées
                 String sec = sectionKeyFor(path);
                 if (sec != null && portalSectionsStore != null && portalJwt != null) {
                     if (!sunanticheat.dashboard.portal.PortalSectionGate.checkOrFail(
@@ -258,6 +304,7 @@ public final class DashboardRouter implements HttpHandler {
             // Auth gérée en interne via playerJwt (token joueur 30 jours).
             // Ne pas faire passer par le pare-feu VIEWER (JWT admin).
             if (path.startsWith("/api/custom-jobs/me/")) {
+                if (!checkGlobalMaintenance(exchange)) return;
                 String sec = sectionKeyFor(path);
                 if (sec != null && portalSectionsStore != null && portalJwt != null) {
                     if (!sunanticheat.dashboard.portal.PortalSectionGate.checkOrFail(
@@ -746,6 +793,12 @@ public final class DashboardRouter implements HttpHandler {
         // ── Sections portail (public — aucune auth requise) ──────────────────
         if (eq(path, "/api/public/sections")  && GET(method))   { portalSectionsHandler.publicList(ex); return; }
 
+        // ── Maintenance globale (public — lecture seule pour le portail) ─────
+        if (portalMaintenanceHandler != null
+                && eq(path, "/api/public/maintenance") && GET(method)) {
+            portalMaintenanceHandler.publicStatus(ex); return;
+        }
+
         // ── Sections portail (admin) ──────────────────────────────────────────
         if (eq(path, "/api/portal/sections")  && GET(method))   { portalSectionsHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/portal/sections")  && PATCH(method)) { portalSectionsHandler.update(ex, jwt, users); return; }
@@ -753,6 +806,12 @@ public final class DashboardRouter implements HttpHandler {
             String key = path.substring("/api/portal/sections/".length(),
                     path.length() - "/status".length());
             portalSectionsHandler.updateStatus(ex, jwt, users, key); return;
+        }
+
+        // ── Maintenance globale du portail ────────────────────────────────────
+        if (portalMaintenanceHandler != null) {
+            if (eq(path, "/api/portal/maintenance") && GET(method))   { portalMaintenanceHandler.status(ex, jwt, users); return; }
+            if (eq(path, "/api/portal/maintenance") && PATCH(method)) { portalMaintenanceHandler.update(ex, jwt, users); return; }
         }
 
         // ── Activité portail (admin) ──────────────────────────────────────────

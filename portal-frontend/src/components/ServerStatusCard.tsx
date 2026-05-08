@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useSections } from '../App'
 import { Card, SectionDivider, Tag } from './ui'
+import Countdown from './Countdown'
 import type { FeatureStatus, SectionDetail } from '../api/client'
 
 const STATUS_META: Record<FeatureStatus, { label: string; color: string; bg: string; border: string; icon: string; subtitle: string }> = {
@@ -101,6 +102,13 @@ export default function ServerStatusCard() {
                              style={{ color: m.color }}>💬 {s.message}</div>
                       : <div className="text-xs mt-0.5"
                              style={{ color: 'rgba(241,245,249,0.45)' }}>{m.subtitle}</div>}
+                    {s.endsAt > 0 && s.endsAt > Date.now() && (
+                      <div className="text-[11px] mt-1 flex items-center gap-1"
+                           style={{ color: m.color }}>
+                        <span>Retour estimé&nbsp;:</span>
+                        <Countdown endsAt={s.endsAt} variant="compact" color={m.color}/>
+                      </div>
+                    )}
                     {s.updatedAt > 0 && s.status !== 'OPERATIONAL' && (
                       <div className="text-[10px] mt-0.5"
                            style={{ color: 'rgba(241,245,249,0.35)' }}>

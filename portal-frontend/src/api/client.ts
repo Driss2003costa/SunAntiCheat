@@ -1,5 +1,21 @@
 const BASE = '/api/public'
 
+/**
+ * Notifie l'app qu'on a touché un 503 maintenance globale → la lockdown UI
+ * doit se remettre en place sans attendre le prochain poll.
+ */
+function fireMaintenance() {
+  try { window.dispatchEvent(new CustomEvent('portal:maintenance')) } catch {}
+}
+
+function handleMaintenance(status: number, data: any): boolean {
+  if (status === 503 && data?.global === true) {
+    fireMaintenance()
+    return true
+  }
+  return false
+}
+
 async function post<T>(url: string, body: object): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
@@ -7,7 +23,10 @@ async function post<T>(url: string, body: object): Promise<T> {
     body: JSON.stringify(body),
   })
   const data = await res.json()
-  if (!res.ok) throw { status: res.status, ...data }
+  if (!res.ok) {
+    handleMaintenance(res.status, data)
+    throw { status: res.status, ...data }
+  }
   return data as T
 }
 
@@ -22,7 +41,10 @@ async function get<T>(url: string, token?: string): Promise<T> {
   })
   if (res.status === 401 && token) { on401(); throw { status: 401 } }
   const data = await res.json()
-  if (!res.ok) throw { status: res.status, ...data }
+  if (!res.ok) {
+    handleMaintenance(res.status, data)
+    throw { status: res.status, ...data }
+  }
   return data as T
 }
 
@@ -37,7 +59,10 @@ async function authPost<T>(url: string, token: string, body: object, redirectOn4
     throw { status: 401 }
   }
   const data = await res.json()
-  if (!res.ok) throw { status: res.status, ...data }
+  if (!res.ok) {
+    handleMaintenance(res.status, data)
+    throw { status: res.status, ...data }
+  }
   return data as T
 }
 
@@ -66,12 +91,21 @@ export type SectionDetail = {
   enabled: boolean
   status: FeatureStatus
   message: string
+  endsAt: number
   updatedAt: number
   updatedBy: string
 }
 export type PortalSectionsResponse = {
   sections: Record<string, boolean>
   details: SectionDetail[]
+}
+
+// ── Maintenance globale du portail ───────────────────────────────────────────
+export type GlobalMaintenance = {
+  enabled: boolean
+  message: string
+  endsAt: number
+  startedAt: number
 }
 
 export type DailyConfigDay = {
