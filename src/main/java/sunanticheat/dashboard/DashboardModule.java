@@ -571,8 +571,23 @@ public final class DashboardModule {
 
         httpServer = HttpServer.create(new InetSocketAddress(httpPort), 100);
         httpServer.createContext("/api/", router);
-        httpServer.createContext("/portal", new PortalFileHandler(portalDir));
-        httpServer.createContext("/", new StaticFileHandler(dashboardDir));
+        // Contexte du portail joueur : trailing slash → libère les paths
+        // "/portal-..." (ex: /portal-sections du dashboard admin) qui sinon
+        // matcheraient le préfixe /portal et seraient interceptés par le portail.
+        httpServer.createContext("/portal/", new PortalFileHandler(portalDir));
+        StaticFileHandler dashboardStatic = new StaticFileHandler(dashboardDir);
+        // Bare /portal (sans slash final) → 301 vers /portal/ pour les anciens
+        // favoris ; tout autre /portal-xxx tombe dans la SPA dashboard.
+        httpServer.createContext("/portal", exchange -> {
+            String p = exchange.getRequestURI().getPath();
+            if ("/portal".equals(p)) {
+                exchange.getResponseHeaders().set("Location", "/portal/");
+                exchange.sendResponseHeaders(301, -1);
+                return;
+            }
+            dashboardStatic.handle(exchange);
+        });
+        httpServer.createContext("/", dashboardStatic);
         httpServer.setExecutor(Executors.newFixedThreadPool(8, r -> {
             Thread t = new Thread(r, "dashboard-http");
             t.setDaemon(true);

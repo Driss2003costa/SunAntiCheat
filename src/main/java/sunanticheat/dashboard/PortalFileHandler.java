@@ -42,8 +42,10 @@ public final class PortalFileHandler implements HttpHandler {
 
         String path = exchange.getRequestURI().getPath();
 
-        // Strip /portal prefix
-        if (path.startsWith("/portal")) {
+        // Strip "/portal/" (ou "/portal" historique) du préfixe.
+        if (path.startsWith("/portal/")) {
+            path = path.substring("/portal/".length());
+        } else if (path.equals("/portal") || path.startsWith("/portal")) {
             path = path.substring("/portal".length());
         }
         if (path.startsWith("/")) path = path.substring(1);

@@ -89,8 +89,8 @@ const NAV_CATEGORIES = [
     label: 'Portail joueur',
     icon: '🌐',
     items: [
-      { to: '/portal/sections',  label: 'Sections',  icon: '🔀' },
-      { to: '/portal/activity', label: 'Activité',  icon: '📊' },
+      { to: '/portal-sections', label: 'Sections',  icon: '🔀' },
+      { to: '/portal-activity', label: 'Activité',  icon: '📊' },
     ],
   },
   {
