@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
-import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
+import { GridShell, ProfileHero, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 
 function fmtDate(ts: number | null | undefined) {
   if (!ts) return '—'
@@ -127,41 +127,22 @@ export default function Profile() {
     <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="profile" />
       <GridShell>
-        {/* HERO */}
-        <HeroBanner
-          eyebrow="Mon profil"
-          variant="sun"
-          title={<>Salut, <span className="text-sun-300">{profile.username}</span></>}
-          subtitle={bio ? `« ${bio} »` : 'Personnalise ta bio, suis ta progression et gère ton compte SunGuard.'}
-          cta={
+        {/* HERO — carte d'identité (différent de Home) */}
+        <ProfileHero
+          username={profile.username}
+          role={profile.role}
+          roleTone={ROLE_TONE[profile.role] ?? 'neutral'}
+          bio={bio}
+          online={profile.online}
+          joinedAt={profile.created_at}
+          lastLogin={profile.last_login}
+          uuid={profile.uuid}
+          actions={
             <>
-              <Button onClick={() => setBioEdit(true)} variant="secondary" size="md">Modifier la bio</Button>
-              <Button href={`/portal/player/${profile.username}`} target="_blank" variant="ghost" size="md">Profil public</Button>
-              <Button onClick={logout} variant="ghost" size="md">Déconnexion</Button>
+              <Button onClick={() => setBioEdit(true)} variant="secondary" size="sm">✎ Modifier la bio</Button>
+              <Button href={`/portal/player/${profile.username}`} target="_blank" variant="ghost" size="sm">↗ Profil public</Button>
+              <Button onClick={logout} variant="ghost" size="sm">Déconnexion</Button>
             </>
-          }
-          rightSlot={
-            <div className="relative">
-              <div className="absolute -inset-6 rounded-full blur-3xl opacity-50"
-                   style={{ background: 'radial-gradient(circle, rgba(255,179,71,0.5) 0%, transparent 70%)' }} />
-              <div className="relative">
-                <img src={`https://mc-heads.net/body/${profile.username}/240`}
-                     alt={profile.username}
-                     className="w-44 lg:w-56 drop-shadow-2xl"
-                     onError={e => {
-                       const img = e.target as HTMLImageElement
-                       img.src = `https://mc-heads.net/avatar/${profile.username}/160`
-                       img.className = 'w-32 h-32 rounded-2xl drop-shadow-2xl'
-                     }} />
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 flex gap-2">
-                  <Tag tone={profile.online ? 'jade' : 'neutral'} size="sm">
-                    <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                    {profile.online ? 'En ligne' : 'Hors ligne'}
-                  </Tag>
-                  <Tag tone={ROLE_TONE[profile.role] ?? 'neutral'} size="sm">{profile.role}</Tag>
-                </div>
-              </div>
-            </div>
           }
         />
 

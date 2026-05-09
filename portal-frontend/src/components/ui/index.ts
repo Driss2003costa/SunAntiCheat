@@ -1,6 +1,7 @@
 export { default as GridShell }      from './GridShell'
 export { default as PageHeader }     from './PageHeader'
 export { default as HeroBanner }     from './HeroBanner'
+export { default as ProfileHero }    from './ProfileHero'
 export { default as StatCard }       from './StatCard'
 export { default as SectionDivider } from './SectionDivider'
 export { default as Card }           from './Card'
