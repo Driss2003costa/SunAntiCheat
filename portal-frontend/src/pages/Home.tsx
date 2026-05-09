@@ -6,6 +6,15 @@ import PageAura from '../components/PageAura'
 import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 import ServerStatusCard from '../components/ServerStatusCard'
 
+function useLiveClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return now
+}
+
 function fmtBalance(n: number) {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
 }
@@ -49,8 +58,11 @@ export default function Home() {
   )
   if (!profile) return null
 
-  const hour = new Date().getHours()
+  const now = useLiveClock()
+  const hour = now.getHours()
   const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
+  const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const quickLinks = [
     { to: '/inventory', emoji: '🎒', label: 'Inventaire', desc: 'Tes objets, clés et cosmétiques',  accent: 'violet' as const },
@@ -82,7 +94,7 @@ export default function Home() {
       <GridShell>
         {/* ─── HERO ──────────────────────────────────────────────────────── */}
         <HeroBanner
-          eyebrow={greeting}
+          eyebrow={`${greeting} • ${dateStr}`}
           variant="sun"
           title={<>Bienvenue, <span className="text-sun-300">{profile.username}</span></>}
           subtitle="Ton tableau de bord SunGuard. Gère ton compte, suis ta progression et plonge dans l'aventure."
@@ -93,18 +105,75 @@ export default function Home() {
             </>
           }
           rightSlot={
-            <div className="relative">
-              <div className="absolute -inset-6 rounded-full blur-3xl opacity-50"
-                   style={{ background: 'radial-gradient(circle, rgba(255,179,71,0.5) 0%, transparent 70%)' }} />
-              <div className="relative">
-                <img src={`https://mc-heads.net/body/${profile.username}/240`}
-                     alt={profile.username}
-                     className="w-44 lg:w-56 drop-shadow-2xl" />
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2">
-                  <Tag tone={profile.online ? 'jade' : 'neutral'} size="sm">
-                    <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                    {profile.online ? 'En ligne' : 'Hors ligne'}
-                  </Tag>
+            <div className="w-full max-w-sm rounded-3xl p-5 lg:p-6 backdrop-blur-md"
+                 style={{
+                   background: 'linear-gradient(155deg, rgba(255,179,71,0.10), rgba(15,22,40,0.55))',
+                   border: '1px solid rgba(255,179,71,0.22)',
+                   boxShadow: '0 20px 60px -25px rgba(0,0,0,0.6)',
+                 }}>
+              {/* Header du widget : avatar + identité */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="relative">
+                  <img src={`https://mc-heads.net/avatar/${profile.username}/64`}
+                       alt={profile.username}
+                       className="w-12 h-12 rounded-xl"
+                       style={{ imageRendering: 'pixelated', border: '1px solid rgba(255,179,71,0.4)' }} />
+                  <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2`}
+                        style={{
+                          background: profile.online ? '#34d399' : '#64748b',
+                          borderColor: '#0a1024',
+                        }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.25em]"
+                     style={{ color: 'rgba(255,179,71,0.85)' }}>
+                    Session
+                  </p>
+                  <p className="font-semibold truncate" style={{ color: '#f8fafc' }}>
+                    {profile.username}
+                  </p>
+                </div>
+              </div>
+
+              {/* Horloge live */}
+              <div className="rounded-2xl p-4 mb-3 text-center"
+                   style={{
+                     background: 'rgba(15,22,40,0.55)',
+                     border: '1px solid rgba(255,255,255,0.06)',
+                   }}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] mb-1"
+                   style={{ color: 'rgba(241,245,249,0.45)' }}>
+                  Heure locale
+                </p>
+                <p className="font-display text-4xl lg:text-5xl font-semibold tabular-nums leading-none"
+                   style={{ color: '#f8fafc', letterSpacing: '-0.02em' }}>
+                  {timeStr}
+                </p>
+              </div>
+
+              {/* Mini-stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl px-3 py-2"
+                     style={{ background: 'rgba(15,22,40,0.45)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-[9px] font-bold uppercase tracking-widest"
+                     style={{ color: 'rgba(241,245,249,0.45)' }}>
+                    Statut
+                  </p>
+                  <p className="text-sm font-semibold mt-0.5"
+                     style={{ color: profile.online ? '#6ee7b7' : 'rgba(241,245,249,0.7)' }}>
+                    {profile.online ? '● En ligne' : '○ Hors ligne'}
+                  </p>
+                </div>
+                <div className="rounded-xl px-3 py-2"
+                     style={{ background: 'rgba(15,22,40,0.45)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="text-[9px] font-bold uppercase tracking-widest"
+                     style={{ color: 'rgba(241,245,249,0.45)' }}>
+                    Daily
+                  </p>
+                  <p className="text-sm font-semibold mt-0.5"
+                     style={{ color: daily?.canClaim ? '#fcd34d' : 'rgba(241,245,249,0.7)' }}>
+                    {daily?.canClaim ? '🎁 Dispo' : daily?.streak ? `🔥 ${daily.streak}j` : '—'}
+                  </p>
                 </div>
               </div>
             </div>
