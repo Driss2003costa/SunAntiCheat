@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import SunGuardBg from '../components/SunGuardBg'
 import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 
@@ -35,43 +36,52 @@ const ROLE_TONE: Record<string, 'danger' | 'violet' | 'gold' | 'neutral'> = {
   VIP:       'gold',
   PLAYER:    'neutral',
 }
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'Admin', MODERATOR: 'Modérateur', VIP: 'VIP', PLAYER: 'Joueur',
-}
 
-const RARITY_STYLE = {
-  common:    { label: 'Commun',    color: '#94a3b8', glow: 'rgba(148,163,184,0.25)' },
-  rare:      { label: 'Rare',      color: '#60a5fa', glow: 'rgba(96,165,250,0.25)' },
-  epic:      { label: 'Épique',    color: '#c084fc', glow: 'rgba(192,132,252,0.25)' },
-  legendary: { label: 'Légendaire',color: '#fbbf24', glow: 'rgba(251,191,36,0.35)' },
-}
-
-function lastSeen(ts: number | null | undefined, online: boolean): string {
-  if (online) return 'En ligne maintenant'
-  if (!ts) return 'Jamais connecté'
-  const diff = Date.now() - ts
-  const m = Math.floor(diff / 60_000)
-  if (m < 2)   return 'Vu à l\'instant'
-  if (m < 60)  return `Vu il y a ${m} min`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `Vu il y a ${h}h`
-  const d = Math.floor(h / 24)
-  if (d < 30)  return `Vu il y a ${d}j`
-  const mo = Math.floor(d / 30)
-  return `Vu il y a ${mo} mois`
-}
-
-function fmtDate(ts: number | null | undefined) {
-  if (!ts) return '—'
-  return new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+const RARITY_COLORS = {
+  common:    { color: '#94a3b8', glow: 'rgba(148,163,184,0.25)' },
+  rare:      { color: '#60a5fa', glow: 'rgba(96,165,250,0.25)' },
+  epic:      { color: '#c084fc', glow: 'rgba(192,132,252,0.25)' },
+  legendary: { color: '#fbbf24', glow: 'rgba(251,191,36,0.35)' },
 }
 
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>()
+  const { t, i18n } = useTranslation()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
   const [copied, setCopied]   = useState(false)
+
+  const dateLocale = i18n.resolvedLanguage?.startsWith('fr') ? 'fr-FR' : 'en-GB'
+
+  const roleLabel = (role: string) => {
+    const key = `publicProfile.roles.${role}`
+    const translated = t(key)
+    return translated === key ? role : translated
+  }
+
+  const rarityLabel = (rarity: keyof typeof RARITY_COLORS) =>
+    t(`publicProfile.rarity.${rarity}`)
+
+  const lastSeen = (ts: number | null | undefined, online: boolean): string => {
+    if (online) return t('publicProfile.heroOnline')
+    if (!ts) return t('publicProfile.status.neverConnected')
+    const diff = Date.now() - ts
+    const m = Math.floor(diff / 60_000)
+    if (m < 2)   return t('publicProfile.lastSeenJustNow')
+    if (m < 60)  return t('publicProfile.lastSeenMin', { count: m })
+    const h = Math.floor(m / 60)
+    if (h < 24)  return t('publicProfile.lastSeenHour', { count: h })
+    const d = Math.floor(h / 24)
+    if (d < 30)  return t('publicProfile.lastSeenDay', { count: d })
+    const mo = Math.floor(d / 30)
+    return t('publicProfile.lastSeenMonth', { count: mo })
+  }
+
+  const fmtDate = (ts: number | null | undefined) => {
+    if (!ts) return '—'
+    return new Date(ts).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })
+  }
 
   useEffect(() => {
     if (!username) return
@@ -82,9 +92,9 @@ export default function PublicProfile() {
         if (!res.ok) throw data
         setProfile(data)
       })
-      .catch(e => setError(e.message || 'Profil introuvable.'))
+      .catch(e => setError(e.message || t('publicProfile.errorGeneric')))
       .finally(() => setLoading(false))
-  }, [username])
+  }, [username, t])
 
   function copyLink() {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -114,8 +124,8 @@ export default function PublicProfile() {
               <span className="text-sm font-bold tracking-widest text-white/90 group-hover:text-white transition-colors">SUNGUARD</span>
             </Link>
             <nav className="flex items-center gap-3 text-xs">
-              <Link to="/leaderboard" className="text-white/50 hover:text-white/80 transition-colors no-underline">Classement</Link>
-              <Button to="/login" variant="secondary" size="sm">Connexion</Button>
+              <Link to="/leaderboard" className="text-white/50 hover:text-white/80 transition-colors no-underline">{t('publicProfile.nav.leaderboard')}</Link>
+              <Button to="/login" variant="secondary" size="sm">{t('publicProfile.nav.login')}</Button>
             </nav>
           </div>
         </header>
@@ -125,7 +135,7 @@ export default function PublicProfile() {
           {loading && (
             <div className="flex flex-col items-center gap-4 py-32">
               <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-amber-400 animate-spin" />
-              <p className="text-sm text-white/40">Chargement du profil…</p>
+              <p className="text-sm text-white/40">{t('publicProfile.loading')}</p>
             </div>
           )}
 
@@ -133,9 +143,9 @@ export default function PublicProfile() {
           {error && !loading && (
             <Card padding="lg" className="max-w-md mx-auto mt-16 text-center">
               <div className="text-5xl mb-4">🔍</div>
-              <p className="text-xl font-bold text-white mb-2">Profil introuvable</p>
+              <p className="text-xl font-bold text-white mb-2">{t('publicProfile.errorTitle')}</p>
               <p className="text-sm text-white/50 mb-6">{error}</p>
-              <Button to="/" size="md">Créer un compte</Button>
+              <Button to="/" size="md">{t('publicProfile.errorButton')}</Button>
             </Card>
           )}
 
@@ -143,19 +153,19 @@ export default function PublicProfile() {
             <>
               {/* HERO */}
               <HeroBanner
-                eyebrow={profile.online ? 'En ligne maintenant' : lastSeen(profile.last_seen, false)}
+                eyebrow={profile.online ? t('publicProfile.heroOnline') : lastSeen(profile.last_seen, false)}
                 variant="sun"
                 title={profile.username}
                 subtitle={profile.bio
                   ? <>« {profile.bio} »</>
-                  : <>Membre SunGuard depuis {fmtDate(profile.created_at)}</>}
+                  : <>{t('publicProfile.bioFallback', { date: fmtDate(profile.created_at) })}</>}
                 cta={
                   <>
                     <Button onClick={copyLink} variant={copied ? 'secondary' : 'primary'} size="lg">
-                      {copied ? '✓ Lien copié' : '⬡ Partager'}
+                      {copied ? t('publicProfile.share.copied') : t('publicProfile.share.button')}
                     </Button>
-                    <Button to="/leaderboard" variant="secondary" size="lg">Voir le classement</Button>
-                    <Tag tone={ROLE_TONE[profile.role] ?? 'neutral'}>{ROLE_LABEL[profile.role] ?? profile.role}</Tag>
+                    <Button to="/leaderboard" variant="secondary" size="lg">{t('publicProfile.heroButton')}</Button>
+                    <Tag tone={ROLE_TONE[profile.role] ?? 'neutral'}>{roleLabel(profile.role)}</Tag>
                     {profile.vip?.active && <Tag tone="gold">✦ {profile.vip.plan ?? 'VIP'}</Tag>}
                     {profile.lp_group && profile.lp_group.name !== 'default' && (
                       <Tag tone="violet">{profile.lp_group.display}</Tag>
@@ -183,15 +193,15 @@ export default function PublicProfile() {
 
               {/* STATS */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
-                <StatCard label="Temps de jeu" accent="jade" icon="⏱" size="lg"
-                          value={profile.playtime_formatted ?? '—'} hint="Total cumulé" />
-                <StatCard label="Classement" accent="gold" icon="🏆" size="lg"
+                <StatCard label={t('publicProfile.stats.playtime')} accent="jade" icon="⏱" size="lg"
+                          value={profile.playtime_formatted ?? '—'} hint={t('publicProfile.stats.playtimeHint')} />
+                <StatCard label={t('publicProfile.stats.rank')} accent="gold" icon="🏆" size="lg"
                           value={profile.playtime_rank ? `#${profile.playtime_rank}` : '—'}
-                          hint={profile.playtime_rank_total ? `sur ${profile.playtime_rank_total}` : 'Top playtime'} />
-                <StatCard label="Streak" accent="rose" icon="🔥" size="lg"
-                          value={profile.daily_streak != null ? `${profile.daily_streak}j` : '—'} hint="Quotidienne" />
-                <StatCard label="Quêtes" accent="violet" icon="✅" size="lg"
-                          value={profile.quests ? String(profile.quests.completed_count) : '—'} hint="Complétées" />
+                          hint={profile.playtime_rank_total ? t('publicProfile.stats.rankOf', { total: profile.playtime_rank_total }) : t('publicProfile.stats.rankHint')} />
+                <StatCard label={t('publicProfile.stats.streak')} accent="rose" icon="🔥" size="lg"
+                          value={profile.daily_streak != null ? t('publicProfile.stats.streakDays', { count: profile.daily_streak }) : '—'} hint={t('publicProfile.stats.streakHint')} />
+                <StatCard label={t('publicProfile.stats.quests')} accent="violet" icon="✅" size="lg"
+                          value={profile.quests ? String(profile.quests.completed_count) : '—'} hint={t('publicProfile.stats.questsHint')} />
               </div>
 
               {/* PROGRESSION + TROPHIES grid */}
@@ -200,7 +210,7 @@ export default function PublicProfile() {
                   {/* Quests */}
                   {(profile.quests?.active?.length ?? 0) > 0 && (
                     <section>
-                      <SectionDivider label="Quêtes en cours" hint="Progression actuelle" />
+                      <SectionDivider label={t('publicProfile.questsSection')} hint={t('publicProfile.questsHint')} />
                       <Card padding="lg">
                         <div className="space-y-5">
                           {profile.quests!.active.map(q => {
@@ -229,14 +239,14 @@ export default function PublicProfile() {
                   {/* Sanctions */}
                   {(profile.active_sanctions?.length ?? 0) > 0 && (
                     <section>
-                      <SectionDivider label="Sanctions actives"
+                      <SectionDivider label={t('publicProfile.sanctions.section')}
                         action={<Tag tone="danger">{profile.active_sanctions!.length}</Tag>} />
                       <Card padding="lg" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
                         <div className="space-y-3">
                           {profile.active_sanctions!.map((s, i) => (
                             <div key={i} className="flex items-start gap-3">
                               <Tag tone="danger" size="sm">{s.type}</Tag>
-                              <span className="text-sm text-white/70 pt-0.5">{s.reason || 'Aucune raison précisée'}</span>
+                              <span className="text-sm text-white/70 pt-0.5">{s.reason || t('publicProfile.sanctions.noReason')}</span>
                             </div>
                           ))}
                         </div>
@@ -247,46 +257,47 @@ export default function PublicProfile() {
 
                 {/* Trophies sidebar */}
                 <aside className="space-y-5">
-                  <SectionDivider label="Trophées"
-                    hint={(profile.trophies?.length ?? 0) > 0 ? `${profile.trophies!.length} obtenu(s)` : undefined} />
+                  <SectionDivider label={t('publicProfile.trophies.section')}
+                    hint={(profile.trophies?.length ?? 0) > 0 ? t('publicProfile.trophies.obtained', { count: profile.trophies!.length }) : undefined} />
                   <Card padding="lg">
                     {(profile.trophies?.length ?? 0) > 0 ? (
                       <div className="grid grid-cols-3 gap-3">
-                        {profile.trophies!.map(t => {
-                          const r = RARITY_STYLE[t.rarity]
+                        {profile.trophies!.map(tp => {
+                          const r = RARITY_COLORS[tp.rarity]
+                          const rarityName = rarityLabel(tp.rarity)
                           return (
-                            <div key={t.id} title={`${t.name} — ${r.label}`}
+                            <div key={tp.id} title={t('publicProfile.trophies.tooltip', { name: tp.name, rarity: rarityName }) as string}
                                  className="rounded-xl p-3 flex flex-col items-center gap-1.5 cursor-default transition-transform hover:scale-105"
                                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: `0 0 12px ${r.glow}` }}>
-                              <span className="text-2xl" style={{ filter: `drop-shadow(0 2px 6px ${r.glow})` }}>{t.icon}</span>
+                              <span className="text-2xl" style={{ filter: `drop-shadow(0 2px 6px ${r.glow})` }}>{tp.icon}</span>
                               <span className="text-[9px] font-semibold uppercase tracking-wide text-center" style={{ color: r.color }}>
-                                {r.label}
+                                {rarityName}
                               </span>
                             </div>
                           )
                         })}
                       </div>
                     ) : (
-                      <p className="text-center text-sm text-white/40 py-4">Aucun trophée pour l'instant</p>
+                      <p className="text-center text-sm text-white/40 py-4">{t('publicProfile.trophies.empty')}</p>
                     )}
                   </Card>
 
-                  <SectionDivider label="Informations" />
+                  <SectionDivider label={t('publicProfile.info.section')} />
                   <Card padding="md">
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between gap-3">
-                        <span className="text-white/50">Membre depuis</span>
+                        <span className="text-white/50">{t('publicProfile.info.memberSince')}</span>
                         <span className="text-white/85">{fmtDate(profile.created_at)}</span>
                       </div>
                       <div className="flex justify-between gap-3">
-                        <span className="text-white/50">Statut</span>
+                        <span className="text-white/50">{t('publicProfile.info.status')}</span>
                         <Tag tone={profile.online ? 'jade' : 'neutral'} size="xs">
-                          {profile.online ? 'En ligne' : 'Hors ligne'}
+                          {profile.online ? t('publicProfile.status.online') : t('publicProfile.status.offline')}
                         </Tag>
                       </div>
                       <div className="flex justify-between gap-3">
-                        <span className="text-white/50">Rôle</span>
-                        <Tag tone={ROLE_TONE[profile.role] ?? 'neutral'} size="xs">{ROLE_LABEL[profile.role] ?? profile.role}</Tag>
+                        <span className="text-white/50">{t('publicProfile.info.role')}</span>
+                        <Tag tone={ROLE_TONE[profile.role] ?? 'neutral'} size="xs">{roleLabel(profile.role)}</Tag>
                       </div>
                     </div>
                   </Card>
@@ -296,14 +307,14 @@ export default function PublicProfile() {
               {/* CTA Footer */}
               <Card variant="glass-warm" padding="lg" className="text-center">
                 <p className="font-display text-2xl lg:text-3xl font-semibold mb-2" style={{ color: '#f8fafc' }}>
-                  Rejoins {profile.username} sur SunGuard
+                  {t('publicProfile.cta.title', { username: profile.username })}
                 </p>
                 <p className="text-sm mb-5" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                  Crée ton compte et commence ton aventure dès aujourd'hui.
+                  {t('publicProfile.cta.subtitle')}
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-3">
-                  <Button to="/" size="lg">Créer un compte</Button>
-                  <Button to="/login" variant="secondary" size="lg">Connexion</Button>
+                  <Button to="/" size="lg">{t('publicProfile.cta.buttonCreate')}</Button>
+                  <Button to="/login" variant="secondary" size="lg">{t('publicProfile.cta.buttonLogin')}</Button>
                 </div>
               </Card>
             </>

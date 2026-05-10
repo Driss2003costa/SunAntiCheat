@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
@@ -12,16 +13,6 @@ type PublicQuest = {
 }
 type QuestProgress = { questId: string; title: string; progress: number; goal: number; completed: boolean }
 
-const TYPE_LABELS: Record<string, string> = {
-  BREAK_BLOCK: 'Casser', PLACE_BLOCK: 'Placer', KILL_ENTITY: 'Tuer',
-  KILL_PLAYER: 'PvP', CRAFT_ITEM: 'Craft', FISH_CATCH: 'Pêche', PLAY_TIME: 'Temps',
-}
-
-function fmtTarget(t: string) {
-  if (!t || t === 'ANY') return 'Tous'
-  return t.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())
-}
-
 function fmtDuration(ms: number) {
   const s = Math.floor(ms / 1000)
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600)
@@ -30,11 +21,12 @@ function fmtDuration(ms: number) {
 }
 
 function QuestTimer({ endsAt, totalMs, onExpired }: { endsAt: number; totalMs: number; onExpired: () => void }) {
+  const { t } = useTranslation()
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
     const id = setInterval(() => {
-      const t = Date.now(); setNow(t)
-      if (t >= endsAt) { clearInterval(id); setTimeout(onExpired, 800) }
+      const tm = Date.now(); setNow(tm)
+      if (tm >= endsAt) { clearInterval(id); setTimeout(onExpired, 800) }
     }, 1000)
     return () => clearInterval(id)
   }, [endsAt, onExpired])
@@ -50,12 +42,12 @@ function QuestTimer({ endsAt, totalMs, onExpired }: { endsAt: number; totalMs: n
   const totalSec = Math.floor(msLeft / 1000)
   const d = Math.floor(totalSec / 86400), h = Math.floor((totalSec % 86400) / 3600)
   const m = Math.floor((totalSec % 3600) / 60), s = totalSec % 60
-  if (d > 0) label = `${d}j`
-  else if (h > 0) label = `${h}h`
+  if (d > 0) label = `${d}${t('quests.timer.day')}`
+  else if (h > 0) label = `${h}${t('quests.timer.hour')}`
   else label = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
 
   return (
-    <div className="relative shrink-0 flex items-center justify-center" title={`Expire dans ${fmtDuration(msLeft)}`}
+    <div className="relative shrink-0 flex items-center justify-center" title={t('quests.timer.expiresIn', { duration: fmtDuration(msLeft) }) as string}
          style={{ width: 36, height: 36 }}>
       <svg width="36" height="36" style={{ transform: 'rotate(-90deg)' }}>
         <circle cx="18" cy="18" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="3" />
@@ -72,12 +64,26 @@ type Filter = 'all' | 'active' | 'completed' | 'timed'
 
 export default function Quests() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const [quests,   setQuests]   = useState<PublicQuest[]>([])
   const [progress, setProgress] = useState<Record<string, QuestProgress>>({})
   const [loading,  setLoading]  = useState(true)
   const [filter,   setFilter]   = useState<Filter>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const token = getToken()
+
+  const numberLocale = i18n.resolvedLanguage?.startsWith('fr') ? 'fr-FR' : 'en-GB'
+
+  const fmtTarget = (target: string) => {
+    if (!target || target === 'ANY') return t('quests.target.all')
+    return target.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())
+  }
+
+  const typeLabel = (type: string) => {
+    const key = `quests.types.${type}`
+    const translated = t(key)
+    return translated === key ? type : translated
+  }
 
   useEffect(() => {
     const loads: Promise<void>[] = [
@@ -112,8 +118,10 @@ export default function Quests() {
   const globalInPr = quests.reduce((s, q) => s + q.inProgress,  0)
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: 'all', label: 'Toutes' }, { key: 'active', label: 'En cours' },
-    { key: 'completed', label: 'Terminées' }, { key: 'timed', label: '⏱ Limitées' },
+    { key: 'all',       label: t('quests.filters.all') },
+    { key: 'active',    label: t('quests.filters.inProgress') },
+    { key: 'completed', label: t('quests.filters.completed') },
+    { key: 'timed',     label: t('quests.filters.limited') },
   ]
 
   const selected = useMemo(
@@ -128,18 +136,18 @@ export default function Quests() {
       <PageAura theme="quests" />
       <GridShell>
         <HeroBanner
-          eyebrow="Aventure"
+          eyebrow={t('quests.eyebrow')}
           variant="ember"
-          title={<>Tes <span className="text-sun-300">quêtes</span> du moment</>}
-          subtitle={`${quests.length} quête${quests.length !== 1 ? 's' : ''} disponible${quests.length !== 1 ? 's' : ''}${token && counts.completed > 0 ? ` · ${counts.completed} terminée${counts.completed !== 1 ? 's' : ''}` : ''}.`}
+          title={<>{t('quests.hero.titleStart')}<span className="text-sun-300">{t('quests.hero.titleHighlight')}</span>{t('quests.hero.titleEnd')}</>}
+          subtitle={t('quests.hero.subtitle', { count: quests.length, available: quests.length, completed: counts.completed })}
           rightSlot={
             (globalComp > 0 || globalInPr > 0) && (
               <div className="w-full max-w-sm">
                 <p className="text-[11px] font-bold uppercase tracking-[0.3em] mb-3" style={{ color: '#fb923c' }}>
-                  Progression communautaire
+                  {t('quests.communityProgress.label')}
                 </p>
                 <p className="font-display text-4xl font-semibold mb-2" style={{ color: '#f8fafc' }}>
-                  {globalComp.toLocaleString('fr-FR')} <span className="text-base font-normal" style={{ color: 'rgba(241,245,249,0.5)' }}>complétions</span>
+                  {globalComp.toLocaleString(numberLocale)} <span className="text-base font-normal" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.communityProgress.suffix', { count: globalComp })}</span>
                 </p>
                 <div className="rounded-full overflow-hidden flex" style={{ height: 6, background: 'rgba(255,255,255,0.05)' }}>
                   <div className="h-full transition-all duration-700"
@@ -171,12 +179,12 @@ export default function Quests() {
           <Card padding="lg" className="text-center">
             <div className="w-7 h-7 rounded-full border-2 animate-spin mx-auto mb-3"
                  style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#f59e0b' }} />
-            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Chargement des quêtes…</p>
+            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.loading')}</p>
           </Card>
         ) : filtered.length === 0 ? (
           <Card padding="lg" className="text-center">
             <span className="text-4xl block mb-3">📭</span>
-            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Aucune quête dans cette catégorie.</p>
+            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.empty')}</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -237,15 +245,15 @@ export default function Quests() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-5">
-                    <Tag tone="sky">{TYPE_LABELS[selected.type] ?? selected.type}</Tag>
+                    <Tag tone="sky">{typeLabel(selected.type)}</Tag>
                     <Tag tone="neutral">{fmtTarget(selected.target)}</Tag>
                     {selected.rewardLabel && <Tag tone="gold">🎁 {selected.rewardLabel}</Tag>}
-                    {selected.repeatable && <Tag tone="violet">🔁 Répétable</Tag>}
+                    {selected.repeatable && <Tag tone="violet">{t('quests.detail.tagRepeatable')}</Tag>}
                   </div>
 
                   {progress[selected.id] && (
                     <div className="mb-5">
-                      <SectionDivider label="Ma progression" />
+                      <SectionDivider label={t('quests.detail.section')} />
                       <div className="flex justify-between text-xs mb-2" style={{ color: 'rgba(241,245,249,0.6)' }}>
                         <span>{progress[selected.id].progress} / {selected.goal}</span>
                         <span style={{ color: progress[selected.id].completed ? '#34d399' : '#fbbf24' }}>
@@ -267,11 +275,11 @@ export default function Quests() {
                   {(selected.completions > 0 || selected.inProgress > 0) && (
                     <div className="grid grid-cols-2 gap-3 mb-2">
                       <Card padding="sm">
-                        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Complétions</p>
+                        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.detail.completions')}</p>
                         <p className="font-display text-2xl font-semibold" style={{ color: '#34d399' }}>{selected.completions}</p>
                       </Card>
                       <Card padding="sm">
-                        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>En cours</p>
+                        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.detail.inProgress')}</p>
                         <p className="font-display text-2xl font-semibold" style={{ color: '#fbbf24' }}>{selected.inProgress}</p>
                       </Card>
                     </div>
@@ -279,7 +287,7 @@ export default function Quests() {
                 </Card>
               ) : (
                 <Card padding="lg" className="text-center">
-                  <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Sélectionne une quête pour voir les détails.</p>
+                  <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.noDetailSelected')}</p>
                 </Card>
               )}
             </div>
@@ -288,8 +296,8 @@ export default function Quests() {
 
         {!token && (
           <Card padding="md" className="mt-6 text-center">
-            <Button onClick={() => navigate('/login')} variant="secondary">Connecte-toi</Button>
-            <p className="text-xs mt-3" style={{ color: 'rgba(241,245,249,0.55)' }}>pour voir ta progression personnelle.</p>
+            <Button onClick={() => navigate('/login')} variant="secondary">{t('quests.loginButton')}</Button>
+            <p className="text-xs mt-3" style={{ color: 'rgba(241,245,249,0.55)' }}>{t('quests.loginHint')}</p>
           </Card>
         )}
       </GridShell>

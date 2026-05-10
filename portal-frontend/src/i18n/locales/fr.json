@@ -1,0 +1,966 @@
+{
+  "common": {
+    "loading": "Chargement…",
+    "error": "Erreur",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "back": "← Retour",
+    "yes": "Oui",
+    "no": "Non",
+    "rank": "Rang",
+    "player": "Joueur",
+    "balance": "Solde",
+    "playtime": "Temps de jeu",
+    "role": "Rôle",
+    "totalCumulative": "Total cumulé",
+    "serverEconomy": "Économie serveur",
+    "topPlaytime": "Top playtime",
+    "accountStatus": "Statut compte",
+    "login": "Connexion",
+    "register": "S'inscrire",
+    "createAccount": "Créer un compte",
+    "myProfile": "Mon profil",
+    "joinServer": "Rejoindre le serveur",
+    "brand": "SunGuard Network"
+  },
+  "navbar": {
+    "home": "Accueil",
+    "career": "Carrière",
+    "quests": "Quêtes",
+    "friends": "Amis",
+    "shop": "Shop",
+    "profile": "Profil",
+    "language": "Langue"
+  },
+  "home": {
+    "greeting": {
+      "night": "Bonne nuit",
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir"
+    },
+    "hero": {
+      "title": "Bienvenue, ",
+      "subtitle": "Ton tableau de bord SunGuard. Gère ton compte, suis ta progression et plonge dans l'aventure.",
+      "ctaProfile": "Mon profil →",
+      "ctaLeaderboard": "Voir le classement"
+    },
+    "widget": {
+      "session": "Session",
+      "time": "Heure locale",
+      "status": "Statut",
+      "online": "● En ligne",
+      "offline": "○ Hors ligne",
+      "daily": "Daily",
+      "dailyAvailable": "🎁 Dispo",
+      "dailyStreak": "🔥 {{count}}j",
+      "dailyNone": "—"
+    },
+    "quicklinks": {
+      "inventory": {
+        "label": "Inventaire",
+        "desc": "Tes objets, clés et cosmétiques"
+      },
+      "minigames": {
+        "label": "Mini-jeux",
+        "desc": "Arènes, classements & rewards"
+      },
+      "career": {
+        "label": "Carrière",
+        "desc": "Métiers, XP et progression"
+      },
+      "shop": {
+        "label": "Boutique",
+        "desc": "VIP, ranks & avantages"
+      },
+      "quests": {
+        "label": "Quêtes",
+        "desc": "Défis quotidiens & jalons"
+      },
+      "leaderboard": {
+        "label": "Classement",
+        "desc": "Top joueurs du serveur"
+      }
+    },
+    "stats": {
+      "rank": "Classement"
+    },
+    "daily": {
+      "section": "Récompense quotidienne",
+      "ready": "Ta récompense est prête",
+      "later": "Reviens demain",
+      "streak_one": "Série de {{count}} jour 🔥",
+      "streak_other": "Série de {{count}} jours 🔥",
+      "noStreak": "Commence ta série dès maintenant !",
+      "claim": "Réclamer →",
+      "claimed": "✓ Réclamée"
+    },
+    "explore": {
+      "label": "Explorer",
+      "hint": "Toutes les sections du serveur"
+    },
+    "status": {
+      "section": "Statut du compte",
+      "connection": "Connexion",
+      "activeNow": "Active maintenant",
+      "lastSession": "Dernière session",
+      "onlineDesc": "Tu es actuellement connecté au serveur.",
+      "offlineDesc": "Connecte-toi en jeu pour mettre à jour ton statut.",
+      "sanctions": "Sanctions",
+      "sanctionsActive_one": "{{count}} active",
+      "sanctionsActive_other": "{{count}} actives",
+      "clean": "✓ Compte clean",
+      "sanctionsTitle": "Sanctions en cours",
+      "noSanctionsTitle": "Aucune sanction active",
+      "sanctionsDesc": "Consulte ton profil pour voir les détails.",
+      "noSanctionsDesc": "Continue comme ça, joueur exemplaire !"
+    }
+  },
+  "profile": {
+    "errorNotFound": "Profil introuvable.",
+    "errorLink": "Retour à la connexion",
+    "bioErrorSave": "Erreur de sauvegarde",
+    "hero": {
+      "editBio": "✎ Modifier la bio",
+      "publicProfile": "↗ Profil public",
+      "logout": "Déconnexion"
+    },
+    "stats": {
+      "friends": "Amis",
+      "friendsHint": "Connexions"
+    },
+    "bioEdit": {
+      "label": "Modifier ta bio",
+      "placeholder": "Présente-toi en quelques mots…"
+    },
+    "section": {
+      "identity": "Identité"
+    },
+    "identity": {
+      "joinedOn": "Inscrit le",
+      "lastLogin": "Dernière connex.",
+      "uuid": "UUID"
+    },
+    "daily": {
+      "section": "Récompense quotidienne",
+      "streak_one": "Série en cours : {{count}} jour",
+      "streak_other": "Série en cours : {{count}} jours",
+      "available": "🎁 Disponible",
+      "cooldown": "⏳ {{cooldown}}",
+      "day": "J{{day}}",
+      "rewardReceived": "Récompense reçue",
+      "claimButton": "🎁 Réclamer ma récompense",
+      "claiming": "Réclamation…",
+      "ingameHint": "🎮 Vous devez être connecté en jeu pour réclamer",
+      "nextIn": "Prochaine récompense dans"
+    },
+    "sanctions": {
+      "section": "Sanctions",
+      "active_one": "{{count}} active",
+      "active_other": "{{count}} actives",
+      "clean": "✓ Compte clean",
+      "empty": "✓ Aucune sanction active. Continue comme ça !",
+      "noReason": "Aucune raison",
+      "by": "Par {{user}}",
+      "permanent": "Permanent"
+    },
+    "referral": {
+      "section": "Code de parrainage",
+      "hint": "Validés après 24h d'activité du filleul",
+      "copy": "Copier",
+      "copied": "✓ Copié",
+      "registered": "Inscrits",
+      "validated": "Validés"
+    },
+    "sidebar": {
+      "actions": "Actions rapides",
+      "activity": "Activité récente"
+    },
+    "actions": {
+      "inventory": "🎒 Inventaire",
+      "leaderboard": "🏆 Classement",
+      "quests": "🎯 Quêtes",
+      "career": "⚡ Carrière"
+    },
+    "activity": {
+      "activeNow": "Actif maintenant",
+      "offline": "Hors ligne",
+      "accountCreated": "Compte créé",
+      "dailyStreak_one": "Série quotidienne : {{count}}j",
+      "dailyStreak_other": "Série quotidienne : {{count}}j",
+      "rewardAvailable": "Récompense dispo",
+      "uptodate": "À jour"
+    }
+  },
+  "profileHero": {
+    "label": "Carte joueur",
+    "bioEmpty": "Aucune bio. Personnalise ta carte joueur.",
+    "joinedOn": "Inscrit",
+    "lastLogin": "Dernière connexion",
+    "identifier": "Identifiant"
+  },
+  "login": {
+    "errorNoUsername": "Saisis ton pseudo.",
+    "errorNoPin": "Saisis ton code PIN de 6 chiffres.",
+    "errorInvalid": "Pseudo ou PIN incorrect.",
+    "heroEyebrow": "Bon retour parmi nous",
+    "heroTitle": "Reprends ton aventure là où tu l'as laissée.",
+    "heroSubtitle": "Ton portail SunGuard t'attend. Récompenses quotidiennes, statistiques en temps réel, communauté active : tout ce dont tu as besoin pour briller sur le serveur.",
+    "heroList1": "Suis ta progression et grimpe le classement",
+    "heroList2": "Réclame tes récompenses et garde ta série intacte",
+    "heroList3": "Gère ton profil, ton inventaire et tes amis",
+    "heroFooter": "© SunGuard · Tous droits réservés",
+    "title": "Connexion",
+    "subtitle": "Entre ton pseudo Minecraft et ton code PIN à 6 chiffres pour accéder à ton portail.",
+    "usernameLabel": "Pseudo Minecraft",
+    "pinLabel": "Code PIN",
+    "button": "Se connecter",
+    "buttonLoading": "Connexion…",
+    "linkForgot": "PIN oublié ?",
+    "noAccount": "Pas encore de compte ?",
+    "createAccount": "Créer un compte"
+  },
+  "register": {
+    "errorOffline": "Tu dois être connecté sur le serveur Minecraft pour t'inscrire.",
+    "errorAlreadyRegistered": "Ce compte est déjà inscrit. Connecte-toi à la place.",
+    "errorRateLimit": "Trop de tentatives. Réessaie dans 10 minutes.",
+    "errorUnexpected": "Erreur inattendue.",
+    "errorVerifyPin": "Saisis les 6 chiffres reçus en jeu.",
+    "errorLoginPin": "Crée un code PIN de 6 chiffres.",
+    "errorExpired": "Code expiré. Clique sur \"Renvoyer le code\".",
+    "errorMaxAttempts": "Trop de tentatives. Recommence depuis le début.",
+    "errorInvalid_one": "Code incorrect. {{count}} tentative restante.",
+    "errorInvalid_other": "Code incorrect. {{count}} tentatives restantes.",
+    "heroEyebrow": "Rejoins l'aventure",
+    "heroTitle": "Crée ton compte et plonge dans l'expérience SunGuard.",
+    "heroSubtitle": "Une communauté soudée, des récompenses uniques, des aventures sans fin. L'inscription se fait en jeu : sécurisée, rapide et 100% liée à ton compte Minecraft.",
+    "heroList1": "Vérification anti-triche directement depuis le serveur",
+    "heroList2": "Récompense de bienvenue grâce au parrainage",
+    "heroList3": "Accès complet à ton inventaire, classements et profil",
+    "successSubtitle": "Bienvenue sur le portail, {{username}}.",
+    "successButton": "Voir mon profil",
+    "step1Label": "Créer un compte",
+    "step2Label": "Vérification",
+    "step1Subtitle": "Connecte-toi d'abord sur le serveur Minecraft, puis saisis ton pseudo.",
+    "step2Subtitle": "Un code à 6 chiffres a été envoyé à {{username}} dans le chat Minecraft.",
+    "usernameLabel": "Pseudo Minecraft",
+    "usernamePlaceholder": "ex: Steve",
+    "refCodeLabel": "Code de parrainage (optionnel)",
+    "refCodePlaceholder": "ex: SUN-XXXXXXXX",
+    "refCodeValid": "Code valide — tu recevras un bonus à l'inscription !",
+    "refCodeInvalid": "Code invalide ou inexistant.",
+    "step1Button": "Recevoir mon code",
+    "alreadyRegistered": "Déjà inscrit ?",
+    "loginLink": "Connexion",
+    "step2CodeLabel": "Code reçu en jeu",
+    "step2CodeExpiry": "Expire dans {{count}}s",
+    "step2CodeExpired": "Code expiré",
+    "step2Resend": "Renvoyer le code",
+    "step2NewPinLabel": "Crée ton PIN de connexion (6 chiffres)",
+    "step2NewPinHint": "Tu utiliseras ce PIN pour te connecter au portail.",
+    "step2Submit": "Créer mon compte",
+    "step2Submitting": "Création…",
+    "step2Back": "← Retour"
+  },
+  "forgotPassword": {
+    "errorOffline": "Tu dois être connecté sur le serveur Minecraft pour réinitialiser ton PIN.",
+    "errorPinFormat": "Saisis le code reçu en jeu (6 chiffres).",
+    "errorNewPinFormat": "Crée un nouveau PIN de 6 chiffres.",
+    "errorExpired": "Code expiré. Retourne à l'étape précédente.",
+    "errorMaxAttempts": "Trop de tentatives incorrectes.",
+    "errorInvalid_one": "Code incorrect. {{count}} tentative restante.",
+    "errorInvalid_other": "Code incorrect. {{count}} tentatives restantes.",
+    "heroEyebrow": "Récupère ton compte",
+    "heroTitle": "Un PIN oublié n'est jamais une fin.",
+    "heroSubtitle": "La réinitialisation passe par le serveur Minecraft pour garantir que personne d'autre que toi ne puisse récupérer ton compte. Sécurisé, instantané, sans email.",
+    "heroList1": "Vérification d'identité directement en jeu",
+    "heroList2": "Aucun email, aucun mot de passe à retenir",
+    "heroList3": "Reprends ton aventure en quelques secondes",
+    "heroFooter": "© SunGuard · Tous droits réservés",
+    "step1Title": "PIN oublié ?",
+    "step1Subtitle": "Connecte-toi en jeu et entre ton pseudo : un nouveau code te sera envoyé dans le chat Minecraft.",
+    "step1Label": "Pseudo Minecraft",
+    "step1Button": "Envoyer le code",
+    "step1BackLink": "← Retour à la connexion",
+    "step2Title": "Réinitialiser le PIN",
+    "step2Subtitle": "Code envoyé dans le chat Minecraft. Expire dans {{count}}s.",
+    "step2CodeLabel": "Code reçu en jeu",
+    "step2NewPinLabel": "Nouveau PIN (6 chiffres)",
+    "step2Button": "Réinitialiser le PIN",
+    "step2Submitting": "Réinitialisation…",
+    "step2Resend": "← Renvoyer un code",
+    "step3Title": "PIN réinitialisé",
+    "step3Subtitle": "Redirection vers ton profil…"
+  },
+  "leaderboard": {
+    "tabs": {
+      "playtime": "Temps de jeu",
+      "economy": "Économie"
+    },
+    "title": "Classement",
+    "topbarTag": "Classement",
+    "errorGeneric": "Erreur de chargement.",
+    "heroSubtitleUpdated": "Les meilleurs joueurs du serveur — Mis à jour à {{time}}",
+    "heroSubtitleDefault": "Les meilleurs joueurs du serveur, mis à jour en temps réel.",
+    "loading": "Chargement du classement…",
+    "errorLoading": "Erreur de chargement du classement",
+    "podiumSection": "Podium",
+    "podiumHint": "Top 3 du classement",
+    "tableSection": "Classement complet",
+    "playerCount": "{{count}} joueurs",
+    "live": "Live",
+    "valuePlaytime": "Temps de jeu",
+    "valueEconomy": "Solde",
+    "emptyTitle": "Le classement est vide",
+    "emptyDesc": "Les premiers joueurs n'ont pas encore joué.",
+    "ctaTitle": "Rejoins le serveur",
+    "ctaSubtitle": "Connecte-toi et commence à accumuler des heures pour apparaître dans le classement."
+  },
+  "inventory": {
+    "eyebrow": "Inventaire",
+    "errorClaim": "Erreur lors de la réclamation",
+    "filters": {
+      "all": "Tout",
+      "keys": "Clés",
+      "badges": "Badges",
+      "cosmetics": "Cosmétiques",
+      "label": "Catégories"
+    },
+    "modal": {
+      "title": "Réclamer la clé",
+      "info": "Cette clé vous sera remise en jeu à votre prochaine connexion (ou immédiatement si vous êtes connecté).",
+      "loading": "Réclamation en cours…"
+    },
+    "hero": {
+      "titleStart": "Coffre de ",
+      "title": "Coffre de {{username}}",
+      "subtitle": "Gère tes clés de caisses, tes badges et tes objets cosmétiques. Réclame ce qui t'attend en jeu.",
+      "buttonShop": "🛒 Boutique",
+      "buttonProfile": "Mon profil",
+      "coins": "Coins",
+      "keys": "Clés"
+    },
+    "stats": {
+      "balance": "Solde",
+      "balanceHint": "Coins disponibles",
+      "keys": "Clés",
+      "keysHint": "Toutes caisses",
+      "role": "Grade",
+      "roleHint": "Statut actuel",
+      "playtime": "Temps de jeu",
+      "playtimeHint": "Total cumulé"
+    },
+    "help": {
+      "label": "Aide",
+      "text": "Les clés et objets sont remis en jeu lors de ta prochaine connexion (ou immédiatement si tu es online)."
+    },
+    "keys": {
+      "section": "Clés de caisses",
+      "available_one": "{{count}} clé disponible",
+      "available_other": "{{count}} clés disponibles",
+      "empty": "Aucune clé",
+      "emptyDesc": "Aucune clé en inventaire. Achète-en dans la boutique ou réclame des récompenses !",
+      "statusPending": "⏳ En attente",
+      "statusAvailable": "Disponible",
+      "claim": "Réclamer"
+    },
+    "badges": {
+      "section": "Grades & Badges",
+      "subtitle": "Distinctions débloquées",
+      "active": "Grade actif",
+      "veteran": {
+        "name": "Vétéran",
+        "desc": "100h de jeu"
+      },
+      "conqueror": {
+        "name": "Conquérant",
+        "desc": "Top 10 classement"
+      }
+    },
+    "cosmetics": {
+      "section": "Cosmétiques",
+      "subtitle": "Skins, particules, capes…",
+      "empty": "✨ Les cosmétiques arrivent bientôt !"
+    }
+  },
+  "career": {
+    "eyebrow": "Carrière",
+    "toast": {
+      "joined": "Métier rejoint !",
+      "left": "Métier quitté."
+    },
+    "error": {
+      "noSlot": "Limite de métiers atteinte.",
+      "disabled": "Ce métier est désactivé.",
+      "alreadyIn": "Déjà dans ce métier.",
+      "notFound": "Métier introuvable.",
+      "generic": "Action impossible.",
+      "sessionExpired": "Session expirée."
+    },
+    "confirm": {
+      "leave": "Quitter ce métier ? Tu garderas ton XP."
+    },
+    "hero": {
+      "titleStart": "Construis ton ",
+      "titleHighlight": "empire",
+      "subtitle_one": "{{active}} métier actif · {{available}} disponibles. Progresse, monte en niveau et débloque des étoiles permanentes.",
+      "subtitle_other": "{{active}} métiers actifs · {{available}} disponibles. Progresse, monte en niveau et débloque des étoiles permanentes."
+    },
+    "stats": {
+      "active": "Métiers actifs",
+      "activeHint": "{{count}} disponibles",
+      "level": "Niveau total",
+      "levelHint": "Moy. {{avg}}",
+      "earned": "Total gagné",
+      "earnedHint": "Cumul des revenus",
+      "stars": "Étoiles",
+      "starsHint": "Prestige cumulé"
+    },
+    "slots": {
+      "label": "Slots métiers",
+      "full": "Plein",
+      "free_one": "{{count}} libre",
+      "free_other": "{{count}} libres"
+    },
+    "tickets": {
+      "label": "Tickets actifs",
+      "extraSlot": "+1 slot",
+      "xpBonus": "+25% XP",
+      "bypassHeatmap": "Bypass heatmap"
+    },
+    "dynamics": {
+      "label": "Monde dynamique",
+      "live": "● en direct",
+      "season": "Saison",
+      "demand": "En demande"
+    },
+    "offline": {
+      "title": "Module hors ligne",
+      "desc": "Le système de métiers n'est pas disponible pour le moment."
+    },
+    "active": {
+      "section": "Mes métiers",
+      "hint_one": "{{count}} en cours",
+      "hint_other": "{{count}} en cours"
+    },
+    "job": {
+      "level": "Niv. {{level}}",
+      "progressLabel": "Vers Niv. {{next}}",
+      "maxLevel": "⭐ Niveau max",
+      "buttonDetails": "Détails",
+      "buttonLeave": "Quitter",
+      "tagDisabled": "⏸ OFF",
+      "tagFeatured": "★ Demande",
+      "buttonDisabled": "Désactivé",
+      "buttonSlotsFull": "Slots pleins",
+      "buttonJoin": "+ Rejoindre",
+      "actionsPerWeek": "{{count}} actions/sem",
+      "maxLevelTotal": "Niv. max {{level}}",
+      "actionsCount": "{{count}} actions"
+    },
+    "empty": {
+      "title": "Aucun métier actif",
+      "desc": "Choisis un métier ci-dessous pour commencer."
+    },
+    "inactive": {
+      "section": "Autres métiers",
+      "hint_one": "{{count}} à découvrir",
+      "hint_other": "{{count}} à découvrir",
+      "available": "Métiers disponibles"
+    },
+    "noConfigured": {
+      "title": "Aucun métier configuré",
+      "desc": "Reviens plus tard."
+    }
+  },
+  "careerDetail": {
+    "confirm": {
+      "prestige": "Renaître ? Tu reset ton niveau à 1 mais gagnes une étoile permanente (+3% XP/argent)."
+    },
+    "toast": {
+      "prestige": "Renaissance ! ⭐ {{count}} étoile(s)"
+    },
+    "error": {
+      "notMaxLevel": "Tu dois être au niveau maximum.",
+      "maxStars": "Maximum d'étoiles atteint (5).",
+      "notJoined": "Tu n'es pas dans ce métier.",
+      "unknown": "Métier inconnu",
+      "loading": "Erreur de chargement"
+    },
+    "buttonBack": "← Carrière",
+    "notFoundTitle": "Métier introuvable",
+    "notStarted": {
+      "title": "Tu n'as pas encore commencé ce métier",
+      "desc": "Rejoins le serveur et utilise /job join {{id}}"
+    },
+    "stats": {
+      "level": "Niveau",
+      "levelMaster": "Maître {{name}}",
+      "earned": "Total gagné",
+      "earnedHint": "Cumul",
+      "stars": "Étoiles",
+      "starsHint": "+{{percent}}% bonus",
+      "xpRate": "XP / heure",
+      "xpRateHint": "moy. récente",
+      "permanent": "{{percent}}% permanent"
+    },
+    "section": {
+      "progress": "Progression"
+    },
+    "progress": {
+      "label": "Vers Niv. {{next}}",
+      "maxed": "⭐ Niveau maximum atteint"
+    },
+    "buttonPrestige": "✨ Renaître",
+    "masterBadge": "⭐⭐⭐⭐⭐ Maître Suprême",
+    "timeline": {
+      "label": "Activité 14j",
+      "average": "Moy. {{xp}} XP/j",
+      "today": "aujourd'hui"
+    },
+    "forecast": {
+      "label": "🔮 Projection",
+      "xpRate": "XP/h",
+      "nextLevel": "Niv. +1",
+      "maxLevel": "Niv. max"
+    },
+    "targets": {
+      "label": "🏆 Top ressources"
+    },
+    "eyebrow": "Métier",
+    "time": {
+      "min": "min",
+      "hour": "h",
+      "day": "j"
+    }
+  },
+  "quests": {
+    "filters": {
+      "all": "Toutes",
+      "inProgress": "En cours",
+      "completed": "Terminées",
+      "limited": "⏱ Limitées"
+    },
+    "hero": {
+      "titleStart": "Tes ",
+      "titleHighlight": "quêtes",
+      "titleEnd": " du moment",
+      "subtitle_one": "{{available}} quête disponible · {{completed}} terminée",
+      "subtitle_other": "{{available}} quêtes disponibles · {{completed}} terminées"
+    },
+    "communityProgress": {
+      "label": "Progression communautaire",
+      "value_one": "{{count}} complétion",
+      "value_other": "{{count}} complétions",
+      "suffix_one": "complétion",
+      "suffix_other": "complétions"
+    },
+    "loading": "Chargement des quêtes…",
+    "empty": "Aucune quête dans cette catégorie.",
+    "noDetailSelected": "Sélectionne une quête pour voir les détails.",
+    "loginButton": "Connecte-toi",
+    "eyebrow": "Aventure",
+    "types": {
+      "BREAK_BLOCK": "Casser",
+      "PLACE_BLOCK": "Placer",
+      "KILL_ENTITY": "Tuer",
+      "KILL_PLAYER": "PvP",
+      "CRAFT_ITEM": "Craft",
+      "FISH_CATCH": "Pêche",
+      "PLAY_TIME": "Temps"
+    },
+    "target": {
+      "all": "Tous"
+    },
+    "timer": {
+      "expiresIn": "Expire dans {{duration}}",
+      "day": "j",
+      "hour": "h"
+    },
+    "detail": {
+      "section": "Ma progression",
+      "tagRepeatable": "🔁 Répétable",
+      "completions": "Complétions",
+      "inProgress": "En cours"
+    },
+    "loginHint": "pour voir ta progression personnelle."
+  },
+  "friends": {
+    "errorLoading": "Erreur de chargement.",
+    "confirmRemove": "Supprimer cet ami ?",
+    "eyebrow": "Communauté",
+    "heroTitleStart": "Tes ",
+    "heroTitleHighlight": "amis",
+    "heroTitleEnd": " SunGuard",
+    "tabs": {
+      "friends": "Amis",
+      "incoming": "Reçues",
+      "outgoing": "Envoyées",
+      "search": "Rechercher"
+    },
+    "hero": {
+      "subtitle_one": "Ton {{count}} ami",
+      "subtitle_other": "Tes {{count}} amis",
+      "incoming_one": "{{count}} demande en attente",
+      "incoming_other": "{{count}} demandes en attente",
+      "buttonFind": "+ Trouver des joueurs"
+    },
+    "section": {
+      "myFriends": "Mes amis",
+      "myFriendsCount": "Mes amis · {{count}}",
+      "incoming": "Demandes reçues",
+      "incomingCount": "Demandes reçues · {{count}}",
+      "outgoing": "Demandes envoyées",
+      "outgoingCount": "Demandes envoyées · {{count}}",
+      "search": "Rechercher des joueurs"
+    },
+    "empty": {
+      "friends": "Aucun ami pour l'instant. Utilise la recherche !",
+      "incoming": "Aucune demande reçue.",
+      "outgoing": "Aucune demande envoyée.",
+      "search": "Aucun joueur trouvé."
+    },
+    "card": {
+      "since": "Ami depuis {{date}}",
+      "messageButton": "💬 Message",
+      "wantsToBe": "veut être votre ami",
+      "accept": "✓ Accepter",
+      "pending": "en attente",
+      "cancelRequest": "Annuler"
+    },
+    "search": {
+      "placeholder": "Rechercher un joueur…"
+    },
+    "relation": {
+      "friend": "✓ Ami",
+      "sent": "Envoyée",
+      "received": "Reçue",
+      "add": "+ Ajouter"
+    }
+  },
+  "messages": {
+    "empty": "Aucune conversation.",
+    "buttonFindFriends": "Trouver des amis",
+    "newConv": "Nouvelle conversation",
+    "private": "Conversation privée",
+    "placeholder": "Écrire un message…",
+    "lastMessage": "Dernier message {{date}}",
+    "viewProfile": "Voir le profil",
+    "header": "Messagerie",
+    "headerSubtitle": "Discute en privé avec tes amis SunGuard.",
+    "title": "Messages",
+    "conversationsLabel": "Conversations",
+    "noProfile": "Aucun profil à afficher.",
+    "read": "Lu",
+    "noChatTitle": "Aucune conversation sélectionnée",
+    "noChatDesc": "Choisis une conversation à gauche pour commencer."
+  },
+  "minigames": {
+    "ctf": {
+      "name": "Capture The Flag",
+      "desc": "Infiltre la base adverse, vole son drapeau et ramène-le sans te faire éliminer.",
+      "tip1": "Protège ton drapeau",
+      "tip2": "Travaille en équipe",
+      "tip3": "Utilise les passages secrets"
+    },
+    "skywars": {
+      "name": "Skywars",
+      "desc": "Bats tous tes adversaires sur ton île suspendue dans le ciel. Seul le dernier survivant gagne.",
+      "tip1": "Loot vite",
+      "tip2": "Construis des ponts",
+      "tip3": "Évite les chutes"
+    },
+    "thimble": {
+      "name": "Thimble",
+      "desc": "Plonge dans le trou qui correspond à ta forme depuis une plateforme en hauteur. Sois précis !",
+      "tip1": "Vise bien avant de sauter",
+      "tip2": "Regarde la forme du trou",
+      "tip3": "Fais vite !"
+    },
+    "tntrun": {
+      "name": "TNT Run",
+      "desc": "Cours sur un sol qui s'effondre à chaque pas. Le dernier joueur encore debout remporte la manche.",
+      "tip1": "Ne t'arrête jamais",
+      "tip2": "Évite les autres joueurs",
+      "tip3": "Surveille le sol en dessous"
+    },
+    "hero": {
+      "eyebrow": "Mini-jeux",
+      "titleStart": "Plonge dans l'",
+      "titleHighlight": "arène",
+      "subtitle": "CTF, Skywars, TNT Run, Thimble… Trouve ton jeu, rejoins une partie et grimpe au classement.",
+      "onlineNow": "En jeu maintenant",
+      "player_one": "{{count}} joueur",
+      "player_other": "{{count}} joueurs"
+    },
+    "stats": {
+      "arenas": "Arènes totales",
+      "arenasHint": "configurées",
+      "playing": "Parties en cours",
+      "playingHint": "actives maintenant",
+      "waiting": "En attente",
+      "waitingHint": "rejoignables",
+      "games": "Mini-jeux",
+      "gamesHint": "modes disponibles"
+    },
+    "featured": {
+      "section": "Vedette",
+      "hint": "Le jeu le plus actif en ce moment",
+      "badge": "★ Vedette",
+      "tag_one": "● {{count}} arène en cours",
+      "tag_other": "● {{count}} arènes en cours"
+    },
+    "all": {
+      "section": "Tous les mini-jeux",
+      "hint_one": "{{count}} mode disponible sur play.sunnetwork.fr",
+      "hint_other": "{{count}} modes disponibles sur play.sunnetwork.fr"
+    },
+    "game": {
+      "live_one": "● {{count}} live",
+      "live_other": "● {{count}} live",
+      "active": "Actif",
+      "inactive": "Inactif",
+      "arenas": "Arènes",
+      "playing": "En cours",
+      "waiting": "Attente"
+    },
+    "howToJoin": {
+      "section": "Comment jouer",
+      "hint": "4 étapes pour entrer en jeu",
+      "step1": "Connecte-toi sur play.sunnetwork.fr",
+      "step2": "Utilise /minijeux ou le menu principal",
+      "step3": "Rejoins une file d'attente ou une arène",
+      "step4": "Gagne des coins et monte dans le classement !"
+    },
+    "cta": {
+      "viewLeaderboards": "Voir les classements",
+      "join": "Rejoindre",
+      "joinArrow": "Rejoindre →"
+    }
+  },
+  "shop": {
+    "errorBuy": "Erreur lors de l'achat",
+    "errorCheckout": "Une erreur est survenue.",
+    "hero": {
+      "titleStart": "Sublime ton expérience ",
+      "titleHighlight": "SunGuard",
+      "subtitle": "Soutiens le serveur, débloque des avantages exclusifs et ouvre des caisses pour des récompenses rares.",
+      "buttonVip": "Voir les VIPs",
+      "buttonCrates": "Caisses & Clés",
+      "balance": "Ton solde",
+      "titleEnd": ""
+    },
+    "filters": {
+      "all": "Tout",
+      "vip": "Abonnements VIP",
+      "crates": "Caisses"
+    },
+    "featured": {
+      "section": "Vedette",
+      "hint": "L'offre la plus populaire du moment",
+      "badge": "Pack vedette",
+      "duration_one": "{{count}} jour",
+      "duration_other": "{{count}} jours",
+      "buttonCard": "💳 Carte",
+      "buttonPaypal": "PayPal",
+      "buttonCancel": "Annuler",
+      "buyNow": "Acheter maintenant →"
+    },
+    "vip": {
+      "section": "Autres abonnements VIP",
+      "hint_one": "{{count}} plan disponible",
+      "hint_other": "{{count}} plans disponibles",
+      "duration_one": "{{count}} jour",
+      "duration_other": "{{count}} jours",
+      "emptyTitle": "Aucun plan VIP configuré",
+      "emptyDesc": "Les offres seront disponibles prochainement."
+    },
+    "crates": {
+      "section": "Caisses & Clés",
+      "hint": "Tente ta chance pour des récompenses rares",
+      "free": "Gratuit",
+      "buying": "Achat…",
+      "buy": "Acheter",
+      "obtain": "Obtenir",
+      "gift": "Clé offerte !"
+    },
+    "economy": {
+      "earningTitle": "Gagner des coins",
+      "earningDesc": "Joue, mine, accomplis des quêtes ou réclame ta récompense quotidienne.",
+      "spendingTitle": "Boutique /shop",
+      "spendingDesc": "Dépense tes coins via /shop pour acheter des items en jeu.",
+      "cratesTitle": "Caisses & Clés",
+      "cratesDesc": "Obtiens des clés via les missions et ouvre des caisses.",
+      "jobsTitle": "Métiers",
+      "jobsDesc": "Génère des revenus passifs en exerçant un métier.",
+      "section": "Économie en jeu",
+      "hint": "Comment gagner et dépenser des coins"
+    },
+    "eyebrow": "Boutique"
+  },
+  "publicProfile": {
+    "errorTitle": "Profil introuvable",
+    "errorButton": "Créer un compte",
+    "heroOnline": "En ligne maintenant",
+    "lastSeenJustNow": "Vu à l'instant",
+    "lastSeen": "Vu il y a {{duration}}",
+    "status": {
+      "online": "En ligne",
+      "offline": "Hors ligne",
+      "neverConnected": "Jamais connecté"
+    },
+    "heroButton": "Voir le classement",
+    "stats": {
+      "playtime": "Temps de jeu",
+      "playtimeHint": "Total cumulé",
+      "rank": "Classement",
+      "rankHint": "Top playtime",
+      "streak": "Streak",
+      "streakHint": "Quotidienne",
+      "quests": "Quêtes",
+      "questsHint": "Complétées",
+      "rankOf": "sur {{total}}",
+      "streakDays": "{{count}}j"
+    },
+    "questsSection": "Quêtes en cours",
+    "questsHint": "Progression actuelle",
+    "sanctions": {
+      "section": "Sanctions actives",
+      "noReason": "Aucune raison précisée"
+    },
+    "trophies": {
+      "section": "Trophées",
+      "obtained_one": "{{count}} obtenu",
+      "obtained_other": "{{count}} obtenus",
+      "empty": "Aucun trophée pour l'instant",
+      "tooltip": "{{name}} — {{rarity}}"
+    },
+    "info": {
+      "section": "Informations",
+      "memberSince": "Membre depuis",
+      "status": "Statut",
+      "role": "Rôle"
+    },
+    "cta": {
+      "title": "Rejoins {{username}} sur SunGuard",
+      "subtitle": "Crée ton compte et commence ton aventure dès aujourd'hui.",
+      "buttonCreate": "Créer un compte",
+      "buttonLogin": "Connexion"
+    },
+    "nav": {
+      "leaderboard": "Classement",
+      "login": "Connexion"
+    },
+    "loading": "Chargement du profil…",
+    "errorGeneric": "Profil introuvable.",
+    "share": {
+      "copied": "✓ Lien copié",
+      "button": "⬡ Partager"
+    },
+    "roles": {
+      "ADMIN": "Admin",
+      "MODERATOR": "Modérateur",
+      "VIP": "VIP",
+      "PLAYER": "Joueur"
+    },
+    "rarity": {
+      "common": "Commun",
+      "rare": "Rare",
+      "epic": "Épique",
+      "legendary": "Légendaire"
+    },
+    "lastSeenMin": "Vu il y a {{count}} min",
+    "lastSeenHour": "Vu il y a {{count}}h",
+    "lastSeenDay": "Vu il y a {{count}}j",
+    "lastSeenMonth_one": "Vu il y a {{count}} mois",
+    "lastSeenMonth_other": "Vu il y a {{count}} mois",
+    "bioFallback": "Membre SunGuard depuis {{date}}"
+  },
+  "comingSoon": {
+    "home": {
+      "title": "Accueil",
+      "desc": "Votre tableau de bord arrive bientôt."
+    },
+    "inventory": {
+      "title": "Inventaire",
+      "desc": "Gérez votre inventaire en jeu depuis ici.",
+      "badge": "Bientôt"
+    },
+    "minigames": {
+      "title": "Mini-jeux",
+      "desc": "Suivez vos scores et statistiques de mini-jeux.",
+      "badge": "En développement"
+    },
+    "career": {
+      "title": "Carrière",
+      "desc": "Votre progression de carrière sur le serveur.",
+      "badge": "Bientôt"
+    },
+    "shop": {
+      "title": "Boutique",
+      "desc": "La boutique en jeu arrive prochainement."
+    },
+    "default": {
+      "title": "Page",
+      "desc": "Cette fonctionnalité est en cours de développement."
+    },
+    "comingBadge": "À venir",
+    "available": "Bientôt disponible",
+    "message": "Cette fonctionnalité est actuellement en cours de développement. Reviens bientôt pour la découvrir !",
+    "buttonProfile": "Mon profil",
+    "buttonHome": "Accueil"
+  },
+  "statusBanner": {
+    "globalTitle": "🚧 MAINTENANCE GLOBALE EN COURS",
+    "globalDefault": "Portail verrouillé pour les non-OP",
+    "opBadge": "★ Mode OP — accès accordé",
+    "globalCountdown": "Retour estimé dans",
+    "incidentMaintenance": "🛠️ MAINTENANCE EN COURS",
+    "incidentTitle": "⚠️ INCIDENT EN COURS",
+    "incidentMultiple": "{{count}} services impactés",
+    "incidentButton": "Voir détails",
+    "incidentCountdown": "Retour estimé dans"
+  },
+  "degradedNotice": {
+    "title": "Service dégradé",
+    "default": "Cette section fonctionne actuellement avec un problème connu.",
+    "countdown": "Retour normal estimé dans"
+  },
+  "portalLockdown": {
+    "badge": "⚠ Portail en maintenance",
+    "title": "Nous revenons très bientôt",
+    "message": "Notre équipe travaille sur le portail. Toutes les fonctionnalités sont temporairement indisponibles.",
+    "countdown": "Retour estimé dans",
+    "footer": "☀ SunGuard · Portail joueur",
+    "footerStarted": "Maintenance démarrée à {{time}}"
+  },
+  "countdown": {
+    "endingSoon": "Fin estimée passée",
+    "expiredCompact": "écoulé",
+    "expiredInline": "⏱ écoulé"
+  },
+  "serverStatus": {
+    "operational": "Opérationnel",
+    "operationalHint": "Tout fonctionne",
+    "degraded": "Dégradé",
+    "degradedHint": "Problème connu",
+    "maintenance": "Maintenance",
+    "maintenanceHint": "Travaux en cours",
+    "disabled": "Indisponible",
+    "disabledHint": "Coupé temporairement",
+    "section": "Statut des services",
+    "sectionHint": "État opérationnel des features du serveur",
+    "globalOk": "Tous les services sont en service",
+    "globalIssues": "Incidents en cours",
+    "opBadge": "★ Mode OP — accès maintenance",
+    "itemMessage": "💬 {{message}}",
+    "itemCountdown": "Retour estimé :",
+    "itemUpdated": "Maj {{duration}}",
+    "disclaimer": "Les sections en maintenance sont indisponibles le temps des travaux. L'état est mis à jour en temps réel par l'équipe technique."
+  }
+}

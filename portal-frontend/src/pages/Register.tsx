@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, saveToken, getToken } from '../api/client'
 import OtpInput from '../components/OtpInput'
 import { Button } from '../components/ui'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 type Step = 'username' | 'pin' | 'success'
 
 export default function Register() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [step, setStep]           = useState<Step>('username')
   const [username, setUsername]   = useState('')
   const [uuid, setUuid]           = useState('')
@@ -56,17 +59,17 @@ export default function Register() {
       const res = await api.requestPin(username.trim())
       setUuid(res.uuid); setExactName(res.username); setCountdown(res.expires_in); setStep('pin')
     } catch (e: any) {
-      if (e.error === 'player_offline')          setError('Tu dois être connecté sur le serveur Minecraft pour t\'inscrire.')
-      else if (e.error === 'already_registered') setError('Ce compte est déjà inscrit. Connecte-toi à la place.')
-      else if (e.status === 429)                 setError('Trop de tentatives. Réessaie dans 10 minutes.')
-      else                                       setError(e.message || 'Erreur inattendue.')
+      if (e.error === 'player_offline')          setError(t('register.errorOffline'))
+      else if (e.error === 'already_registered') setError(t('register.errorAlreadyRegistered'))
+      else if (e.status === 429)                 setError(t('register.errorRateLimit'))
+      else                                       setError(e.message || t('register.errorUnexpected'))
     }
     setLoading(false)
   }
 
   async function handleVerify() {
-    if (verifyPin.replace(/\D/g, '').length < 6) { setError('Saisis les 6 chiffres reçus en jeu.'); return }
-    if (loginPin.replace(/\D/g, '').length < 6)  { setError('Crée un code PIN de 6 chiffres.'); return }
+    if (verifyPin.replace(/\D/g, '').length < 6) { setError(t('register.errorVerifyPin')); return }
+    if (loginPin.replace(/\D/g, '').length < 6)  { setError(t('register.errorLoginPin')); return }
     setLoading(true); setError('')
     try {
       const body: Record<string, string> = { uuid, pin: verifyPin, password: loginPin }
@@ -78,10 +81,10 @@ export default function Register() {
       }).then(async r => { const d = await r.json(); if (!r.ok) throw d; return d })
       saveToken(res.token); setStep('success')
     } catch (e: any) {
-      if (e.error === 'pin_expired')      setError('Code expiré. Clique sur "Renvoyer le code".')
-      else if (e.error === 'max_attempts') setError('Trop de tentatives. Recommence depuis le début.')
-      else if (e.error === 'invalid_pin')  setError(`Code incorrect. ${e.attempts_left ?? 0} tentative(s) restante(s).`)
-      else setError(e.message || 'Erreur inattendue.')
+      if (e.error === 'pin_expired')      setError(t('register.errorExpired'))
+      else if (e.error === 'max_attempts') setError(t('register.errorMaxAttempts'))
+      else if (e.error === 'invalid_pin')  setError(t('register.errorInvalid', { count: e.attempts_left ?? 0 }))
+      else setError(e.message || t('register.errorUnexpected'))
     }
     setLoading(false)
   }
@@ -92,7 +95,7 @@ export default function Register() {
     try {
       const res = await api.requestPin(exactName)
       setCountdown(res.expires_in); setVerifyPin('')
-    } catch (e: any) { setError(e.message || 'Erreur lors du renvoi.') }
+    } catch (e: any) { setError(e.message || t('register.errorUnexpected')) }
     setLoading(false)
   }
 
@@ -127,35 +130,38 @@ export default function Register() {
         </div>
 
         <div className="relative z-10 max-w-xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">Rejoins l'aventure</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">{t('register.heroEyebrow')}</p>
           <h1 className="font-display text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-[1.05] tracking-tight text-white mb-6">
-            Crée ton compte et plonge dans l'expérience SunGuard.
+            {t('register.heroTitle')}
           </h1>
           <p className="text-lg text-white/60 mb-8">
-            Une communauté soudée, des récompenses uniques, des aventures sans fin. L'inscription se fait en jeu : sécurisée, rapide et 100% liée à ton compte Minecraft.
+            {t('register.heroSubtitle')}
           </p>
 
           <ul className="space-y-3 text-sm text-white/70">
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Vérification anti-triche directement depuis le serveur
+              {t('register.heroList1')}
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Récompense de bienvenue grâce au parrainage
+              {t('register.heroList2')}
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Accès complet à ton inventaire, classements et profil
+              {t('register.heroList3')}
             </li>
           </ul>
         </div>
 
-        <div className="relative z-10 text-xs text-white/40">© SunGuard · Tous droits réservés</div>
+        <div className="relative z-10 text-xs text-white/40">{t('login.heroFooter')}</div>
       </aside>
 
       {/* CÔTÉ DROIT — formulaire */}
-      <main className="flex flex-col justify-center px-6 sm:px-10 lg:px-12 xl:px-16 py-12 overflow-y-auto">
+      <main className="flex flex-col justify-center px-6 sm:px-10 lg:px-12 xl:px-16 py-12 overflow-y-auto relative">
+        <div className="absolute top-6 right-6">
+          <LanguageSwitcher variant="inline" />
+        </div>
         <div className="w-full max-w-md mx-auto">
           <Link to="/" className="lg:hidden inline-flex items-center gap-2 mb-10 no-underline">
             <span className="font-display text-xl font-bold text-white">SunGuard</span>
@@ -164,28 +170,28 @@ export default function Register() {
           {step === 'success' ? (
             <div className="text-center space-y-5 py-2">
               <div className="text-6xl">🎉</div>
-              <h2 className="font-display text-3xl lg:text-4xl font-semibold text-white">Compte créé</h2>
+              <h2 className="font-display text-3xl lg:text-4xl font-semibold text-white">{t('register.successButton')}</h2>
               <p className="text-sm text-white/60">
-                Bienvenue sur le portail, <span className="text-sun-300 font-semibold">{exactName}</span>.
+                {t('register.successSubtitle', { username: '' })}<span className="text-sun-300 font-semibold">{exactName}</span>.
               </p>
               <Button size="lg" fullWidth onClick={() => navigate('/profile')}>
-                Voir mon profil
+                {t('register.successButton')}
               </Button>
             </div>
           ) : (
             <>
               <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">
-                {step === 'username' ? 'Créer un compte' : 'Vérification'}
+                {step === 'username' ? t('register.step1Label') : t('register.step2Label')}
               </h2>
               <p className="text-sm text-white/55 mb-6">
                 {step === 'username'
-                  ? 'Connecte-toi d\'abord sur le serveur Minecraft, puis saisis ton pseudo.'
-                  : <>Un code à 6 chiffres a été envoyé à <span className="text-sun-300 font-medium">{exactName}</span> dans le chat Minecraft.</>}
+                  ? t('register.step1Subtitle')
+                  : <>{t('register.step2Subtitle', { username: '' })}<span className="text-sun-300 font-medium">{exactName}</span></>}
               </p>
 
               {/* Stepper */}
               <div className="flex items-center gap-3 mb-8">
-                {['Pseudo', 'Vérification'].map((label, i) => {
+                {[t('register.step1Label'), t('register.step2Label')].map((label, i) => {
                   const active = (i === 0 && step === 'username') || (i === 1 && step === 'pin')
                   const done   = (i === 0 && step === 'pin')
                   return (
@@ -217,26 +223,26 @@ export default function Register() {
               {step === 'username' && (
                 <div className="space-y-5">
                   <label className="block">
-                    <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">Pseudo Minecraft</span>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">{t('register.usernameLabel')}</span>
                     <input
                       type="text"
                       value={username}
                       onChange={e => setUsername(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleRequest()}
-                      placeholder="ex: Steve"
+                      placeholder={t('register.usernamePlaceholder') as string}
                       className="w-full h-12 px-4 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                     />
                   </label>
 
                   <label className="block">
-                    <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">Code de parrainage (optionnel)</span>
+                    <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">{t('register.refCodeLabel')}</span>
                     <div className="relative">
                       <input
                         type="text"
                         value={refCode}
                         onChange={e => handleRefCodeChange(e.target.value)}
-                        placeholder="ex: SUN-XXXXXXXX"
+                        placeholder={t('register.refCodePlaceholder') as string}
                         className="w-full h-12 px-4 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition font-mono text-sm"
                         style={{
                           background: refValid === true ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.04)',
@@ -253,8 +259,8 @@ export default function Register() {
                         </span>
                       )}
                     </div>
-                    {refValid === true  && <p className="text-[11px] text-emerald-400 mt-2">Code valide — tu recevras un bonus à l'inscription !</p>}
-                    {refValid === false && <p className="text-[11px] text-red-400 mt-2">Code invalide ou inexistant.</p>}
+                    {refValid === true  && <p className="text-[11px] text-emerald-400 mt-2">{t('register.refCodeValid')}</p>}
+                    {refValid === false && <p className="text-[11px] text-red-400 mt-2">{t('register.refCodeInvalid')}</p>}
                   </label>
 
                   {error && (
@@ -267,13 +273,13 @@ export default function Register() {
                   )}
 
                   <Button size="lg" fullWidth onClick={handleRequest} disabled={loading || !username.trim()}>
-                    {loading ? 'Envoi…' : 'Recevoir mon code'}
+                    {loading ? t('common.loading') : t('register.step1Button')}
                   </Button>
 
                   <p className="text-center text-sm text-white/55">
-                    Déjà inscrit ?{' '}
+                    {t('register.alreadyRegistered')}{' '}
                     <Link to="/login" className="text-sun-300 hover:text-sun-200 font-medium underline-offset-4 hover:underline transition-colors">
-                      Connexion
+                      {t('register.loginLink')}
                     </Link>
                   </p>
                 </div>
@@ -282,28 +288,28 @@ export default function Register() {
               {step === 'pin' && (
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">Code reçu en jeu</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">{t('register.step2CodeLabel')}</label>
                     <OtpInput value={verifyPin} onChange={setVerifyPin} length={6} />
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-[11px] text-white/55">
-                        {countdown > 0 ? `Expire dans ${countdown}s` : 'Code expiré'}
+                        {countdown > 0 ? t('register.step2CodeExpiry', { count: countdown }) : t('register.step2CodeExpired')}
                       </span>
                       <button
                         onClick={resend}
                         disabled={countdown > 0 || loading}
                         className="text-[11px] text-sun-300 hover:text-sun-200 disabled:text-white/30 transition-colors"
                       >
-                        Renvoyer le code
+                        {t('register.step2Resend')}
                       </button>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">
-                      Crée ton PIN de connexion <span className="text-white/40 normal-case tracking-normal">(6 chiffres)</span>
+                      {t('register.step2NewPinLabel')}
                     </label>
                     <OtpInput value={loginPin} onChange={setLoginPin} length={6} />
-                    <p className="text-[11px] text-white/55 mt-2">Tu utiliseras ce PIN pour te connecter au portail.</p>
+                    <p className="text-[11px] text-white/55 mt-2">{t('register.step2NewPinHint')}</p>
                   </div>
 
                   {error && (
@@ -316,14 +322,14 @@ export default function Register() {
                   )}
 
                   <Button size="lg" fullWidth onClick={handleVerify} disabled={loading}>
-                    {loading ? 'Vérification…' : 'Créer mon compte'}
+                    {loading ? t('register.step2Submitting') : t('register.step2Submit')}
                   </Button>
 
                   <button
                     onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setLoginPin('') }}
                     className="block w-full text-center text-xs text-white/55 hover:text-white/80 transition-colors"
                   >
-                    ← Retour
+                    {t('register.step2Back')}
                   </button>
                 </div>
               )}

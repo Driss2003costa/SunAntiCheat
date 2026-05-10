@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
@@ -27,13 +28,13 @@ async function apiFetch(url: string, token: string, opts?: RequestInit) {
   return data
 }
 
-function fmtTime(ts: number) {
+function fmtTime(ts: number, locale: string) {
   const d = new Date(ts)
   const now = new Date()
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
   }
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+  return d.toLocaleDateString(locale, { day: '2-digit', month: 'short' })
 }
 
 // ── Conversation list ─────────────────────────────────────────────────────────
@@ -43,6 +44,8 @@ function ConversationList({
 }: { activeId?: string; onSelect: (c: Conversation) => void }) {
   const token = getToken()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   const [convs, setConvs]     = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -65,8 +68,8 @@ function ConversationList({
   if (convs.length === 0) {
     return (
       <div className="text-center py-10 px-4">
-        <p className="text-sm mb-3" style={{ color: 'rgba(241,245,249,0.55)' }}>Aucune conversation.</p>
-        <Button onClick={() => navigate('/friends')} variant="secondary" size="sm">Trouver des amis</Button>
+        <p className="text-sm mb-3" style={{ color: 'rgba(241,245,249,0.55)' }}>{t('messages.empty')}</p>
+        <Button onClick={() => navigate('/friends')} variant="secondary" size="sm">{t('messages.buttonFindFriends')}</Button>
       </div>
     )
   }
@@ -93,9 +96,9 @@ function ConversationList({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
                   <p className="font-semibold text-sm truncate" style={{ color: '#f8fafc' }}>{c.other_username}</p>
-                  <p className="text-[10px] shrink-0 ml-2" style={{ color: 'rgba(241,245,249,0.4)' }}>{fmtTime(c.last_message_at)}</p>
+                  <p className="text-[10px] shrink-0 ml-2" style={{ color: 'rgba(241,245,249,0.4)' }}>{fmtTime(c.last_message_at, locale)}</p>
                 </div>
-                <p className="text-xs truncate" style={{ color: 'rgba(241,245,249,0.5)' }}>{c.last_msg ?? 'Nouvelle conversation'}</p>
+                <p className="text-xs truncate" style={{ color: 'rgba(241,245,249,0.5)' }}>{c.last_msg ?? t('messages.newConv')}</p>
               </div>
             </div>
           </button>
@@ -109,6 +112,8 @@ function ConversationList({
 
 function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) {
   const token = getToken()
+  const { t, i18n } = useTranslation()
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   const [messages, setMessages]     = useState<Message[]>([])
   const [myUuid, setMyUuid]         = useState('')
   const [otherName, setOtherName]   = useState('')
@@ -200,7 +205,7 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
         )}
         <div className="flex-1 min-w-0">
           <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{otherName || '…'}</p>
-          <p className="text-[11px]" style={{ color: 'rgba(241,245,249,0.45)' }}>Conversation privée</p>
+          <p className="text-[11px]" style={{ color: 'rgba(241,245,249,0.45)' }}>{t('messages.private')}</p>
         </div>
       </div>
 
@@ -222,7 +227,7 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
                    }}>
                 <p className="text-sm leading-relaxed break-words" style={{ color: '#f1f5f9' }}>{m.content}</p>
                 <p className="text-[10px] mt-1 text-right" style={{ color: 'rgba(241,245,249,0.4)' }}>
-                  {fmtTime(m.created_at)}{mine && m.read_at ? ' · Lu' : ''}
+                  {fmtTime(m.created_at, locale)}{mine && m.read_at ? ` · ${t('messages.read')}` : ''}
                 </p>
               </div>
             </div>
@@ -239,7 +244,7 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Écrire un message…"
+            placeholder={t('messages.placeholder') as string}
             maxLength={1000}
             className="flex-1 rounded-xl px-4 py-3 text-sm focus:outline-none"
             style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(251,191,36,0.25)', color: '#f1f5f9' }}
@@ -258,6 +263,8 @@ function ChatWindow({ convId, onBack }: { convId: string; onBack: () => void }) 
 // ── Profile panel ────────────────────────────────────────────────────────────
 
 function ProfilePanel({ conv }: { conv: Conversation }) {
+  const { t, i18n } = useTranslation()
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   return (
     <Card padding="lg" className="h-full">
       <div className="text-center mb-5">
@@ -265,11 +272,11 @@ function ProfilePanel({ conv }: { conv: Conversation }) {
              className="w-28 mx-auto drop-shadow-lg" />
         <p className="font-display text-xl font-semibold mt-3" style={{ color: '#f8fafc' }}>{conv.other_username}</p>
         <p className="text-[11px] mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>
-          Dernier message {fmtTime(conv.last_message_at)}
+          {t('messages.lastMessage', { date: fmtTime(conv.last_message_at, locale) })}
         </p>
       </div>
       <div className="space-y-2">
-        <Button to={`/u/${conv.other_username}`} variant="secondary" fullWidth size="sm">Voir le profil</Button>
+        <Button to={`/u/${conv.other_username}`} variant="secondary" fullWidth size="sm">{t('messages.viewProfile')}</Button>
       </div>
     </Card>
   )
@@ -280,6 +287,7 @@ function ProfilePanel({ conv }: { conv: Conversation }) {
 export default function Messages() {
   const token    = getToken()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { convId: paramConvId } = useParams<{ convId?: string }>()
   const [activeConv, setActiveConv] = useState<Conversation | null>(null)
 
@@ -296,9 +304,9 @@ export default function Messages() {
       <PageAura theme="messages" />
       <GridShell>
         <PageHeader
-          eyebrow="Messagerie"
-          title="Messages"
-          subtitle="Discute en privé avec tes amis SunGuard."
+          eyebrow={t('messages.header')}
+          title={t('messages.title')}
+          subtitle={t('messages.headerSubtitle')}
         />
 
         <Card variant="glass" padding="none" className="overflow-hidden">
@@ -307,7 +315,7 @@ export default function Messages() {
             <div className={`${activeConv ? 'hidden lg:block' : 'block'} overflow-y-auto p-3`}
                  style={{ borderRight: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-[11px] font-bold uppercase tracking-[0.25em] px-2 py-2 mb-2" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                Conversations
+                {t('messages.conversationsLabel')}
               </p>
               <ConversationList activeId={activeConv?.id} onSelect={c => { setActiveConv(c); navigate(`/messages/${c.id}`) }} />
             </div>
@@ -320,8 +328,8 @@ export default function Messages() {
                 <div className="flex-1 flex items-center justify-center text-center px-6">
                   <div>
                     <span className="text-5xl block mb-4">💬</span>
-                    <p className="font-display text-xl font-semibold mb-1" style={{ color: '#f8fafc' }}>Aucune conversation sélectionnée</p>
-                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>Choisis une conversation à gauche pour commencer.</p>
+                    <p className="font-display text-xl font-semibold mb-1" style={{ color: '#f8fafc' }}>{t('messages.noChatTitle')}</p>
+                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('messages.noChatDesc')}</p>
                   </div>
                 </div>
               )}
@@ -332,7 +340,7 @@ export default function Messages() {
                  style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
               {activeConv && activeConv.other_username
                 ? <ProfilePanel conv={activeConv} />
-                : <p className="text-xs text-center" style={{ color: 'rgba(241,245,249,0.4)' }}>Aucun profil à afficher.</p>}
+                : <p className="text-xs text-center" style={{ color: 'rgba(241,245,249,0.4)' }}>{t('messages.noProfile')}</p>}
             </div>
           </div>
         </Card>

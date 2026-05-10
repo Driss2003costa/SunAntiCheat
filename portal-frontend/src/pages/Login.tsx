@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, saveToken, getToken } from '../api/client'
 import OtpInput from '../components/OtpInput'
 import { Button } from '../components/ui'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 export default function Login() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [pin, setPin]           = useState('')
   const [loading, setLoading]   = useState(false)
@@ -16,15 +19,15 @@ export default function Login() {
   }, [navigate])
 
   async function handleLogin() {
-    if (!username.trim()) { setError('Saisis ton pseudo.'); return }
-    if (pin.replace(/\D/g, '').length < 6) { setError('Saisis ton code PIN de 6 chiffres.'); return }
+    if (!username.trim()) { setError(t('login.errorNoUsername')); return }
+    if (pin.replace(/\D/g, '').length < 6) { setError(t('login.errorNoPin')); return }
     setLoading(true); setError('')
     try {
       const res = await api.login(username.trim(), pin)
       saveToken(res.token)
       navigate('/profile', { replace: true })
     } catch (e: any) {
-      setError(e.message || 'Pseudo ou PIN incorrect.')
+      setError(e.message || t('login.errorInvalid'))
     }
     setLoading(false)
   }
@@ -60,59 +63,64 @@ export default function Login() {
         </div>
 
         <div className="relative z-10 max-w-xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">Bon retour parmi nous</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">{t('login.heroEyebrow')}</p>
           <h1 className="font-display text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-[1.05] tracking-tight text-white mb-6">
-            Reprends ton aventure là où tu l'as laissée.
+            {t('login.heroTitle')}
           </h1>
           <p className="text-lg text-white/60 mb-8">
-            Ton portail SunGuard t'attend. Récompenses quotidiennes, statistiques en temps réel, communauté active : tout ce dont tu as besoin pour briller sur le serveur.
+            {t('login.heroSubtitle')}
           </p>
 
           <ul className="space-y-3 text-sm text-white/70">
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Suis ta progression et grimpe le classement
+              {t('login.heroList1')}
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Réclame tes récompenses et garde ta série intacte
+              {t('login.heroList2')}
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Gère ton profil, ton inventaire et tes amis
+              {t('login.heroList3')}
             </li>
           </ul>
         </div>
 
-        <div className="relative z-10 text-xs text-white/40">© SunGuard · Tous droits réservés</div>
+        <div className="relative z-10 text-xs text-white/40">{t('login.heroFooter')}</div>
       </aside>
 
       {/* CÔTÉ DROIT — formulaire */}
-      <main className="flex flex-col justify-center px-6 sm:px-10 lg:px-12 xl:px-16 py-12 overflow-y-auto">
+      <main className="flex flex-col justify-center px-6 sm:px-10 lg:px-12 xl:px-16 py-12 overflow-y-auto relative">
+        {/* Sélecteur de langue accessible avant connexion */}
+        <div className="absolute top-6 right-6">
+          <LanguageSwitcher variant="inline" />
+        </div>
+
         <div className="w-full max-w-md mx-auto">
           <Link to="/" className="lg:hidden inline-flex items-center gap-2 mb-10 no-underline">
             <span className="font-display text-xl font-bold text-white">SunGuard</span>
           </Link>
 
-          <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">Connexion</h2>
-          <p className="text-sm text-white/55 mb-8">Entre ton pseudo Minecraft et ton code PIN à 6 chiffres pour accéder à ton portail.</p>
+          <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">{t('login.title')}</h2>
+          <p className="text-sm text-white/55 mb-8">{t('login.subtitle')}</p>
 
           <div className="space-y-5">
             <label className="block">
-              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">Pseudo Minecraft</span>
+              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">{t('login.usernameLabel')}</span>
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                placeholder="ex: Steve"
+                placeholder={t('register.usernamePlaceholder') as string}
                 className="w-full h-12 px-4 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               />
             </label>
 
             <div>
-              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">Code PIN</span>
+              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">{t('login.pinLabel')}</span>
               <OtpInput value={pin} onChange={setPin} length={6} />
             </div>
 
@@ -126,19 +134,19 @@ export default function Login() {
             )}
 
             <Button size="lg" fullWidth onClick={handleLogin} disabled={loading}>
-              {loading ? 'Connexion…' : 'Se connecter'}
+              {loading ? t('login.buttonLoading') : t('login.button')}
             </Button>
 
             <div className="pt-2 space-y-2 text-center">
               <p className="text-sm">
                 <Link to="/forgot" className="text-sun-300 hover:text-sun-200 font-medium underline-offset-4 hover:underline transition-colors">
-                  PIN oublié ?
+                  {t('login.linkForgot')}
                 </Link>
               </p>
               <p className="text-sm text-white/55">
-                Pas encore de compte ?{' '}
+                {t('login.noAccount')}{' '}
                 <Link to="/" className="text-sun-300 hover:text-sun-200 font-medium underline-offset-4 hover:underline transition-colors">
-                  Créer un compte
+                  {t('login.createAccount')}
                 </Link>
               </p>
             </div>

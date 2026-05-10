@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, getToken, clearToken, type PlayerProfile, type DailyStatus } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
@@ -21,6 +22,7 @@ function fmtBalance(n: number) {
 
 export default function Home() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const [profile, setProfile] = useState<PlayerProfile | null>(null)
   const [daily, setDaily]     = useState<DailyStatus | null>(null)
   const [rank, setRank]       = useState<number | null>(null)
@@ -28,9 +30,14 @@ export default function Home() {
 
   const now = useLiveClock()
   const hour = now.getHours()
-  const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
-  const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-  const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const greetingKey =
+    hour < 6  ? 'home.greeting.night' :
+    hour < 12 ? 'home.greeting.morning' :
+    hour < 18 ? 'home.greeting.afternoon' : 'home.greeting.evening'
+  const greeting = t(greetingKey)
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
+  const timeStr = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  const dateStr = now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
 
   useEffect(() => {
     const token = getToken()
@@ -65,12 +72,12 @@ export default function Home() {
   if (!profile) return null
 
   const quickLinks = [
-    { to: '/inventory', emoji: '🎒', label: 'Inventaire', desc: 'Tes objets, clés et cosmétiques',  accent: 'violet' as const },
-    { to: '/minigames', emoji: '🎮', label: 'Mini-jeux',  desc: 'Arènes, classements & rewards',    accent: 'sky'    as const },
-    { to: '/career',    emoji: '⚡', label: 'Carrière',   desc: 'Métiers, XP et progression',       accent: 'jade'   as const },
-    { to: '/shop',      emoji: '🛒', label: 'Boutique',   desc: 'VIP, ranks & avantages',           accent: 'gold'   as const },
-    { to: '/quests',    emoji: '🎯', label: 'Quêtes',     desc: 'Défis quotidiens & jalons',        accent: 'rose'   as const },
-    { to: '/leaderboard', emoji: '🏆', label: 'Classement', desc: 'Top joueurs du serveur',         accent: 'gold'   as const },
+    { to: '/inventory',   emoji: '🎒', label: t('home.quicklinks.inventory.label'),   desc: t('home.quicklinks.inventory.desc'),   accent: 'violet' as const },
+    { to: '/minigames',   emoji: '🎮', label: t('home.quicklinks.minigames.label'),   desc: t('home.quicklinks.minigames.desc'),   accent: 'sky'    as const },
+    { to: '/career',      emoji: '⚡', label: t('home.quicklinks.career.label'),      desc: t('home.quicklinks.career.desc'),      accent: 'jade'   as const },
+    { to: '/shop',        emoji: '🛒', label: t('home.quicklinks.shop.label'),        desc: t('home.quicklinks.shop.desc'),        accent: 'gold'   as const },
+    { to: '/quests',      emoji: '🎯', label: t('home.quicklinks.quests.label'),      desc: t('home.quicklinks.quests.desc'),      accent: 'rose'   as const },
+    { to: '/leaderboard', emoji: '🏆', label: t('home.quicklinks.leaderboard.label'), desc: t('home.quicklinks.leaderboard.desc'), accent: 'gold'   as const },
   ]
 
   const accentBg: Record<string, string> = {
@@ -96,12 +103,12 @@ export default function Home() {
         <HeroBanner
           eyebrow={`${greeting} • ${dateStr}`}
           variant="sun"
-          title={<>Bienvenue, <span className="text-sun-300">{profile.username}</span></>}
-          subtitle="Ton tableau de bord SunGuard. Gère ton compte, suis ta progression et plonge dans l'aventure."
+          title={<>{t('home.hero.title')}<span className="text-sun-300">{profile.username}</span></>}
+          subtitle={t('home.hero.subtitle')}
           cta={
             <>
-              <Button to="/profile" size="lg">Mon profil →</Button>
-              <Button to="/leaderboard" variant="secondary" size="lg">Voir le classement</Button>
+              <Button to="/profile" size="lg">{t('home.hero.ctaProfile')}</Button>
+              <Button to="/leaderboard" variant="secondary" size="lg">{t('home.hero.ctaLeaderboard')}</Button>
             </>
           }
           rightSlot={
@@ -127,7 +134,7 @@ export default function Home() {
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-bold uppercase tracking-[0.25em]"
                      style={{ color: 'rgba(255,179,71,0.85)' }}>
-                    Session
+                    {t('home.widget.session')}
                   </p>
                   <p className="font-semibold truncate" style={{ color: '#f8fafc' }}>
                     {profile.username}
@@ -143,7 +150,7 @@ export default function Home() {
                    }}>
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] mb-1"
                    style={{ color: 'rgba(241,245,249,0.45)' }}>
-                  Heure locale
+                  {t('home.widget.time')}
                 </p>
                 <p className="font-display text-4xl lg:text-5xl font-semibold tabular-nums leading-none"
                    style={{ color: '#f8fafc', letterSpacing: '-0.02em' }}>
@@ -157,22 +164,22 @@ export default function Home() {
                      style={{ background: 'rgba(15,22,40,0.45)', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <p className="text-[9px] font-bold uppercase tracking-widest"
                      style={{ color: 'rgba(241,245,249,0.45)' }}>
-                    Statut
+                    {t('home.widget.status')}
                   </p>
                   <p className="text-sm font-semibold mt-0.5"
                      style={{ color: profile.online ? '#6ee7b7' : 'rgba(241,245,249,0.7)' }}>
-                    {profile.online ? '● En ligne' : '○ Hors ligne'}
+                    {profile.online ? t('home.widget.online') : t('home.widget.offline')}
                   </p>
                 </div>
                 <div className="rounded-xl px-3 py-2"
                      style={{ background: 'rgba(15,22,40,0.45)', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <p className="text-[9px] font-bold uppercase tracking-widest"
                      style={{ color: 'rgba(241,245,249,0.45)' }}>
-                    Daily
+                    {t('home.widget.daily')}
                   </p>
                   <p className="text-sm font-semibold mt-0.5"
                      style={{ color: daily?.canClaim ? '#fcd34d' : 'rgba(241,245,249,0.7)' }}>
-                    {daily?.canClaim ? '🎁 Dispo' : daily?.streak ? `🔥 ${daily.streak}j` : '—'}
+                    {daily?.canClaim ? t('home.widget.dailyAvailable') : daily?.streak ? t('home.widget.dailyStreak', { count: daily.streak }) : t('home.widget.dailyNone')}
                   </p>
                 </div>
               </div>
@@ -183,24 +190,24 @@ export default function Home() {
         {/* ─── STATS GRID ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
           <StatCard
-            label="Solde" accent="gold" icon="💰" size="md"
+            label={t('common.balance')} accent="gold" icon="💰" size="md"
             value={profile.balance != null ? fmtBalance(profile.balance) : '—'}
-            hint="Économie serveur"
+            hint={t('common.serverEconomy')}
           />
           <StatCard
-            label="Temps de jeu" accent="jade" icon="⏱" size="md"
+            label={t('common.playtime')} accent="jade" icon="⏱" size="md"
             value={profile.playtime_formatted ?? '—'}
-            hint="Total cumulé"
+            hint={t('common.totalCumulative')}
           />
           <StatCard
-            label="Classement" accent="violet" icon="🏆" size="md"
+            label={t('home.stats.rank')} accent="violet" icon="🏆" size="md"
             value={rank != null ? `#${rank}` : '—'}
-            hint="Top playtime"
+            hint={t('common.topPlaytime')}
           />
           <StatCard
-            label="Rôle" accent="sky" icon="✦" size="md"
+            label={t('common.role')} accent="sky" icon="✦" size="md"
             value={profile.role}
-            hint="Statut compte"
+            hint={t('common.accountStatus')}
           />
         </div>
 
@@ -224,18 +231,18 @@ export default function Home() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-sun-300 mb-1">
-                      Récompense quotidienne
+                      {t('home.daily.section')}
                     </p>
                     <h3 className="font-display text-2xl lg:text-3xl font-semibold mb-1" style={{ color: '#f8fafc' }}>
-                      {daily.canClaim ? 'Ta récompense est prête' : 'Reviens demain'}
+                      {daily.canClaim ? t('home.daily.ready') : t('home.daily.later')}
                     </h3>
                     <p className="text-sm" style={{ color: 'rgba(241,245,249,0.6)' }}>
-                      {daily.streak > 0 ? `Série de ${daily.streak} jour${daily.streak > 1 ? 's' : ''} 🔥` : 'Commence ta série dès maintenant !'}
+                      {daily.streak > 0 ? t('home.daily.streak', { count: daily.streak }) : t('home.daily.noStreak')}
                     </p>
                   </div>
                   {daily.canClaim
-                    ? <Button to="/profile" size="lg">Réclamer →</Button>
-                    : <Tag tone="jade" size="sm">✓ Réclamée</Tag>}
+                    ? <Button to="/profile" size="lg">{t('home.daily.claim')}</Button>
+                    : <Tag tone="jade" size="sm">{t('home.daily.claimed')}</Tag>}
                 </div>
               </Card>
             </Link>
@@ -246,7 +253,7 @@ export default function Home() {
         <ServerStatusCard />
 
         {/* ─── NAVIGATION GRID ──────────────────────────────────────────── */}
-        <SectionDivider label="Explorer" hint="Toutes les sections du serveur" />
+        <SectionDivider label={t('home.explore.label')} hint={t('home.explore.hint')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 mb-12 lg:mb-16">
           {quickLinks.map(q => (
             <Link key={q.to} to={q.to} className="no-underline">
@@ -268,42 +275,42 @@ export default function Home() {
         </div>
 
         {/* ─── ACCOUNT STATUS (2 columns) ───────────────────────────────── */}
-        <SectionDivider label="Statut du compte" />
+        <SectionDivider label={t('home.status.section')} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-8">
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
               <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>
-                Connexion
+                {t('home.status.connection')}
               </p>
               <Tag tone={profile.online ? 'jade' : 'neutral'}>
                 <span className={`w-1.5 h-1.5 rounded-full ${profile.online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-                {profile.online ? 'En ligne' : 'Hors ligne'}
+                {profile.online ? t('common.online') : t('common.offline')}
               </Tag>
             </div>
             <p className="font-display text-2xl font-semibold" style={{ color: '#f8fafc' }}>
-              {profile.online ? 'Active maintenant' : 'Dernière session'}
+              {profile.online ? t('home.status.activeNow') : t('home.status.lastSession')}
             </p>
             <p className="text-sm mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>
-              {profile.online ? 'Tu es actuellement connecté au serveur.' : 'Connecte-toi en jeu pour mettre à jour ton statut.'}
+              {profile.online ? t('home.status.onlineDesc') : t('home.status.offlineDesc')}
             </p>
           </Card>
 
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
               <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>
-                Sanctions
+                {t('home.status.sanctions')}
               </p>
               {(profile.active_sanctions?.length ?? 0) > 0
-                ? <Tag tone="danger">{profile.active_sanctions!.length} active(s)</Tag>
-                : <Tag tone="jade">✓ Compte clean</Tag>}
+                ? <Tag tone="danger">{t('home.status.sanctionsActive', { count: profile.active_sanctions!.length })}</Tag>
+                : <Tag tone="jade">{t('home.status.clean')}</Tag>}
             </div>
             <p className="font-display text-2xl font-semibold" style={{ color: '#f8fafc' }}>
-              {(profile.active_sanctions?.length ?? 0) > 0 ? 'Sanctions en cours' : 'Aucune sanction active'}
+              {(profile.active_sanctions?.length ?? 0) > 0 ? t('home.status.sanctionsTitle') : t('home.status.noSanctionsTitle')}
             </p>
             <p className="text-sm mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>
               {(profile.active_sanctions?.length ?? 0) > 0
-                ? 'Consulte ton profil pour voir les détails.'
-                : 'Continue comme ça, joueur exemplaire !'}
+                ? t('home.status.sanctionsDesc')
+                : t('home.status.noSanctionsDesc')}
             </p>
           </Card>
         </div>

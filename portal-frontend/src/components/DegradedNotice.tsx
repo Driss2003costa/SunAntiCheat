@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useSections } from '../App'
 import Countdown from './Countdown'
 
@@ -8,6 +9,7 @@ import Countdown from './Countdown'
  * Usage : <DegradedNotice sectionKey="shop"/>
  */
 export default function DegradedNotice({ sectionKey }: { sectionKey: string }) {
+  const { t } = useTranslation()
   const ctx = useSections()
   const detail = ctx.details[sectionKey]
   if (!detail || detail.status !== 'DEGRADED') return null
@@ -22,14 +24,14 @@ export default function DegradedNotice({ sectionKey }: { sectionKey: string }) {
       <span className="text-xl shrink-0">⚠️</span>
       <div className="flex-1 min-w-0 text-sm">
         <div className="font-semibold mb-0.5" style={{ color: '#fbbf24' }}>
-          Service dégradé
+          {t('degradedNotice.title')}
         </div>
         <div style={{ color: 'rgba(254,243,199,0.85)' }}>
-          {detail.message || 'Cette section fonctionne actuellement avec un problème connu.'}
+          {detail.message || t('degradedNotice.default')}
         </div>
         {detail.endsAt > 0 && detail.endsAt > Date.now() && (
           <div className="mt-1.5 flex items-center gap-2 text-xs">
-            <span style={{ color: 'rgba(254,243,199,0.6)' }}>Retour normal estimé dans</span>
+            <span style={{ color: 'rgba(254,243,199,0.6)' }}>{t('degradedNotice.countdown')}</span>
             <Countdown endsAt={detail.endsAt} variant="compact" color="#fbbf24"/>
           </div>
         )}

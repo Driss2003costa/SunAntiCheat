@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
@@ -21,33 +22,26 @@ type ArenasData = {
 
 const GAMES_STATIC = [
   {
-    id: 'CTF', icon: '🚩', label: 'Capture The Flag',
-    desc: 'Infiltre la base adverse, vole son drapeau et ramène-le sans te faire éliminer.',
-    tips: ['Protège ton drapeau', 'Travaille en équipe', 'Utilise les passages secrets'],
+    id: 'CTF', icon: '🚩', i18nKey: 'ctf',
     accent: 'rgba(239,68,68,0.3)', glow: 'rgba(239,68,68,0.10)',
   },
   {
-    id: 'Skywars', icon: '☁️', label: 'Skywars',
-    desc: 'Bats tous tes adversaires sur ton île suspendue dans le ciel. Seul le dernier survivant gagne.',
-    tips: ['Loot vite', 'Construis des ponts', 'Évite les chutes'],
+    id: 'Skywars', icon: '☁️', i18nKey: 'skywars',
     accent: 'rgba(59,130,246,0.3)', glow: 'rgba(59,130,246,0.10)',
   },
   {
-    id: 'Thimble', icon: '💧', label: 'Thimble',
-    desc: 'Plonge dans le trou qui correspond à ta forme depuis une plateforme en hauteur. Sois précis !',
-    tips: ['Vise bien avant de sauter', 'Regarde la forme du trou', 'Fais vite !'],
+    id: 'Thimble', icon: '💧', i18nKey: 'thimble',
     accent: 'rgba(6,182,212,0.3)', glow: 'rgba(6,182,212,0.10)',
   },
   {
-    id: 'TntRun', icon: '💣', label: 'TNT Run',
-    desc: 'Cours sur un sol qui s\'effondre à chaque pas. Le dernier joueur encore debout remporte la manche.',
-    tips: ['Ne t\'arrête jamais', 'Évite les autres joueurs', 'Surveille le sol en dessous'],
+    id: 'TntRun', icon: '💣', i18nKey: 'tntrun',
     accent: 'rgba(249,115,22,0.3)', glow: 'rgba(249,115,22,0.10)',
   },
 ]
 
 export default function Minigames() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [liveData, setLiveData] = useState<ArenasData | null>(null)
 
   useEffect(() => {
@@ -86,41 +80,41 @@ export default function Minigames() {
       <PageAura theme="home" />
       <GridShell>
         <HeroBanner
-          eyebrow="Mini-jeux"
+          eyebrow={t('minigames.hero.eyebrow')}
           variant="aurora"
-          title={<>Plonge dans l'<span className="text-emerald-300">arène</span></>}
-          subtitle="CTF, Skywars, TNT Run, Thimble… Trouve ton jeu, rejoins une partie et grimpe au classement."
+          title={<>{t('minigames.hero.titleStart')}<span className="text-emerald-300">{t('minigames.hero.titleHighlight')}</span></>}
+          subtitle={t('minigames.hero.subtitle')}
           cta={
             <>
               <Button href="https://play.sunnetwork.fr" target="_blank" size="lg">play.sunnetwork.fr</Button>
-              <Button to="/leaderboard" variant="secondary" size="lg">Voir les classements</Button>
+              <Button to="/leaderboard" variant="secondary" size="lg">{t('minigames.cta.viewLeaderboards')}</Button>
             </>
           }
           rightSlot={
             <div className="text-right">
               <p className="text-[11px] font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#5DD4C8' }}>
-                En jeu maintenant
+                {t('minigames.hero.onlineNow')}
               </p>
               <p className="font-display text-6xl lg:text-7xl font-semibold" style={{ color: '#34d399' }}>
                 {totalOnline}
               </p>
-              <p className="text-sm mt-1" style={{ color: 'rgba(241,245,249,0.55)' }}>joueur{totalOnline !== 1 ? 's' : ''}</p>
+              <p className="text-sm mt-1" style={{ color: 'rgba(241,245,249,0.55)' }}>{t('minigames.hero.player', { count: totalOnline })}</p>
             </div>
           }
         />
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
-          <StatCard label="Arènes totales"  accent="violet" icon="🎮" value={totalArenas} hint="configurées" />
-          <StatCard label="Parties en cours" accent="jade"   icon="●"  value={liveData?.playing ?? 0} hint="actives maintenant" />
-          <StatCard label="En attente"       accent="gold"   icon="⏳" value={totalWaiting} hint="rejoignables" />
-          <StatCard label="Mini-jeux"        accent="sky"    icon="✦"  value={GAMES_STATIC.length} hint="modes disponibles" />
+          <StatCard label={t('minigames.stats.arenas')}  accent="violet" icon="🎮" value={totalArenas} hint={t('minigames.stats.arenasHint')} />
+          <StatCard label={t('minigames.stats.playing')} accent="jade"   icon="●"  value={liveData?.playing ?? 0} hint={t('minigames.stats.playingHint')} />
+          <StatCard label={t('minigames.stats.waiting')} accent="gold"   icon="⏳" value={totalWaiting} hint={t('minigames.stats.waitingHint')} />
+          <StatCard label={t('minigames.stats.games')}   accent="sky"    icon="✦"  value={GAMES_STATIC.length} hint={t('minigames.stats.gamesHint')} />
         </div>
 
         {/* Featured */}
         {featured && (
           <>
-            <SectionDivider label="Vedette" hint="Le jeu le plus actif en ce moment" />
+            <SectionDivider label={t('minigames.featured.section')} hint={t('minigames.featured.hint')} />
             <Card variant="glass-warm" padding="lg" className="mb-12 lg:mb-16 relative overflow-hidden">
               <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl"
                    style={{ background: featured.game.glow }} />
@@ -131,17 +125,17 @@ export default function Minigames() {
                     {featured.game.icon}
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#fb923c' }}>★ Vedette</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#fb923c' }}>{t('minigames.featured.badge')}</p>
                     <h2 className="font-display text-3xl lg:text-4xl font-semibold mb-2" style={{ color: '#f8fafc' }}>
-                      {featured.game.label}
+                      {t(`minigames.${featured.game.i18nKey}.name`)}
                     </h2>
-                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.65)' }}>{featured.game.desc}</p>
+                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.65)' }}>{t(`minigames.${featured.game.i18nKey}.desc`)}</p>
                   </div>
                 </div>
                 <div className="text-center lg:text-right">
-                  <Tag tone="jade">● {featured.playing} arène{featured.playing > 1 ? 's' : ''} en cours</Tag>
+                  <Tag tone="jade">{t('minigames.featured.tag', { count: featured.playing })}</Tag>
                   <div className="mt-4">
-                    <Button href="https://play.sunnetwork.fr" target="_blank" size="lg">Rejoindre →</Button>
+                    <Button href="https://play.sunnetwork.fr" target="_blank" size="lg">{t('minigames.cta.joinArrow')}</Button>
                   </div>
                 </div>
               </div>
@@ -150,7 +144,7 @@ export default function Minigames() {
         )}
 
         {/* Games grid */}
-        <SectionDivider label="Tous les mini-jeux" hint={`${GAMES_STATIC.length} modes disponibles sur play.sunnetwork.fr`} />
+        <SectionDivider label={t('minigames.all.section')} hint={t('minigames.all.hint', { count: GAMES_STATIC.length })} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12 lg:mb-16">
           {GAMES_STATIC.map(game => {
             const live = liveGame(game.id)
@@ -158,6 +152,11 @@ export default function Minigames() {
             const playing   = live?.playingArenas ?? 0
             const waiting   = live?.waitingArenas ?? 0
             const totalAr   = live?.totalArenas ?? 0
+            const tips = [
+              t(`minigames.${game.i18nKey}.tip1`),
+              t(`minigames.${game.i18nKey}.tip2`),
+              t(`minigames.${game.i18nKey}.tip3`),
+            ]
 
             return (
               <Card key={game.id} variant="glass" padding="md" hover className="flex flex-col">
@@ -169,46 +168,46 @@ export default function Minigames() {
                   <span className="text-7xl drop-shadow-2xl">{game.icon}</span>
                   {playing > 0 && (
                     <span className="absolute top-2 right-2">
-                      <Tag tone="jade" size="xs">● {playing} live</Tag>
+                      <Tag tone="jade" size="xs">{t('minigames.game.live', { count: playing })}</Tag>
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <h3 className="font-display text-xl font-semibold" style={{ color: '#f8fafc' }}>{game.label}</h3>
+                  <h3 className="font-display text-xl font-semibold" style={{ color: '#f8fafc' }}>{t(`minigames.${game.i18nKey}.name`)}</h3>
                   {isEnabled !== null && (
                     isEnabled
-                      ? <Tag tone="jade" size="xs">Actif</Tag>
-                      : <Tag tone="neutral" size="xs">Inactif</Tag>
+                      ? <Tag tone="jade" size="xs">{t('minigames.game.active')}</Tag>
+                      : <Tag tone="neutral" size="xs">{t('minigames.game.inactive')}</Tag>
                   )}
                 </div>
-                <p className="text-xs mb-4 flex-1" style={{ color: 'rgba(241,245,249,0.6)' }}>{game.desc}</p>
+                <p className="text-xs mb-4 flex-1" style={{ color: 'rgba(241,245,249,0.6)' }}>{t(`minigames.${game.i18nKey}.desc`)}</p>
 
                 {live && totalAr > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     <div className="text-center">
                       <p className="font-display text-lg font-semibold" style={{ color: '#f8fafc' }}>{totalAr}</p>
-                      <p className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>Arènes</p>
+                      <p className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('minigames.game.arenas')}</p>
                     </div>
                     <div className="text-center">
                       <p className="font-display text-lg font-semibold" style={{ color: playing > 0 ? '#34d399' : 'rgba(241,245,249,0.4)' }}>{playing}</p>
-                      <p className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>En cours</p>
+                      <p className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('minigames.game.playing')}</p>
                     </div>
                     <div className="text-center">
                       <p className="font-display text-lg font-semibold" style={{ color: waiting > 0 ? '#fbbf24' : 'rgba(241,245,249,0.4)' }}>{waiting}</p>
-                      <p className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>Attente</p>
+                      <p className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('minigames.game.waiting')}</p>
                     </div>
                   </div>
                 )}
 
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  {game.tips.map(tip => (
+                  {tips.map(tip => (
                     <Tag key={tip} tone="neutral" size="xs">{tip}</Tag>
                   ))}
                 </div>
 
                 <Button href="https://play.sunnetwork.fr" target="_blank" fullWidth>
-                  Rejoindre
+                  {t('minigames.cta.join')}
                 </Button>
               </Card>
             )
@@ -216,13 +215,13 @@ export default function Minigames() {
         </div>
 
         {/* How to join */}
-        <SectionDivider label="Comment jouer" hint="4 étapes pour entrer en jeu" />
+        <SectionDivider label={t('minigames.howToJoin.section')} hint={t('minigames.howToJoin.hint')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
-            { step: '1', text: 'Connecte-toi sur play.sunnetwork.fr' },
-            { step: '2', text: 'Utilise /minijeux ou le menu principal' },
-            { step: '3', text: 'Rejoins une file d\'attente ou une arène' },
-            { step: '4', text: 'Gagne des coins et monte dans le classement !' },
+            { step: '1', text: t('minigames.howToJoin.step1') },
+            { step: '2', text: t('minigames.howToJoin.step2') },
+            { step: '3', text: t('minigames.howToJoin.step3') },
+            { step: '4', text: t('minigames.howToJoin.step4') },
           ].map(({ step, text }) => (
             <Card key={step} padding="md">
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-base font-bold mb-3"

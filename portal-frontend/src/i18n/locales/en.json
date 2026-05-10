@@ -1,0 +1,966 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "error": "Error",
+    "online": "Online",
+    "offline": "Offline",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "save": "Save",
+    "saving": "Saving…",
+    "back": "← Back",
+    "yes": "Yes",
+    "no": "No",
+    "rank": "Rank",
+    "player": "Player",
+    "balance": "Balance",
+    "playtime": "Playtime",
+    "role": "Role",
+    "totalCumulative": "Cumulative total",
+    "serverEconomy": "Server economy",
+    "topPlaytime": "Top playtime",
+    "accountStatus": "Account status",
+    "login": "Login",
+    "register": "Sign up",
+    "createAccount": "Create account",
+    "myProfile": "My profile",
+    "joinServer": "Join the server",
+    "brand": "SunGuard Network"
+  },
+  "navbar": {
+    "home": "Home",
+    "career": "Career",
+    "quests": "Quests",
+    "friends": "Friends",
+    "shop": "Shop",
+    "profile": "Profile",
+    "language": "Language"
+  },
+  "home": {
+    "greeting": {
+      "night": "Good night",
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "hero": {
+      "title": "Welcome, ",
+      "subtitle": "Your SunGuard dashboard. Manage your account, track your progress and dive into the adventure.",
+      "ctaProfile": "My profile →",
+      "ctaLeaderboard": "View leaderboard"
+    },
+    "widget": {
+      "session": "Session",
+      "time": "Local time",
+      "status": "Status",
+      "online": "● Online",
+      "offline": "○ Offline",
+      "daily": "Daily",
+      "dailyAvailable": "🎁 Ready",
+      "dailyStreak": "🔥 {{count}}d",
+      "dailyNone": "—"
+    },
+    "quicklinks": {
+      "inventory": {
+        "label": "Inventory",
+        "desc": "Your items, keys and cosmetics"
+      },
+      "minigames": {
+        "label": "Minigames",
+        "desc": "Arenas, leaderboards & rewards"
+      },
+      "career": {
+        "label": "Career",
+        "desc": "Jobs, XP and progression"
+      },
+      "shop": {
+        "label": "Shop",
+        "desc": "VIP, ranks & perks"
+      },
+      "quests": {
+        "label": "Quests",
+        "desc": "Daily challenges & milestones"
+      },
+      "leaderboard": {
+        "label": "Leaderboard",
+        "desc": "Top server players"
+      }
+    },
+    "stats": {
+      "rank": "Leaderboard"
+    },
+    "daily": {
+      "section": "Daily reward",
+      "ready": "Your reward is ready",
+      "later": "Come back tomorrow",
+      "streak_one": "{{count}} day streak 🔥",
+      "streak_other": "{{count}} day streak 🔥",
+      "noStreak": "Start your streak right now!",
+      "claim": "Claim →",
+      "claimed": "✓ Claimed"
+    },
+    "explore": {
+      "label": "Explore",
+      "hint": "All sections of the server"
+    },
+    "status": {
+      "section": "Account status",
+      "connection": "Connection",
+      "activeNow": "Active now",
+      "lastSession": "Last session",
+      "onlineDesc": "You are currently connected to the server.",
+      "offlineDesc": "Log in in-game to update your status.",
+      "sanctions": "Sanctions",
+      "sanctionsActive_one": "{{count}} active",
+      "sanctionsActive_other": "{{count}} active",
+      "clean": "✓ Clean account",
+      "sanctionsTitle": "Active sanctions",
+      "noSanctionsTitle": "No active sanctions",
+      "sanctionsDesc": "Check your profile for details.",
+      "noSanctionsDesc": "Keep it up, exemplary player!"
+    }
+  },
+  "profile": {
+    "errorNotFound": "Profile not found.",
+    "errorLink": "Back to login",
+    "bioErrorSave": "Save error",
+    "hero": {
+      "editBio": "✎ Edit bio",
+      "publicProfile": "↗ Public profile",
+      "logout": "Log out"
+    },
+    "stats": {
+      "friends": "Friends",
+      "friendsHint": "Connections"
+    },
+    "bioEdit": {
+      "label": "Edit your bio",
+      "placeholder": "Introduce yourself in a few words…"
+    },
+    "section": {
+      "identity": "Identity"
+    },
+    "identity": {
+      "joinedOn": "Joined on",
+      "lastLogin": "Last login",
+      "uuid": "UUID"
+    },
+    "daily": {
+      "section": "Daily reward",
+      "streak_one": "Current streak: {{count}} day",
+      "streak_other": "Current streak: {{count}} days",
+      "available": "🎁 Available",
+      "cooldown": "⏳ {{cooldown}}",
+      "day": "D{{day}}",
+      "rewardReceived": "Reward received",
+      "claimButton": "🎁 Claim my reward",
+      "claiming": "Claiming…",
+      "ingameHint": "🎮 You must be logged in-game to claim",
+      "nextIn": "Next reward in"
+    },
+    "sanctions": {
+      "section": "Sanctions",
+      "active_one": "{{count}} active",
+      "active_other": "{{count}} active",
+      "clean": "✓ Clean account",
+      "empty": "✓ No active sanctions. Keep it up!",
+      "noReason": "No reason",
+      "by": "By {{user}}",
+      "permanent": "Permanent"
+    },
+    "referral": {
+      "section": "Referral code",
+      "hint": "Validated after 24h of activity from the referee",
+      "copy": "Copy",
+      "copied": "✓ Copied",
+      "registered": "Signups",
+      "validated": "Validated"
+    },
+    "sidebar": {
+      "actions": "Quick actions",
+      "activity": "Recent activity"
+    },
+    "actions": {
+      "inventory": "🎒 Inventory",
+      "leaderboard": "🏆 Leaderboard",
+      "quests": "🎯 Quests",
+      "career": "⚡ Career"
+    },
+    "activity": {
+      "activeNow": "Active now",
+      "offline": "Offline",
+      "accountCreated": "Account created",
+      "dailyStreak_one": "Daily streak: {{count}}d",
+      "dailyStreak_other": "Daily streak: {{count}}d",
+      "rewardAvailable": "Reward available",
+      "uptodate": "Up to date"
+    }
+  },
+  "profileHero": {
+    "label": "Player card",
+    "bioEmpty": "No bio. Customize your player card.",
+    "joinedOn": "Joined",
+    "lastLogin": "Last login",
+    "identifier": "Identifier"
+  },
+  "login": {
+    "errorNoUsername": "Enter your username.",
+    "errorNoPin": "Enter your 6-digit PIN.",
+    "errorInvalid": "Invalid username or PIN.",
+    "heroEyebrow": "Welcome back",
+    "heroTitle": "Pick up your adventure where you left off.",
+    "heroSubtitle": "Your SunGuard portal awaits. Daily rewards, real-time stats, an active community: everything you need to shine on the server.",
+    "heroList1": "Track your progress and climb the leaderboard",
+    "heroList2": "Claim your rewards and keep your streak alive",
+    "heroList3": "Manage your profile, inventory and friends",
+    "heroFooter": "© SunGuard · All rights reserved",
+    "title": "Login",
+    "subtitle": "Enter your Minecraft username and your 6-digit PIN to access your portal.",
+    "usernameLabel": "Minecraft username",
+    "pinLabel": "PIN code",
+    "button": "Log in",
+    "buttonLoading": "Logging in…",
+    "linkForgot": "Forgot PIN?",
+    "noAccount": "No account yet?",
+    "createAccount": "Create an account"
+  },
+  "register": {
+    "errorOffline": "You must be connected to the Minecraft server to register.",
+    "errorAlreadyRegistered": "This account is already registered. Log in instead.",
+    "errorRateLimit": "Too many attempts. Try again in 10 minutes.",
+    "errorUnexpected": "Unexpected error.",
+    "errorVerifyPin": "Enter the 6 digits received in-game.",
+    "errorLoginPin": "Create a 6-digit PIN.",
+    "errorExpired": "Code expired. Click \"Resend code\".",
+    "errorMaxAttempts": "Too many attempts. Start over.",
+    "errorInvalid_one": "Wrong code. {{count}} attempt remaining.",
+    "errorInvalid_other": "Wrong code. {{count}} attempts remaining.",
+    "heroEyebrow": "Join the adventure",
+    "heroTitle": "Create your account and dive into the SunGuard experience.",
+    "heroSubtitle": "A tight-knit community, unique rewards, endless adventures. Registration happens in-game: secure, fast, and 100% tied to your Minecraft account.",
+    "heroList1": "Anti-cheat verification straight from the server",
+    "heroList2": "Welcome reward via referrals",
+    "heroList3": "Full access to your inventory, leaderboards and profile",
+    "successSubtitle": "Welcome to the portal, {{username}}.",
+    "successButton": "View my profile",
+    "step1Label": "Create an account",
+    "step2Label": "Verification",
+    "step1Subtitle": "First connect to the Minecraft server, then enter your username.",
+    "step2Subtitle": "A 6-digit code has been sent to {{username}} in the Minecraft chat.",
+    "usernameLabel": "Minecraft username",
+    "usernamePlaceholder": "e.g.: Steve",
+    "refCodeLabel": "Referral code (optional)",
+    "refCodePlaceholder": "e.g.: SUN-XXXXXXXX",
+    "refCodeValid": "Valid code — you'll get a signup bonus!",
+    "refCodeInvalid": "Invalid or unknown code.",
+    "step1Button": "Get my code",
+    "alreadyRegistered": "Already registered?",
+    "loginLink": "Login",
+    "step2CodeLabel": "Code received in-game",
+    "step2CodeExpiry": "Expires in {{count}}s",
+    "step2CodeExpired": "Code expired",
+    "step2Resend": "Resend code",
+    "step2NewPinLabel": "Create your login PIN (6 digits)",
+    "step2NewPinHint": "You'll use this PIN to log in to the portal.",
+    "step2Submit": "Create my account",
+    "step2Submitting": "Creating…",
+    "step2Back": "← Back"
+  },
+  "forgotPassword": {
+    "errorOffline": "You must be connected to the Minecraft server to reset your PIN.",
+    "errorPinFormat": "Enter the code received in-game (6 digits).",
+    "errorNewPinFormat": "Create a new 6-digit PIN.",
+    "errorExpired": "Code expired. Go back to the previous step.",
+    "errorMaxAttempts": "Too many incorrect attempts.",
+    "errorInvalid_one": "Wrong code. {{count}} attempt remaining.",
+    "errorInvalid_other": "Wrong code. {{count}} attempts remaining.",
+    "heroEyebrow": "Recover your account",
+    "heroTitle": "A forgotten PIN is never the end.",
+    "heroSubtitle": "The reset goes through the Minecraft server to make sure no one but you can recover your account. Secure, instant, no email needed.",
+    "heroList1": "Identity check directly in-game",
+    "heroList2": "No email, no password to remember",
+    "heroList3": "Get back to your adventure in seconds",
+    "heroFooter": "© SunGuard · All rights reserved",
+    "step1Title": "Forgot your PIN?",
+    "step1Subtitle": "Log in in-game and enter your username: a new code will be sent to you in the Minecraft chat.",
+    "step1Label": "Minecraft username",
+    "step1Button": "Send the code",
+    "step1BackLink": "← Back to login",
+    "step2Title": "Reset PIN",
+    "step2Subtitle": "Code sent to the Minecraft chat. Expires in {{count}}s.",
+    "step2CodeLabel": "Code received in-game",
+    "step2NewPinLabel": "New PIN (6 digits)",
+    "step2Button": "Reset PIN",
+    "step2Submitting": "Resetting…",
+    "step2Resend": "← Resend a code",
+    "step3Title": "PIN reset",
+    "step3Subtitle": "Redirecting to your profile…"
+  },
+  "leaderboard": {
+    "tabs": {
+      "playtime": "Playtime",
+      "economy": "Economy"
+    },
+    "title": "Leaderboard",
+    "topbarTag": "Leaderboard",
+    "errorGeneric": "Failed to load.",
+    "heroSubtitleUpdated": "The best players on the server — Updated at {{time}}",
+    "heroSubtitleDefault": "The best players on the server, updated in real time.",
+    "loading": "Loading leaderboard…",
+    "errorLoading": "Failed to load leaderboard",
+    "podiumSection": "Podium",
+    "podiumHint": "Top 3 of the leaderboard",
+    "tableSection": "Full leaderboard",
+    "playerCount": "{{count}} players",
+    "live": "Live",
+    "valuePlaytime": "Playtime",
+    "valueEconomy": "Balance",
+    "emptyTitle": "The leaderboard is empty",
+    "emptyDesc": "The first players haven't played yet.",
+    "ctaTitle": "Join the server",
+    "ctaSubtitle": "Log in and start racking up hours to appear on the leaderboard."
+  },
+  "inventory": {
+    "eyebrow": "Inventory",
+    "errorClaim": "Claim failed",
+    "filters": {
+      "all": "All",
+      "keys": "Keys",
+      "badges": "Badges",
+      "cosmetics": "Cosmetics",
+      "label": "Categories"
+    },
+    "modal": {
+      "title": "Claim the key",
+      "info": "This key will be delivered to you in-game on your next connection (or immediately if you're online).",
+      "loading": "Claiming…"
+    },
+    "hero": {
+      "titleStart": "Vault of ",
+      "title": "{{username}}'s vault",
+      "subtitle": "Manage your crate keys, badges and cosmetic items. Claim what's waiting for you in-game.",
+      "buttonShop": "🛒 Shop",
+      "buttonProfile": "My profile",
+      "coins": "Coins",
+      "keys": "Keys"
+    },
+    "stats": {
+      "balance": "Balance",
+      "balanceHint": "Available coins",
+      "keys": "Keys",
+      "keysHint": "All crates",
+      "role": "Rank",
+      "roleHint": "Current status",
+      "playtime": "Playtime",
+      "playtimeHint": "Cumulative total"
+    },
+    "help": {
+      "label": "Help",
+      "text": "Keys and items are delivered in-game on your next connection (or immediately if you are online)."
+    },
+    "keys": {
+      "section": "Crate keys",
+      "available_one": "{{count}} key available",
+      "available_other": "{{count}} keys available",
+      "empty": "No key",
+      "emptyDesc": "No keys in inventory. Buy some in the shop or claim rewards!",
+      "statusPending": "⏳ Pending",
+      "statusAvailable": "Available",
+      "claim": "Claim"
+    },
+    "badges": {
+      "section": "Ranks & Badges",
+      "subtitle": "Unlocked distinctions",
+      "active": "Active rank",
+      "veteran": {
+        "name": "Veteran",
+        "desc": "100h playtime"
+      },
+      "conqueror": {
+        "name": "Conqueror",
+        "desc": "Top 10 leaderboard"
+      }
+    },
+    "cosmetics": {
+      "section": "Cosmetics",
+      "subtitle": "Skins, particles, capes…",
+      "empty": "✨ Cosmetics coming soon!"
+    }
+  },
+  "career": {
+    "eyebrow": "Career",
+    "toast": {
+      "joined": "Joined the job!",
+      "left": "Left the job."
+    },
+    "error": {
+      "noSlot": "Job slot limit reached.",
+      "disabled": "This job is disabled.",
+      "alreadyIn": "Already in this job.",
+      "notFound": "Job not found.",
+      "generic": "Action not possible.",
+      "sessionExpired": "Session expired."
+    },
+    "confirm": {
+      "leave": "Leave this job? You'll keep your XP."
+    },
+    "hero": {
+      "titleStart": "Build your ",
+      "titleHighlight": "empire",
+      "subtitle_one": "{{active}} active job · {{available}} available. Progress, level up and unlock permanent stars.",
+      "subtitle_other": "{{active}} active jobs · {{available}} available. Progress, level up and unlock permanent stars."
+    },
+    "stats": {
+      "active": "Active jobs",
+      "activeHint": "{{count}} available",
+      "level": "Total level",
+      "levelHint": "Avg. {{avg}}",
+      "earned": "Total earned",
+      "earnedHint": "Cumulative income",
+      "stars": "Stars",
+      "starsHint": "Cumulated prestige"
+    },
+    "slots": {
+      "label": "Job slots",
+      "full": "Full",
+      "free_one": "{{count}} free",
+      "free_other": "{{count}} free"
+    },
+    "tickets": {
+      "label": "Active tickets",
+      "extraSlot": "+1 slot",
+      "xpBonus": "+25% XP",
+      "bypassHeatmap": "Heatmap bypass"
+    },
+    "dynamics": {
+      "label": "Dynamic world",
+      "live": "● live",
+      "season": "Season",
+      "demand": "In demand"
+    },
+    "offline": {
+      "title": "Module offline",
+      "desc": "The jobs system is currently unavailable."
+    },
+    "active": {
+      "section": "My jobs",
+      "hint_one": "{{count}} ongoing",
+      "hint_other": "{{count}} ongoing"
+    },
+    "job": {
+      "level": "Lvl. {{level}}",
+      "progressLabel": "To Lvl. {{next}}",
+      "maxLevel": "⭐ Max level",
+      "buttonDetails": "Details",
+      "buttonLeave": "Leave",
+      "tagDisabled": "⏸ OFF",
+      "tagFeatured": "★ Demand",
+      "buttonDisabled": "Disabled",
+      "buttonSlotsFull": "Slots full",
+      "buttonJoin": "+ Join",
+      "actionsPerWeek": "{{count}} actions/wk",
+      "maxLevelTotal": "Max lvl. {{level}}",
+      "actionsCount": "{{count}} actions"
+    },
+    "empty": {
+      "title": "No active job",
+      "desc": "Pick a job below to get started."
+    },
+    "inactive": {
+      "section": "Other jobs",
+      "hint_one": "{{count}} to discover",
+      "hint_other": "{{count}} to discover",
+      "available": "Available jobs"
+    },
+    "noConfigured": {
+      "title": "No job configured",
+      "desc": "Come back later."
+    }
+  },
+  "careerDetail": {
+    "confirm": {
+      "prestige": "Rebirth? You reset your level to 1 but gain a permanent star (+3% XP/money)."
+    },
+    "toast": {
+      "prestige": "Rebirth! ⭐ {{count}} star(s)"
+    },
+    "error": {
+      "notMaxLevel": "You must be at max level.",
+      "maxStars": "Maximum stars reached (5).",
+      "notJoined": "You're not in this job.",
+      "unknown": "Unknown job",
+      "loading": "Loading error"
+    },
+    "buttonBack": "← Career",
+    "notFoundTitle": "Job not found",
+    "notStarted": {
+      "title": "You haven't started this job yet",
+      "desc": "Join the server and use /job join {{id}}"
+    },
+    "stats": {
+      "level": "Level",
+      "levelMaster": "Master {{name}}",
+      "earned": "Total earned",
+      "earnedHint": "Cumulative",
+      "stars": "Stars",
+      "starsHint": "+{{percent}}% bonus",
+      "xpRate": "XP / hour",
+      "xpRateHint": "recent avg.",
+      "permanent": "{{percent}}% permanent"
+    },
+    "section": {
+      "progress": "Progression"
+    },
+    "progress": {
+      "label": "To Lvl. {{next}}",
+      "maxed": "⭐ Maximum level reached"
+    },
+    "buttonPrestige": "✨ Rebirth",
+    "masterBadge": "⭐⭐⭐⭐⭐ Supreme Master",
+    "timeline": {
+      "label": "14d activity",
+      "average": "Avg. {{xp}} XP/d",
+      "today": "today"
+    },
+    "forecast": {
+      "label": "🔮 Forecast",
+      "xpRate": "XP/h",
+      "nextLevel": "Lvl. +1",
+      "maxLevel": "Max lvl."
+    },
+    "targets": {
+      "label": "🏆 Top resources"
+    },
+    "eyebrow": "Job",
+    "time": {
+      "min": "min",
+      "hour": "h",
+      "day": "d"
+    }
+  },
+  "quests": {
+    "filters": {
+      "all": "All",
+      "inProgress": "In progress",
+      "completed": "Completed",
+      "limited": "⏱ Limited"
+    },
+    "hero": {
+      "titleStart": "Your ",
+      "titleHighlight": "quests",
+      "titleEnd": " right now",
+      "subtitle_one": "{{available}} quest available · {{completed}} completed",
+      "subtitle_other": "{{available}} quests available · {{completed}} completed"
+    },
+    "communityProgress": {
+      "label": "Community progress",
+      "value_one": "{{count}} completion",
+      "value_other": "{{count}} completions",
+      "suffix_one": "completion",
+      "suffix_other": "completions"
+    },
+    "loading": "Loading quests…",
+    "empty": "No quest in this category.",
+    "noDetailSelected": "Select a quest to view details.",
+    "loginButton": "Log in",
+    "eyebrow": "Adventure",
+    "types": {
+      "BREAK_BLOCK": "Break",
+      "PLACE_BLOCK": "Place",
+      "KILL_ENTITY": "Kill",
+      "KILL_PLAYER": "PvP",
+      "CRAFT_ITEM": "Craft",
+      "FISH_CATCH": "Fish",
+      "PLAY_TIME": "Time"
+    },
+    "target": {
+      "all": "All"
+    },
+    "timer": {
+      "expiresIn": "Expires in {{duration}}",
+      "day": "d",
+      "hour": "h"
+    },
+    "detail": {
+      "section": "My progress",
+      "tagRepeatable": "🔁 Repeatable",
+      "completions": "Completions",
+      "inProgress": "In progress"
+    },
+    "loginHint": "to see your personal progress."
+  },
+  "friends": {
+    "errorLoading": "Loading error.",
+    "confirmRemove": "Remove this friend?",
+    "eyebrow": "Community",
+    "heroTitleStart": "Your ",
+    "heroTitleHighlight": "friends",
+    "heroTitleEnd": " on SunGuard",
+    "tabs": {
+      "friends": "Friends",
+      "incoming": "Incoming",
+      "outgoing": "Sent",
+      "search": "Search"
+    },
+    "hero": {
+      "subtitle_one": "Your {{count}} friend",
+      "subtitle_other": "Your {{count}} friends",
+      "incoming_one": "{{count}} pending request",
+      "incoming_other": "{{count}} pending requests",
+      "buttonFind": "+ Find players"
+    },
+    "section": {
+      "myFriends": "My friends",
+      "myFriendsCount": "My friends · {{count}}",
+      "incoming": "Incoming requests",
+      "incomingCount": "Incoming requests · {{count}}",
+      "outgoing": "Sent requests",
+      "outgoingCount": "Sent requests · {{count}}",
+      "search": "Search players"
+    },
+    "empty": {
+      "friends": "No friends yet. Use the search!",
+      "incoming": "No incoming requests.",
+      "outgoing": "No sent requests.",
+      "search": "No player found."
+    },
+    "card": {
+      "since": "Friend since {{date}}",
+      "messageButton": "💬 Message",
+      "wantsToBe": "wants to be your friend",
+      "accept": "✓ Accept",
+      "pending": "pending",
+      "cancelRequest": "Cancel"
+    },
+    "search": {
+      "placeholder": "Search a player…"
+    },
+    "relation": {
+      "friend": "✓ Friend",
+      "sent": "Sent",
+      "received": "Received",
+      "add": "+ Add"
+    }
+  },
+  "messages": {
+    "empty": "No conversation.",
+    "buttonFindFriends": "Find friends",
+    "newConv": "New conversation",
+    "private": "Private conversation",
+    "placeholder": "Write a message…",
+    "lastMessage": "Last message {{date}}",
+    "viewProfile": "View profile",
+    "header": "Messages",
+    "headerSubtitle": "Chat privately with your SunGuard friends.",
+    "title": "Messages",
+    "conversationsLabel": "Conversations",
+    "noProfile": "No profile to display.",
+    "read": "Read",
+    "noChatTitle": "No conversation selected",
+    "noChatDesc": "Pick a conversation on the left to start."
+  },
+  "minigames": {
+    "ctf": {
+      "name": "Capture The Flag",
+      "desc": "Infiltrate the enemy base, steal their flag and bring it back without getting eliminated.",
+      "tip1": "Protect your flag",
+      "tip2": "Work as a team",
+      "tip3": "Use the secret passages"
+    },
+    "skywars": {
+      "name": "Skywars",
+      "desc": "Beat all your opponents on your floating sky island. Only the last survivor wins.",
+      "tip1": "Loot fast",
+      "tip2": "Build bridges",
+      "tip3": "Avoid falling"
+    },
+    "thimble": {
+      "name": "Thimble",
+      "desc": "Dive into the hole that matches your shape from a high platform. Be precise!",
+      "tip1": "Aim well before jumping",
+      "tip2": "Watch the hole shape",
+      "tip3": "Be quick!"
+    },
+    "tntrun": {
+      "name": "TNT Run",
+      "desc": "Run on a floor that crumbles with every step. The last player standing wins the round.",
+      "tip1": "Never stop moving",
+      "tip2": "Avoid other players",
+      "tip3": "Watch the floor below"
+    },
+    "hero": {
+      "eyebrow": "Minigames",
+      "titleStart": "Step into the ",
+      "titleHighlight": "arena",
+      "subtitle": "CTF, Skywars, TNT Run, Thimble… Find your game, join a match and climb the leaderboard.",
+      "onlineNow": "In-game now",
+      "player_one": "{{count}} player",
+      "player_other": "{{count}} players"
+    },
+    "stats": {
+      "arenas": "Total arenas",
+      "arenasHint": "configured",
+      "playing": "Active matches",
+      "playingHint": "running now",
+      "waiting": "Waiting",
+      "waitingHint": "joinable",
+      "games": "Minigames",
+      "gamesHint": "modes available"
+    },
+    "featured": {
+      "section": "Featured",
+      "hint": "The most active game right now",
+      "badge": "★ Featured",
+      "tag_one": "● {{count}} arena running",
+      "tag_other": "● {{count}} arenas running"
+    },
+    "all": {
+      "section": "All minigames",
+      "hint_one": "{{count}} mode available on play.sunnetwork.fr",
+      "hint_other": "{{count}} modes available on play.sunnetwork.fr"
+    },
+    "game": {
+      "live_one": "● {{count}} live",
+      "live_other": "● {{count}} live",
+      "active": "Active",
+      "inactive": "Inactive",
+      "arenas": "Arenas",
+      "playing": "Playing",
+      "waiting": "Waiting"
+    },
+    "howToJoin": {
+      "section": "How to play",
+      "hint": "4 steps to get in-game",
+      "step1": "Log in to play.sunnetwork.fr",
+      "step2": "Use /minijeux or the main menu",
+      "step3": "Join a queue or an arena",
+      "step4": "Earn coins and climb the leaderboard!"
+    },
+    "cta": {
+      "viewLeaderboards": "View leaderboards",
+      "join": "Join",
+      "joinArrow": "Join →"
+    }
+  },
+  "shop": {
+    "errorBuy": "Purchase error",
+    "errorCheckout": "Something went wrong.",
+    "hero": {
+      "titleStart": "Enhance your ",
+      "titleHighlight": "SunGuard",
+      "titleEnd": " experience",
+      "subtitle": "Support the server, unlock exclusive perks and open crates for rare rewards.",
+      "buttonVip": "View VIPs",
+      "buttonCrates": "Crates & Keys",
+      "balance": "Your balance"
+    },
+    "filters": {
+      "all": "All",
+      "vip": "VIP plans",
+      "crates": "Crates"
+    },
+    "featured": {
+      "section": "Featured",
+      "hint": "The most popular offer right now",
+      "badge": "Featured pack",
+      "duration_one": "{{count}} day",
+      "duration_other": "{{count}} days",
+      "buttonCard": "💳 Card",
+      "buttonPaypal": "PayPal",
+      "buttonCancel": "Cancel",
+      "buyNow": "Buy now →"
+    },
+    "vip": {
+      "section": "Other VIP plans",
+      "hint_one": "{{count}} plan available",
+      "hint_other": "{{count}} plans available",
+      "duration_one": "{{count}} day",
+      "duration_other": "{{count}} days",
+      "emptyTitle": "No VIP plan configured",
+      "emptyDesc": "Offers will be available shortly."
+    },
+    "crates": {
+      "section": "Crates & Keys",
+      "hint": "Try your luck for rare rewards",
+      "free": "Free",
+      "buying": "Buying…",
+      "buy": "Buy",
+      "obtain": "Get",
+      "gift": "Free key!"
+    },
+    "economy": {
+      "earningTitle": "Earn coins",
+      "earningDesc": "Play, mine, complete quests or claim your daily reward.",
+      "spendingTitle": "/shop in-game",
+      "spendingDesc": "Spend your coins via /shop to buy in-game items.",
+      "cratesTitle": "Crates & Keys",
+      "cratesDesc": "Get keys via missions and open crates.",
+      "jobsTitle": "Jobs",
+      "jobsDesc": "Generate passive income by holding a job.",
+      "section": "In-game economy",
+      "hint": "How to earn and spend coins"
+    },
+    "eyebrow": "Shop"
+  },
+  "publicProfile": {
+    "errorTitle": "Profile not found",
+    "errorButton": "Create an account",
+    "heroOnline": "Online now",
+    "lastSeenJustNow": "Just seen",
+    "lastSeen": "Last seen {{duration}} ago",
+    "status": {
+      "online": "Online",
+      "offline": "Offline",
+      "neverConnected": "Never connected"
+    },
+    "heroButton": "View leaderboard",
+    "stats": {
+      "playtime": "Playtime",
+      "playtimeHint": "Cumulative total",
+      "rank": "Rank",
+      "rankHint": "Top playtime",
+      "streak": "Streak",
+      "streakHint": "Daily",
+      "quests": "Quests",
+      "questsHint": "Completed",
+      "rankOf": "of {{total}}",
+      "streakDays": "{{count}}d"
+    },
+    "questsSection": "Ongoing quests",
+    "questsHint": "Current progress",
+    "sanctions": {
+      "section": "Active sanctions",
+      "noReason": "No reason given"
+    },
+    "trophies": {
+      "section": "Trophies",
+      "obtained_one": "{{count}} earned",
+      "obtained_other": "{{count}} earned",
+      "empty": "No trophy yet",
+      "tooltip": "{{name}} — {{rarity}}"
+    },
+    "info": {
+      "section": "Information",
+      "memberSince": "Member since",
+      "status": "Status",
+      "role": "Role"
+    },
+    "cta": {
+      "title": "Join {{username}} on SunGuard",
+      "subtitle": "Create your account and start your adventure today.",
+      "buttonCreate": "Create an account",
+      "buttonLogin": "Log in"
+    },
+    "nav": {
+      "leaderboard": "Leaderboard",
+      "login": "Log in"
+    },
+    "loading": "Loading profile…",
+    "errorGeneric": "Profile not found.",
+    "share": {
+      "copied": "✓ Link copied",
+      "button": "⬡ Share"
+    },
+    "roles": {
+      "ADMIN": "Admin",
+      "MODERATOR": "Moderator",
+      "VIP": "VIP",
+      "PLAYER": "Player"
+    },
+    "rarity": {
+      "common": "Common",
+      "rare": "Rare",
+      "epic": "Epic",
+      "legendary": "Legendary"
+    },
+    "lastSeenMin": "Seen {{count}} min ago",
+    "lastSeenHour": "Seen {{count}}h ago",
+    "lastSeenDay": "Seen {{count}}d ago",
+    "lastSeenMonth_one": "Seen {{count}} month ago",
+    "lastSeenMonth_other": "Seen {{count}} months ago",
+    "bioFallback": "SunGuard member since {{date}}"
+  },
+  "comingSoon": {
+    "home": {
+      "title": "Home",
+      "desc": "Your dashboard is coming soon."
+    },
+    "inventory": {
+      "title": "Inventory",
+      "desc": "Manage your in-game inventory from here.",
+      "badge": "Soon"
+    },
+    "minigames": {
+      "title": "Minigames",
+      "desc": "Track your minigame scores and stats.",
+      "badge": "In development"
+    },
+    "career": {
+      "title": "Career",
+      "desc": "Your career progression on the server.",
+      "badge": "Soon"
+    },
+    "shop": {
+      "title": "Shop",
+      "desc": "The in-game shop is coming soon."
+    },
+    "default": {
+      "title": "Page",
+      "desc": "This feature is currently under development."
+    },
+    "comingBadge": "Coming soon",
+    "available": "Available soon",
+    "message": "This feature is currently under development. Come back soon to discover it!",
+    "buttonProfile": "My profile",
+    "buttonHome": "Home"
+  },
+  "statusBanner": {
+    "globalTitle": "🚧 GLOBAL MAINTENANCE IN PROGRESS",
+    "globalDefault": "Portal locked for non-OP users",
+    "opBadge": "★ OP mode — access granted",
+    "globalCountdown": "Estimated return in",
+    "incidentMaintenance": "🛠️ MAINTENANCE IN PROGRESS",
+    "incidentTitle": "⚠️ ONGOING INCIDENT",
+    "incidentMultiple": "{{count}} services impacted",
+    "incidentButton": "View details",
+    "incidentCountdown": "Estimated return in"
+  },
+  "degradedNotice": {
+    "title": "Degraded service",
+    "default": "This section is currently running with a known issue.",
+    "countdown": "Estimated normal return in"
+  },
+  "portalLockdown": {
+    "badge": "⚠ Portal under maintenance",
+    "title": "We'll be back very soon",
+    "message": "Our team is working on the portal. All features are temporarily unavailable.",
+    "countdown": "Estimated return in",
+    "footer": "☀ SunGuard · Player portal",
+    "footerStarted": "Maintenance started at {{time}}"
+  },
+  "countdown": {
+    "endingSoon": "Estimated end passed",
+    "expiredCompact": "elapsed",
+    "expiredInline": "⏱ elapsed"
+  },
+  "serverStatus": {
+    "operational": "Operational",
+    "operationalHint": "All systems go",
+    "degraded": "Degraded",
+    "degradedHint": "Known issue",
+    "maintenance": "Maintenance",
+    "maintenanceHint": "Work in progress",
+    "disabled": "Unavailable",
+    "disabledHint": "Temporarily off",
+    "section": "Service status",
+    "sectionHint": "Operational state of server features",
+    "globalOk": "All services are running",
+    "globalIssues": "Ongoing incidents",
+    "opBadge": "★ OP mode — maintenance access",
+    "itemMessage": "💬 {{message}}",
+    "itemCountdown": "Estimated return:",
+    "itemUpdated": "Updated {{duration}}",
+    "disclaimer": "Sections under maintenance are unavailable while work is in progress. Status is updated in real time by the technical team."
+  }
+}
