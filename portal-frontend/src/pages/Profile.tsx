@@ -185,7 +185,6 @@ export default function Profile() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6">
           {/* LEFT SIDEBAR */}
           <aside className="lg:col-span-3 space-y-5">
-            <SectionDivider label={t('profile.section.identity')} />
             <Card padding="lg">
               <div className="flex flex-col items-center text-center">
                 <img src={`https://mc-heads.net/avatar/${profile.username}/96`}
@@ -276,10 +275,6 @@ export default function Profile() {
 
             {/* SANCTIONS */}
             <section>
-              <SectionDivider label={t('profile.sanctions.section')}
-                action={sanctions.length > 0
-                  ? <Tag tone="danger">{t('profile.sanctions.active', { count: sanctions.length })}</Tag>
-                  : <Tag tone="jade">{t('profile.sanctions.clean')}</Tag>} />
               {sanctions.length > 0 ? (
                 <Card padding="md" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.2)' }}>
                   <div className="space-y-1">
@@ -298,7 +293,6 @@ export default function Profile() {
             {/* REFERRAL */}
             {referral && (
               <section>
-                <SectionDivider label={t('profile.referral.section')} hint={t('profile.referral.hint')} />
                 <Card padding="lg">
                   <div className="flex items-center gap-3 mb-4">
                     <code className="flex-1 rounded-xl px-4 py-3 text-sm font-mono font-bold tracking-widest text-center"
@@ -333,7 +327,6 @@ export default function Profile() {
 
           {/* RIGHT SIDEBAR */}
           <aside className="lg:col-span-3 space-y-5">
-            <SectionDivider label={t('profile.sidebar.actions')} />
             <Card padding="md">
               <div className="space-y-2">
                 <Button to="/inventory" variant="secondary" fullWidth size="md">{t('profile.actions.inventory')}</Button>
@@ -343,7 +336,6 @@ export default function Profile() {
               </div>
             </Card>
 
-            <SectionDivider label={t('profile.sidebar.activity')} />
             <Card padding="md">
               <div className="space-y-3 text-sm">
                 <div className="flex items-start gap-3">

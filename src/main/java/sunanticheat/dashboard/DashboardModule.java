@@ -496,7 +496,9 @@ public final class DashboardModule {
         PlayerAccountStore playerAccountStore = new PlayerAccountStore(database, plugin.getLogger());
         RegisterPinService registerPinService = new RegisterPinService(playerAccountStore, plugin.getLogger());
         PlayerJwtUtil playerJwtUtil = new PlayerJwtUtil(portalJwtSecret);
-        questHandler = new QuestHandler(questStore, playerJwtUtil);
+        sunanticheat.dashboard.quests.QuestTemplateLoader questTemplates =
+                new sunanticheat.dashboard.quests.QuestTemplateLoader(plugin.getLogger());
+        questHandler = new QuestHandler(questStore, playerJwtUtil, questTemplates);
 
         // ── Système social (amis, chat, parrainage) ───────────────────────────
         FriendStore friendStore     = new FriendStore(database, plugin.getLogger());

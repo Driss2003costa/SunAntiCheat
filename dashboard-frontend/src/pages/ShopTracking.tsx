@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '../api/client'
 import { useAuthStore } from '../stores/authStore'
 
 const DAYS_OPTIONS = [1, 7, 14, 30]
+type SortKey = 'quantity' | 'revenue' | 'buyers' | 'avgPrice' | 'transactions'
 
 function fmt(n: number) {
   return `$${n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -26,6 +27,9 @@ export default function ShopTracking() {
   const [page, setPage]       = useState(0)
   const [loading, setLoading] = useState(false)
   const [esgStatus, setEsgStatus] = useState<any>(null)
+  const [itemSearch, setItemSearch] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('quantity')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const token = useAuthStore(s => s.token)
 
@@ -48,6 +52,33 @@ export default function ShopTracking() {
   }, [days, type, player, page])
 
   useEffect(() => { load(); const i = setInterval(load, 10_000); return () => clearInterval(i) }, [load])
+
+  // Tri + filtrage de itemSales (côté client, c'est juste de l'agrégation déjà faite)
+  const itemSalesSorted = useMemo(() => {
+    if (!stats?.itemSales) return [] as any[]
+    const search = itemSearch.trim().toLowerCase()
+    const filtered = search
+      ? stats.itemSales.filter((r: any) => (r.item || '').toLowerCase().includes(search))
+      : stats.itemSales
+    const dir = sortDir === 'asc' ? 1 : -1
+    return [...filtered].sort((a: any, b: any) => ((a[sortKey] || 0) - (b[sortKey] || 0)) * dir)
+  }, [stats, itemSearch, sortKey, sortDir])
+
+  const itemSalesTotals = useMemo(() => {
+    if (!stats?.itemSales) return { quantity: 0, revenue: 0 }
+    return stats.itemSales.reduce(
+      (acc: any, r: any) => ({
+        quantity: acc.quantity + (r.quantity || 0),
+        revenue: acc.revenue + (r.revenue || 0),
+      }),
+      { quantity: 0, revenue: 0 },
+    )
+  }, [stats])
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(k); setSortDir('desc') }
+  }
 
   function handleExport() {
     window.open(api.exportCsvUrl(days, type, player), '_blank')
@@ -212,6 +243,66 @@ export default function ShopTracking() {
         )}
       </div>
 
+      {/* Ventes par item — total agrégé tous joueurs */}
+      {stats?.itemSales?.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+            <div>
+              <h3 className="font-semibold text-sm">📦 Ventes totales par item</h3>
+              <p className="text-xs text-muted">
+                Agrégé sur tous les joueurs · {stats.itemSales.length} item(s) ·
+                {' '}<b className="text-emerald-400">{itemSalesTotals.quantity.toLocaleString('fr-FR')}</b> unités vendues ·
+                {' '}<b className="text-emerald-400">{fmt(itemSalesTotals.revenue)}</b> CA total
+              </p>
+            </div>
+            <input
+              className="input w-48 text-sm"
+              placeholder="🔍 Filtrer..."
+              value={itemSearch}
+              onChange={e => setItemSearch(e.target.value)}/>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-muted text-left border-b border-border">
+                  <th className="pb-2 pr-4">Item</th>
+                  <SortableTh label="Qté totale"   active={sortKey === 'quantity'}     dir={sortDir} onClick={() => toggleSort('quantity')}     align="right"/>
+                  <SortableTh label="Transactions" active={sortKey === 'transactions'} dir={sortDir} onClick={() => toggleSort('transactions')} align="right"/>
+                  <SortableTh label="Acheteurs"    active={sortKey === 'buyers'}       dir={sortDir} onClick={() => toggleSort('buyers')}       align="right"/>
+                  <SortableTh label="Prix moyen"   active={sortKey === 'avgPrice'}     dir={sortDir} onClick={() => toggleSort('avgPrice')}     align="right"/>
+                  <SortableTh label="Revenu total" active={sortKey === 'revenue'}      dir={sortDir} onClick={() => toggleSort('revenue')}      align="right"/>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {itemSalesSorted.length === 0 && (
+                  <tr><td colSpan={6} className="py-6 text-center text-muted">Aucun item ne correspond</td></tr>
+                )}
+                {itemSalesSorted.map((row: any) => {
+                  const pctOfTotal = itemSalesTotals.quantity > 0
+                    ? Math.round((row.quantity / itemSalesTotals.quantity) * 100)
+                    : 0
+                  return (
+                    <tr key={row.item} className="hover:bg-white/5 transition-colors">
+                      <td className="py-2 pr-4 max-w-[260px] truncate font-medium" title={row.item}>{row.item}</td>
+                      <td className="py-2 pr-4 text-right font-mono">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-xs text-muted">{pctOfTotal}%</span>
+                          <span className="font-semibold text-emerald-400">×{row.quantity.toLocaleString('fr-FR')}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4 text-right font-mono text-muted">{row.transactions}</td>
+                      <td className="py-2 pr-4 text-right font-mono">{row.buyers}</td>
+                      <td className="py-2 pr-4 text-right font-mono text-muted">{fmt(row.avgPrice)}</td>
+                      <td className="py-2 text-right font-mono font-semibold text-amber-400">{fmt(row.revenue)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Top acheteurs */}
       {stats?.topBuyers?.length > 0 && (
         <div className="card">
@@ -244,5 +335,25 @@ export default function ShopTracking() {
         </div>
       )}
     </div>
+  )
+}
+
+function SortableTh({ label, active, dir, onClick, align = 'left' }: {
+  label: string
+  active: boolean
+  dir: 'asc' | 'desc'
+  onClick: () => void
+  align?: 'left' | 'right'
+}) {
+  return (
+    <th className={`pb-2 pr-4 cursor-pointer select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+        onClick={onClick}>
+      <span className={`inline-flex items-center gap-1 transition ${active ? 'text-primary' : 'hover:text-primary'}`}>
+        {label}
+        <span className="text-[10px] opacity-60">
+          {active ? (dir === 'asc' ? '▲' : '▼') : '↕'}
+        </span>
+      </span>
+    </th>
   )
 }

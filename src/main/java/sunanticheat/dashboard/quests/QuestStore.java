@@ -58,9 +58,19 @@ public final class QuestStore {
                      Quest.Type type, String target, int goal,
                      String rewardCommand, String rewardLabel,
                      boolean enabled, boolean repeatable, Long endsAt) {
+        return add(title, description, null, null, icon, color, type, target, goal,
+                rewardCommand, rewardLabel, null, enabled, repeatable, endsAt);
+    }
+
+    public Quest add(String title, String description, String titleEn, String descriptionEn,
+                     String icon, String color,
+                     Quest.Type type, String target, int goal,
+                     String rewardCommand, String rewardLabel, String rewardLabelEn,
+                     boolean enabled, boolean repeatable, Long endsAt) {
         String id = UUID.randomUUID().toString();
-        Quest q = new Quest(id, title, description, icon, color, type, target, goal,
-                rewardCommand, rewardLabel, enabled, repeatable, System.currentTimeMillis(), endsAt);
+        Quest q = new Quest(id, title, description, titleEn, descriptionEn, icon, color,
+                type, target, goal, rewardCommand, rewardLabel, rewardLabelEn,
+                enabled, repeatable, System.currentTimeMillis(), endsAt);
         quests.put(id, q);
         saveQuests();
         return q;
@@ -71,6 +81,9 @@ public final class QuestStore {
         if (q == null) return null;
         if (patch.containsKey("title")) q.setTitle((String) patch.get("title"));
         if (patch.containsKey("description")) q.setDescription((String) patch.get("description"));
+        if (patch.containsKey("titleEn")) q.setTitleEn((String) patch.get("titleEn"));
+        if (patch.containsKey("descriptionEn")) q.setDescriptionEn((String) patch.get("descriptionEn"));
+        if (patch.containsKey("rewardLabelEn")) q.setRewardLabelEn((String) patch.get("rewardLabelEn"));
         if (patch.containsKey("icon")) q.setIcon((String) patch.get("icon"));
         if (patch.containsKey("color")) q.setColor((String) patch.get("color"));
         if (patch.containsKey("type")) {
@@ -244,6 +257,8 @@ public final class QuestStore {
                             (String) m.get("id"),
                             (String) m.get("title"),
                             (String) m.get("description"),
+                            (String) m.get("titleEn"),
+                            (String) m.get("descriptionEn"),
                             (String) m.get("icon"),
                             (String) m.get("color"),
                             t,
@@ -251,6 +266,7 @@ public final class QuestStore {
                             ((Number) m.getOrDefault("goal", 1)).intValue(),
                             (String) m.get("rewardCommand"),
                             (String) m.get("rewardLabel"),
+                            (String) m.get("rewardLabelEn"),
                             Boolean.TRUE.equals(m.get("enabled")),
                             Boolean.TRUE.equals(m.get("repeatable")),
                             ((Number) m.getOrDefault("createdAt", System.currentTimeMillis())).longValue(),
