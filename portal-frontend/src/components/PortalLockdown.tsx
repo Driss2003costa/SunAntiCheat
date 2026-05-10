@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import SunGuardBg from './SunGuardBg'
 import Countdown from './Countdown'
 import type { GlobalMaintenance } from '../api/client'
@@ -8,7 +9,9 @@ import type { GlobalMaintenance } from '../api/client'
  * à revenir plus tard.
  */
 export default function PortalLockdown({ maintenance }: { maintenance: GlobalMaintenance }) {
+  const { t, i18n } = useTranslation()
   const COLOR = '#f87171' // rouge maintenance
+  const localeTag = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   const GLASS  = 'rgba(255,255,255,0.05)'
   const BORDER = 'rgba(248,113,113,0.35)'
 
@@ -39,14 +42,13 @@ export default function PortalLockdown({ maintenance }: { maintenance: GlobalMai
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.3em] mb-3"
                  style={{ color: COLOR }}>
-              ⚠ Portail en maintenance
+              {t('portalLockdown.badge')}
             </div>
             <h1 className="text-4xl font-black text-white">
-              Nous revenons<br/>très bientôt
+              {t('portalLockdown.title')}
             </h1>
             <p className="mt-3 text-sm text-white/60 max-w-sm mx-auto">
-              Notre équipe travaille sur le portail. Toutes les fonctionnalités
-              sont temporairement indisponibles.
+              {t('portalLockdown.message')}
             </p>
           </div>
 
@@ -57,7 +59,7 @@ export default function PortalLockdown({ maintenance }: { maintenance: GlobalMai
               <Countdown endsAt={maintenance.endsAt}
                          variant="boxes"
                          color={COLOR}
-                         label="Retour estimé dans"/>
+                         label={t('portalLockdown.countdown')}/>
             </div>
           )}
 
@@ -71,9 +73,11 @@ export default function PortalLockdown({ maintenance }: { maintenance: GlobalMai
 
           {/* Astuce / signature */}
           <div className="text-xs text-white/40 pt-4">
-            ☀ SunGuard · Portail joueur
+            {t('portalLockdown.footer')}
             {maintenance.startedAt > 0 && (
-              <> · Maintenance démarrée à {new Date(maintenance.startedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</>
+              <> · {t('portalLockdown.footerStarted', {
+                time: new Date(maintenance.startedAt).toLocaleTimeString(localeTag, { hour: '2-digit', minute: '2-digit' }),
+              })}</>
             )}
           </div>
         </div>

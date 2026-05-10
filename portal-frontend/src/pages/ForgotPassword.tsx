@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, saveToken } from '../api/client'
 import OtpInput from '../components/OtpInput'
 import { Button } from '../components/ui'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 
 type Step = 'username' | 'pin' | 'success'
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [step, setStep]           = useState<Step>('username')
   const [username, setUsername]   = useState('')
   const [uuid, setUuid]           = useState('')
@@ -29,9 +32,9 @@ export default function ForgotPassword() {
       }
     } catch (e: any) {
       if (e.error === 'player_offline') {
-        setError('Tu dois être connecté sur le serveur Minecraft pour réinitialiser ton PIN.')
+        setError(t('forgotPassword.errorOffline'))
       } else {
-        setError(e.message || 'Une erreur est survenue.')
+        setError(e.message || t('shop.errorCheckout'))
       }
     }
     setLoading(false)
@@ -43,8 +46,8 @@ export default function ForgotPassword() {
   }
 
   async function handleReset() {
-    if (verifyPin.replace(/\D/g, '').length < 6) { setError('Saisis le code reçu en jeu (6 chiffres).'); return }
-    if (newPin.replace(/\D/g, '').length < 6)    { setError('Crée un nouveau PIN de 6 chiffres.'); return }
+    if (verifyPin.replace(/\D/g, '').length < 6) { setError(t('forgotPassword.errorPinFormat')); return }
+    if (newPin.replace(/\D/g, '').length < 6)    { setError(t('forgotPassword.errorNewPinFormat')); return }
     setLoading(true); setError('')
     try {
       const res = await api.resetPassword(uuid, verifyPin, newPin)
@@ -52,11 +55,11 @@ export default function ForgotPassword() {
       setTimeout(() => navigate('/profile', { replace: true }), 2000)
     } catch (e: any) {
       const msg: Record<string, string> = {
-        pin_expired:  'Code expiré. Retourne à l\'étape précédente.',
-        max_attempts: 'Trop de tentatives incorrectes.',
-        invalid_pin:  `Code incorrect. ${e.attempts_left ?? ''} tentative(s) restante(s).`,
+        pin_expired:  t('forgotPassword.errorExpired'),
+        max_attempts: t('forgotPassword.errorMaxAttempts'),
+        invalid_pin:  t('forgotPassword.errorInvalid', { count: e.attempts_left ?? 0 }),
       }
-      setError(msg[e.error] ?? e.message ?? 'Erreur de vérification.')
+      setError(msg[e.error] ?? e.message ?? t('shop.errorCheckout'))
     }
     setLoading(false)
   }
@@ -92,35 +95,38 @@ export default function ForgotPassword() {
         </div>
 
         <div className="relative z-10 max-w-xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">Récupère ton compte</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">{t('forgotPassword.heroEyebrow')}</p>
           <h1 className="font-display text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-[1.05] tracking-tight text-white mb-6">
-            Un PIN oublié n'est jamais une fin.
+            {t('forgotPassword.heroTitle')}
           </h1>
           <p className="text-lg text-white/60 mb-8">
-            La réinitialisation passe par le serveur Minecraft pour garantir que personne d'autre que toi ne puisse récupérer ton compte. Sécurisé, instantané, sans email.
+            {t('forgotPassword.heroSubtitle')}
           </p>
 
           <ul className="space-y-3 text-sm text-white/70">
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Vérification d'identité directement en jeu
+              {t('forgotPassword.heroList1')}
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Aucun email, aucun mot de passe à retenir
+              {t('forgotPassword.heroList2')}
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-1 h-1.5 w-1.5 rounded-full bg-sun-300 shrink-0" />
-              Reprends ton aventure en quelques secondes
+              {t('forgotPassword.heroList3')}
             </li>
           </ul>
         </div>
 
-        <div className="relative z-10 text-xs text-white/40">© SunGuard · Tous droits réservés</div>
+        <div className="relative z-10 text-xs text-white/40">{t('forgotPassword.heroFooter')}</div>
       </aside>
 
       {/* CÔTÉ DROIT — formulaire */}
-      <main className="flex flex-col justify-center px-6 sm:px-10 lg:px-12 xl:px-16 py-12 overflow-y-auto">
+      <main className="flex flex-col justify-center px-6 sm:px-10 lg:px-12 xl:px-16 py-12 overflow-y-auto relative">
+        <div className="absolute top-6 right-6">
+          <LanguageSwitcher variant="inline" />
+        </div>
         <div className="w-full max-w-md mx-auto">
           <Link to="/" className="lg:hidden inline-flex items-center gap-2 mb-10 no-underline">
             <span className="font-display text-xl font-bold text-white">SunGuard</span>
@@ -128,20 +134,20 @@ export default function ForgotPassword() {
 
           {step === 'username' && (
             <>
-              <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">PIN oublié ?</h2>
+              <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">{t('forgotPassword.step1Title')}</h2>
               <p className="text-sm text-white/55 mb-8">
-                Connecte-toi en jeu et entre ton pseudo : un nouveau code te sera envoyé dans le chat Minecraft.
+                {t('forgotPassword.step1Subtitle')}
               </p>
 
               <div className="space-y-5">
                 <label className="block">
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">Pseudo Minecraft</span>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">{t('forgotPassword.step1Label')}</span>
                   <input
                     type="text"
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleForgot()}
-                    placeholder="ex: Steve"
+                    placeholder={t('register.usernamePlaceholder') as string}
                     className="w-full h-12 px-4 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                   />
@@ -157,12 +163,12 @@ export default function ForgotPassword() {
                 )}
 
                 <Button size="lg" fullWidth onClick={handleForgot} disabled={loading || !username.trim()}>
-                  {loading ? 'Envoi…' : 'Envoyer le code'}
+                  {loading ? t('common.loading') : t('forgotPassword.step1Button')}
                 </Button>
 
                 <p className="text-center text-sm">
                   <Link to="/login" className="text-sun-300 hover:text-sun-200 font-medium underline-offset-4 hover:underline transition-colors">
-                    ← Retour à la connexion
+                    {t('forgotPassword.step1BackLink')}
                   </Link>
                 </p>
               </div>
@@ -171,21 +177,22 @@ export default function ForgotPassword() {
 
           {step === 'pin' && (
             <>
-              <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">Réinitialiser le PIN</h2>
+              <h2 className="font-display text-3xl lg:text-4xl font-semibold tracking-tight text-white mb-2">{t('forgotPassword.step2Title')}</h2>
               <p className="text-sm text-white/55 mb-8">
-                Code envoyé dans le chat Minecraft.
-                {countdown > 0 && <span className="text-sun-300"> Expire dans {countdown}s.</span>}
+                {countdown > 0
+                  ? t('forgotPassword.step2Subtitle', { count: countdown })
+                  : t('forgotPassword.step2Subtitle', { count: 0 })}
               </p>
 
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">Code reçu en jeu</label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">{t('forgotPassword.step2CodeLabel')}</label>
                   <OtpInput value={verifyPin} onChange={setVerifyPin} length={6} />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">
-                    Nouveau PIN <span className="text-white/40 normal-case tracking-normal">(6 chiffres)</span>
+                    {t('forgotPassword.step2NewPinLabel')}
                   </label>
                   <OtpInput value={newPin} onChange={setNewPin} length={6} />
                 </div>
@@ -200,14 +207,14 @@ export default function ForgotPassword() {
                 )}
 
                 <Button size="lg" fullWidth onClick={handleReset} disabled={loading}>
-                  {loading ? 'Vérification…' : 'Réinitialiser le PIN'}
+                  {loading ? t('forgotPassword.step2Submitting') : t('forgotPassword.step2Button')}
                 </Button>
 
                 <button
                   onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setNewPin('') }}
                   className="block w-full text-center text-xs text-white/55 hover:text-white/80 transition-colors"
                 >
-                  ← Renvoyer un code
+                  {t('forgotPassword.step2Resend')}
                 </button>
               </div>
             </>
@@ -216,8 +223,8 @@ export default function ForgotPassword() {
           {step === 'success' && (
             <div className="text-center py-4 space-y-5">
               <div className="text-6xl">✨</div>
-              <h2 className="font-display text-3xl lg:text-4xl font-semibold text-white">PIN réinitialisé</h2>
-              <p className="text-sm text-white/60">Redirection vers ton profil…</p>
+              <h2 className="font-display text-3xl lg:text-4xl font-semibold text-white">{t('forgotPassword.step3Title')}</h2>
+              <p className="text-sm text-white/60">{t('forgotPassword.step3Subtitle')}</p>
             </div>
           )}
         </div>

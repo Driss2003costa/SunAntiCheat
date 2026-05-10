@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Compte à rebours qui tick chaque seconde jusqu'à `endsAt` (epoch ms).
@@ -16,15 +17,17 @@ export default function Countdown({
   color?: string
   label?: string
 }) {
+  const { t, i18n } = useTranslation()
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
+    const tick = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(tick)
   }, [])
 
   if (!endsAt) return null
   const ms = endsAt - now
   const expired = ms <= 0
+  const isFr = (i18n.resolvedLanguage ?? i18n.language ?? '').startsWith('fr')
 
   const totalSec = Math.max(0, Math.floor(ms / 1000))
   const days  = Math.floor(totalSec / 86400)
@@ -32,22 +35,28 @@ export default function Countdown({
   const mins  = Math.floor((totalSec % 3600) / 60)
   const secs  = totalSec % 60
 
+  // Suffixes localisés (j/h/m/s vs d/h/m/s)
+  const sfx = isFr ? { d: 'j', h: 'h', m: 'm', s: 's' } : { d: 'd', h: 'h', m: 'm', s: 's' }
+  const boxLabels = isFr
+    ? { d: 'jours', h: 'heures', m: 'min', s: 'sec' }
+    : { d: 'days',  h: 'hours',  m: 'min', s: 'sec' }
+
   if (variant === 'boxes') {
     return (
       <div className="flex flex-col items-center gap-2">
         {label && (
           <div className="text-[11px] font-bold uppercase tracking-[0.25em]"
                style={{ color: expired ? '#94a3b8' : color }}>
-            {expired ? 'Fin estimée passée' : label}
+            {expired ? t('countdown.endingSoon') : label}
           </div>
         )}
         <div className="flex items-end gap-2 sm:gap-3">
-          {days > 0 && <Box value={days}  label="jours" color={color} expired={expired}/>}
-          <Box value={hours} label="heures" color={color} expired={expired}/>
+          {days > 0 && <Box value={days}  label={boxLabels.d} color={color} expired={expired}/>}
+          <Box value={hours} label={boxLabels.h} color={color} expired={expired}/>
           <Sep color={color}/>
-          <Box value={mins}  label="min"    color={color} expired={expired}/>
+          <Box value={mins}  label={boxLabels.m} color={color} expired={expired}/>
           <Sep color={color}/>
-          <Box value={secs}  label="sec"    color={color} expired={expired}/>
+          <Box value={secs}  label={boxLabels.s} color={color} expired={expired}/>
         </div>
       </div>
     )
@@ -56,10 +65,10 @@ export default function Countdown({
   if (variant === 'compact') {
     return (
       <span className="font-mono tabular-nums" style={{ color: expired ? '#94a3b8' : color }}>
-        {expired ? 'écoulé' :
-          days > 0 ? `${days}j ${hours}h` :
-          hours > 0 ? `${hours}h${mins.toString().padStart(2, '0')}` :
-          `${mins}m${secs.toString().padStart(2, '0')}s`}
+        {expired ? t('countdown.expiredCompact') :
+          days > 0 ? `${days}${sfx.d} ${hours}${sfx.h}` :
+          hours > 0 ? `${hours}${sfx.h}${mins.toString().padStart(2, '0')}` :
+          `${mins}${sfx.m}${secs.toString().padStart(2, '0')}${sfx.s}`}
       </span>
     )
   }
@@ -67,13 +76,13 @@ export default function Countdown({
   // variant === 'inline'
   return (
     <span className="font-mono tabular-nums text-sm" style={{ color: expired ? '#94a3b8' : color }}>
-      {expired ? '⏱ écoulé' :
+      {expired ? t('countdown.expiredInline') :
         <>
           ⏱{' '}
-          {days > 0 && `${days}j `}
-          {(hours > 0 || days > 0) && `${hours.toString().padStart(2, '0')}h `}
-          {`${mins.toString().padStart(2, '0')}m `}
-          {`${secs.toString().padStart(2, '0')}s`}
+          {days > 0 && `${days}${sfx.d} `}
+          {(hours > 0 || days > 0) && `${hours.toString().padStart(2, '0')}${sfx.h} `}
+          {`${mins.toString().padStart(2, '0')}${sfx.m} `}
+          {`${secs.toString().padStart(2, '0')}${sfx.s}`}
         </>}
     </span>
   )

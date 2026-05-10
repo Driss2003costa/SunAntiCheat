@@ -1,30 +1,42 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSections } from '../App'
 import { Card, SectionDivider, Tag } from './ui'
 import Countdown from './Countdown'
 import type { FeatureStatus, SectionDetail } from '../api/client'
 
-const STATUS_META: Record<FeatureStatus, { label: string; color: string; bg: string; border: string; icon: string; subtitle: string }> = {
-  OPERATIONAL: { label: 'Opérationnel', color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.30)', icon: '✅', subtitle: 'Tout fonctionne'         },
-  DEGRADED:    { label: 'Dégradé',      color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.30)', icon: '⚠️',  subtitle: 'Problème connu'         },
-  MAINTENANCE: { label: 'Maintenance',  color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.35)',icon: '🛠️', subtitle: 'Travaux en cours'       },
-  DISABLED:    { label: 'Indisponible', color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.20)',icon: '⛔', subtitle: 'Coupé temporairement'   },
+const STATUS_STYLE: Record<FeatureStatus, { color: string; bg: string; border: string; icon: string }> = {
+  OPERATIONAL: { color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.30)', icon: '✅' },
+  DEGRADED:    { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.30)', icon: '⚠️'  },
+  MAINTENANCE: { color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.35)',icon: '🛠️' },
+  DISABLED:    { color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.20)',icon: '⛔' },
 }
 
 /** Sections que les joueurs voient comme "features" (pas register / public_profiles techniques). */
 const VISIBLE_KEYS = ['shop', 'career', 'quests', 'minigames', 'leaderboard', 'friends', 'messages']
 
-function fmtAgo(ts: number) {
+function fmtAgo(ts: number, isFr: boolean): string {
   if (!ts) return ''
   const s = Math.floor((Date.now() - ts) / 1000)
-  if (s < 60) return `il y a ${s}s`
-  if (s < 3600) return `il y a ${Math.floor(s / 60)}min`
-  if (s < 86400) return `il y a ${Math.floor(s / 3600)}h`
-  return `il y a ${Math.floor(s / 86400)}j`
+  const ago = isFr ? 'il y a ' : ''
+  const suffix = isFr ? '' : ' ago'
+  if (s < 60)    return `${ago}${s}s${suffix}`
+  if (s < 3600)  return `${ago}${Math.floor(s / 60)}min${suffix}`
+  if (s < 86400) return `${ago}${Math.floor(s / 3600)}h${suffix}`
+  return `${ago}${Math.floor(s / 86400)}${isFr ? 'j' : 'd'}${suffix}`
 }
 
 export default function ServerStatusCard() {
+  const { t, i18n } = useTranslation()
   const ctx = useSections()
+  const isFr = (i18n.resolvedLanguage ?? i18n.language ?? '').startsWith('fr')
+
+  const STATUS_META: Record<FeatureStatus, { label: string; subtitle: string } & typeof STATUS_STYLE.OPERATIONAL> = {
+    OPERATIONAL: { ...STATUS_STYLE.OPERATIONAL, label: t('serverStatus.operational'), subtitle: t('serverStatus.operationalHint') },
+    DEGRADED:    { ...STATUS_STYLE.DEGRADED,    label: t('serverStatus.degraded'),    subtitle: t('serverStatus.degradedHint')    },
+    MAINTENANCE: { ...STATUS_STYLE.MAINTENANCE, label: t('serverStatus.maintenance'), subtitle: t('serverStatus.maintenanceHint') },
+    DISABLED:    { ...STATUS_STYLE.DISABLED,    label: t('serverStatus.disabled'),    subtitle: t('serverStatus.disabledHint')    },
+  }
 
   const items: SectionDetail[] = useMemo(() => {
     return VISIBLE_KEYS
@@ -46,8 +58,8 @@ export default function ServerStatusCard() {
   return (
     <div className="mb-12 lg:mb-16">
       <SectionDivider
-        label="Statut des services"
-        hint="État opérationnel des features du serveur"/>
+        label={t('serverStatus.section')}
+        hint={t('serverStatus.sectionHint')}/>
 
       <Card padding="lg" className="overflow-hidden relative">
         {/* Halo coloré selon le statut global */}
@@ -64,7 +76,7 @@ export default function ServerStatusCard() {
             <div className="flex-1">
               <div className="text-xs font-bold uppercase tracking-[0.2em]"
                    style={{ color: meta.color }}>
-                {overall === 'OPERATIONAL' ? 'Tous les services sont en service' : 'Incidents en cours'}
+                {overall === 'OPERATIONAL' ? t('serverStatus.globalOk') : t('serverStatus.globalIssues')}
               </div>
               <div className="font-display text-xl font-semibold mt-0.5"
                    style={{ color: '#f8fafc' }}>
@@ -72,7 +84,7 @@ export default function ServerStatusCard() {
               </div>
             </div>
             {ctx.isOp && (
-              <Tag tone="gold" size="sm">★ Mode OP — accès maintenance</Tag>
+              <Tag tone="gold" size="sm">{t('serverStatus.opBadge')}</Tag>
             )}
           </div>
 
@@ -105,14 +117,14 @@ export default function ServerStatusCard() {
                     {s.endsAt > 0 && s.endsAt > Date.now() && (
                       <div className="text-[11px] mt-1 flex items-center gap-1"
                            style={{ color: m.color }}>
-                        <span>Retour estimé&nbsp;:</span>
+                        <span>{t('serverStatus.itemCountdown')}</span>
                         <Countdown endsAt={s.endsAt} variant="compact" color={m.color}/>
                       </div>
                     )}
                     {s.updatedAt > 0 && s.status !== 'OPERATIONAL' && (
                       <div className="text-[10px] mt-0.5"
                            style={{ color: 'rgba(241,245,249,0.35)' }}>
-                        Maj {fmtAgo(s.updatedAt)}
+                        {t('serverStatus.itemUpdated', { duration: fmtAgo(s.updatedAt, isFr) })}
                       </div>
                     )}
                   </div>
@@ -124,8 +136,7 @@ export default function ServerStatusCard() {
           {/* Disclaimer */}
           <div className="mt-4 text-[11px]"
                style={{ color: 'rgba(241,245,249,0.40)' }}>
-            Les sections en maintenance sont indisponibles le temps des travaux.
-            L'état est mis à jour en temps réel par l'équipe technique.
+            {t('serverStatus.disclaimer')}
           </div>
         </div>
       </Card>

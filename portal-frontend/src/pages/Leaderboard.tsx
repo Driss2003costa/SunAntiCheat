@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import SunGuardBg from '../components/SunGuardBg'
 import { GridShell, HeroBanner, SectionDivider, Card, Button, Tag } from '../components/ui'
 
@@ -26,12 +27,14 @@ const PODIUM_STYLE: Record<1 | 2 | 3, { bg: string; border: string; badge: strin
   3: { bg: 'rgba(184,92,14,0.08)',   border: 'rgba(212,132,62,0.35)',  badge: '#d4843e', glow: 'rgba(212,132,62,0.35)',  emoji: '🥉', tone: 'rose' },
 }
 
-function fmtBalance(n?: number) {
+function fmtBalance(n: number | undefined, locale: string) {
   if (n == null) return '—'
-  return n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' $'
+  return n.toLocaleString(locale, { maximumFractionDigits: 0 }) + ' $'
 }
 
 export default function Leaderboard() {
+  const { t, i18n } = useTranslation()
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   const [data,    setData]    = useState<LeaderboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -40,17 +43,17 @@ export default function Leaderboard() {
   useEffect(() => {
     fetch('/api/public/leaderboard')
       .then(async r => { const d = await r.json(); if (!r.ok) throw d; setData(d) })
-      .catch(e => setError(e.message || 'Erreur de chargement.'))
+      .catch(e => setError(e.message || t('leaderboard.errorGeneric')))
       .finally(() => setLoading(false))
-  }, [])
+  }, [t])
 
   const entries = data ? (tab === 'playtime' ? data.playtime : data.economy) : []
   const top3    = entries.slice(0, 3)
   const rest    = entries.slice(3)
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'playtime', label: 'Temps de jeu', icon: '⏱' },
-    { key: 'economy',  label: 'Économie',     icon: '💰' },
+    { key: 'playtime', label: t('leaderboard.tabs.playtime'), icon: '⏱' },
+    { key: 'economy',  label: t('leaderboard.tabs.economy'),  icon: '💰' },
   ]
 
   return (
@@ -68,9 +71,9 @@ export default function Leaderboard() {
             <span className="font-bold text-sm tracking-wide text-white">SunGuard</span>
           </Link>
           <nav className="flex items-center gap-2">
-            <Tag tone="gold">Classement</Tag>
-            <Button to="/login" variant="ghost" size="sm">Connexion</Button>
-            <Button to="/register" variant="secondary" size="sm">S'inscrire</Button>
+            <Tag tone="gold">{t('leaderboard.topbarTag')}</Tag>
+            <Button to="/login" variant="ghost" size="sm">{t('common.login')}</Button>
+            <Button to="/register" variant="secondary" size="sm">{t('common.register')}</Button>
           </nav>
         </div>
       </header>
@@ -78,18 +81,18 @@ export default function Leaderboard() {
       <GridShell>
         {/* HERO */}
         <HeroBanner
-          eyebrow="SunGuard Network"
+          eyebrow={t('common.brand')}
           variant="sun"
-          title="Classement"
+          title={t('leaderboard.title')}
           subtitle={
             data
-              ? `Les meilleurs joueurs du serveur — Mis à jour à ${new Date(data.updatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-              : 'Les meilleurs joueurs du serveur, mis à jour en temps réel.'
+              ? t('leaderboard.heroSubtitleUpdated', { time: new Date(data.updatedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) })
+              : t('leaderboard.heroSubtitleDefault')
           }
           cta={
             <>
-              <Button to="/register" size="lg">Rejoindre le serveur</Button>
-              <Button to="/login" variant="secondary" size="lg">Connexion</Button>
+              <Button to="/register" size="lg">{t('common.joinServer')}</Button>
+              <Button to="/login" variant="secondary" size="lg">{t('common.login')}</Button>
             </>
           }
         />
@@ -98,17 +101,17 @@ export default function Leaderboard() {
         <div className="flex justify-center mb-10 lg:mb-12">
           <div className="inline-flex gap-1 p-1 rounded-2xl"
                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            {tabs.map(t => {
-              const active = tab === t.key
+            {tabs.map(tb => {
+              const active = tab === tb.key
               return (
-                <button key={t.key} onClick={() => setTab(t.key)}
+                <button key={tb.key} onClick={() => setTab(tb.key)}
                   className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
                   style={{
                     background: active ? 'rgba(251,191,36,0.12)' : 'transparent',
                     color: active ? '#fbbf24' : 'rgba(241,245,249,0.55)',
                     border: `1px solid ${active ? 'rgba(251,191,36,0.3)' : 'transparent'}`,
                   }}>
-                  <span className="mr-2">{t.icon}</span>{t.label}
+                  <span className="mr-2">{tb.icon}</span>{tb.label}
                 </button>
               )
             })}
@@ -120,7 +123,7 @@ export default function Leaderboard() {
           <div className="flex flex-col items-center gap-4 py-24">
             <div className="w-10 h-10 rounded-full border-2 animate-spin"
                  style={{ borderColor: 'rgba(251,191,36,0.15)', borderTopColor: '#fbbf24' }} />
-            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.45)' }}>Chargement du classement…</p>
+            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.45)' }}>{t('leaderboard.loading')}</p>
           </div>
         )}
 
@@ -134,11 +137,11 @@ export default function Leaderboard() {
         {/* PODIUM */}
         {!loading && !error && entries.length >= 3 && (
           <section className="mb-12 lg:mb-16">
-            <SectionDivider label="Podium" hint="Top 3 du classement" />
+            <SectionDivider label={t('leaderboard.podiumSection')} hint={t('leaderboard.podiumHint')} />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-7 items-end max-w-5xl mx-auto">
-              <PodiumCard entry={top3[1]} place={2} tab={tab} />
-              <PodiumCard entry={top3[0]} place={1} tab={tab} />
-              <PodiumCard entry={top3[2]} place={3} tab={tab} />
+              <PodiumCard entry={top3[1]} place={2} tab={tab} locale={locale} />
+              <PodiumCard entry={top3[0]} place={1} tab={tab} locale={locale} />
+              <PodiumCard entry={top3[2]} place={3} tab={tab} locale={locale} />
             </div>
           </section>
         )}
@@ -146,18 +149,18 @@ export default function Leaderboard() {
         {/* TABLE */}
         {!loading && !error && rest.length > 0 && (
           <section className="mb-12">
-            <SectionDivider label="Classement complet" hint={`${entries.length} joueurs`}
-              action={<Tag tone="neutral">Live</Tag>} />
+            <SectionDivider label={t('leaderboard.tableSection')} hint={t('leaderboard.playerCount', { count: entries.length })}
+              action={<Tag tone="neutral">{t('leaderboard.live')}</Tag>} />
             <Card padding="none" className="overflow-hidden">
               <div className="grid grid-cols-[60px_1fr_140px_140px] sm:grid-cols-[80px_1fr_180px_180px] gap-4 px-5 lg:px-7 py-4 border-b"
                    style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-                <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.4)' }}>Rang</span>
-                <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.4)' }}>Joueur</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.4)' }}>{t('common.rank')}</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.4)' }}>{t('common.player')}</span>
                 <span className="text-[11px] font-bold uppercase tracking-widest text-right" style={{ color: 'rgba(241,245,249,0.4)' }}>
-                  {tab === 'playtime' ? 'Temps de jeu' : 'Solde'}
+                  {tab === 'playtime' ? t('leaderboard.valuePlaytime') : t('leaderboard.valueEconomy')}
                 </span>
                 <span className="text-[11px] font-bold uppercase tracking-widest text-right hidden sm:block" style={{ color: 'rgba(241,245,249,0.4)' }}>
-                  {tab === 'playtime' ? 'Solde' : 'Temps de jeu'}
+                  {tab === 'playtime' ? t('leaderboard.valueEconomy') : t('leaderboard.valuePlaytime')}
                 </span>
                 <span className="text-[11px] font-bold uppercase tracking-widest text-right sm:hidden" />
               </div>
@@ -181,10 +184,10 @@ export default function Leaderboard() {
                     </span>
                   </span>
                   <span className="text-sm font-bold text-right tabular-nums" style={{ color: '#f8fafc' }}>
-                    {tab === 'playtime' ? entry.playtime_formatted : fmtBalance(entry.balance)}
+                    {tab === 'playtime' ? entry.playtime_formatted : fmtBalance(entry.balance, locale)}
                   </span>
                   <span className="text-xs text-right tabular-nums hidden sm:block" style={{ color: 'rgba(241,245,249,0.4)' }}>
-                    {tab === 'playtime' ? fmtBalance(entry.balance) : entry.playtime_formatted}
+                    {tab === 'playtime' ? fmtBalance(entry.balance, locale) : entry.playtime_formatted}
                   </span>
                 </a>
               ))}
@@ -195,22 +198,22 @@ export default function Leaderboard() {
         {!loading && !error && entries.length === 0 && (
           <Card padding="lg" className="text-center">
             <p className="text-5xl mb-4">🏆</p>
-            <p className="font-display text-2xl font-semibold mb-2" style={{ color: '#f8fafc' }}>Le classement est vide</p>
-            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.45)' }}>Les premiers joueurs n'ont pas encore joué.</p>
+            <p className="font-display text-2xl font-semibold mb-2" style={{ color: '#f8fafc' }}>{t('leaderboard.emptyTitle')}</p>
+            <p className="text-sm" style={{ color: 'rgba(241,245,249,0.45)' }}>{t('leaderboard.emptyDesc')}</p>
           </Card>
         )}
 
         {/* CTA */}
         <Card variant="glass-warm" padding="lg" className="text-center">
           <p className="font-display text-2xl lg:text-3xl font-semibold mb-2" style={{ color: '#f8fafc' }}>
-            Rejoins le serveur
+            {t('leaderboard.ctaTitle')}
           </p>
           <p className="text-sm mb-5" style={{ color: 'rgba(241,245,249,0.5)' }}>
-            Connecte-toi et commence à accumuler des heures pour apparaître dans le classement.
+            {t('leaderboard.ctaSubtitle')}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button to="/register" size="lg">Créer un compte</Button>
-            <Button to="/login" variant="secondary" size="lg">Connexion</Button>
+            <Button to="/register" size="lg">{t('common.createAccount')}</Button>
+            <Button to="/login" variant="secondary" size="lg">{t('common.login')}</Button>
           </div>
         </Card>
       </GridShell>
@@ -218,7 +221,8 @@ export default function Leaderboard() {
   )
 }
 
-function PodiumCard({ entry, place, tab }: { entry: Entry; place: 1 | 2 | 3; tab: Tab }) {
+function PodiumCard({ entry, place, tab, locale }: { entry: Entry; place: 1 | 2 | 3; tab: Tab; locale: string }) {
+  const { t } = useTranslation()
   const s = PODIUM_STYLE[place]
   const isFirst = place === 1
   const avatarSize = isFirst ? 112 : 88
@@ -270,12 +274,12 @@ function PodiumCard({ entry, place, tab }: { entry: Entry; place: 1 | 2 | 3; tab
         {/* Value */}
         <p className="font-display text-3xl lg:text-4xl font-semibold tabular-nums mb-3"
            style={{ color: s.badge }}>
-          {tab === 'playtime' ? entry.playtime_formatted : fmtBalance(entry.balance)}
+          {tab === 'playtime' ? entry.playtime_formatted : fmtBalance(entry.balance, locale)}
         </p>
 
         {/* Tag */}
         <div className="flex justify-center">
-          <Tag tone={s.tone}>{s.emoji} {tab === 'playtime' ? 'Temps de jeu' : 'Économie'}</Tag>
+          <Tag tone={s.tone}>{s.emoji} {tab === 'playtime' ? t('leaderboard.valuePlaytime') : t('leaderboard.tabs.economy')}</Tag>
         </div>
       </div>
     </a>

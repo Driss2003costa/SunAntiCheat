@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSections } from '../App'
 import { Link, useLocation } from 'react-router-dom'
 import Countdown from './Countdown'
@@ -12,6 +13,7 @@ import Countdown from './Countdown'
  * Inclut un compte à rebours sous le bandeau si une fin estimée est définie.
  */
 export default function StatusBanner() {
+  const { t } = useTranslation()
   const ctx = useSections()
   const location = useLocation()
   const [dismissed, setDismissed] = useState<Record<string, boolean>>(() => {
@@ -48,21 +50,21 @@ export default function StatusBanner() {
         <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-3 text-sm">
           <span className="text-base">🚧</span>
           <span className="font-semibold tracking-wide" style={{ color: '#fca5a5' }}>
-            MAINTENANCE GLOBALE EN COURS
+            {t('statusBanner.globalTitle')}
           </span>
           <span className="hidden md:inline text-white/70">·</span>
           <span className="hidden md:inline truncate text-white/80">
-            {ctx.maintenance.message || 'Portail verrouillé pour les non-OP'}
+            {ctx.maintenance.message || t('statusBanner.globalDefault')}
           </span>
           <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest"
                 style={{ background: 'rgba(251,191,36,0.18)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>
-            ★ Mode OP — accès accordé
+            {t('statusBanner.opBadge')}
           </span>
         </div>
         {ctx.maintenance.endsAt > 0 && (
           <div className="max-w-6xl mx-auto px-4 pb-2 flex items-center gap-2 text-xs"
                style={{ color: '#fca5a5' }}>
-            <span>Retour estimé dans</span>
+            <span>{t('statusBanner.globalCountdown')}</span>
             <Countdown endsAt={ctx.maintenance.endsAt} variant="inline" color="#fca5a5"/>
           </div>
         )}
@@ -95,7 +97,7 @@ export default function StatusBanner() {
 
   const summary = visibleIncidents.length === 1
     ? `${visibleIncidents[0].icon} ${visibleIncidents[0].label}`
-    : `${visibleIncidents.length} services impactés`
+    : t('statusBanner.incidentMultiple', { count: visibleIncidents.length })
 
   return (
     <div role="alert"
@@ -109,7 +111,7 @@ export default function StatusBanner() {
           {hasBlocking ? '🛠️' : '⚠️'}
         </span>
         <span className="font-semibold tracking-wide" style={{ color }}>
-          {hasBlocking ? 'MAINTENANCE EN COURS' : 'INCIDENT EN COURS'}
+          {hasBlocking ? t('statusBanner.incidentMaintenance') : t('statusBanner.incidentTitle')}
         </span>
         <span className="hidden md:inline text-white/70">·</span>
         <span className="hidden md:inline truncate text-white/80">
@@ -121,10 +123,10 @@ export default function StatusBanner() {
         <Link to="/home"
               className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full hover:opacity-80 transition"
               style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: `1px solid ${color}66` }}>
-          Voir détails →
+          {t('statusBanner.incidentButton')} →
         </Link>
         <button
-          aria-label="Masquer"
+          aria-label="Close"
           onClick={dismissAll}
           className="text-white/60 hover:text-white text-lg leading-none px-1">
           ×
@@ -132,7 +134,7 @@ export default function StatusBanner() {
       </div>
       {earliestEndsAt > 0 && (
         <div className="max-w-6xl mx-auto px-4 pb-2 flex items-center gap-2 text-xs" style={{ color }}>
-          <span>Retour estimé dans</span>
+          <span>{t('statusBanner.incidentCountdown')}</span>
           <Countdown endsAt={earliestEndsAt} variant="inline" color={color}/>
         </div>
       )}

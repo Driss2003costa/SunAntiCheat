@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, getToken, clearToken, type PlayerProfile, type CrateKeyEntry } from '../api/client'
 import Navbar from '../components/Navbar'
 import SunBackground from '../components/SunBackground'
 import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 
-function fmtBalance(n: number) {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+function fmtBalance(n: number, locale: string) {
+  return n.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 const SLOT_COUNT = 48
@@ -16,6 +17,8 @@ type FilterTab = 'all' | 'keys' | 'badges' | 'cosmetics'
 
 export default function Inventory() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   const [profile,   setProfile]   = useState<PlayerProfile | null>(null)
   const [keys,      setKeys]      = useState<CrateKeyEntry[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -49,7 +52,7 @@ export default function Inventory() {
           : k
       ).filter(k => k.count > 0))
     } catch (e: any) {
-      setModal({ crate, step: 'done', message: e.error || e.message || 'Erreur lors de la réclamation', ok: false })
+      setModal({ crate, step: 'done', message: e.error || e.message || t('inventory.errorClaim'), ok: false })
     }
   }
 
@@ -76,10 +79,10 @@ export default function Inventory() {
   const roleIcon  = { PLAYER: '👤', VIP: '⭐', MODERATOR: '🛡️', ADMIN: '👑' }[profile.role] ?? '👤'
 
   const filters: { key: FilterTab; label: string; icon: string; count?: number }[] = [
-    { key: 'all',        label: 'Tout',       icon: '🎒', count: totalKeys + 1 },
-    { key: 'keys',       label: 'Clés',       icon: '🗝️', count: totalKeys },
-    { key: 'badges',     label: 'Badges',     icon: '🏷️', count: 1 },
-    { key: 'cosmetics',  label: 'Cosmétiques',icon: '✨', count: 0 },
+    { key: 'all',        label: t('inventory.filters.all'),        icon: '🎒', count: totalKeys + 1 },
+    { key: 'keys',       label: t('inventory.filters.keys'),       icon: '🗝️', count: totalKeys },
+    { key: 'badges',     label: t('inventory.filters.badges'),     icon: '🏷️', count: 1 },
+    { key: 'cosmetics',  label: t('inventory.filters.cosmetics'),  icon: '✨', count: 0 },
   ]
 
   const showKeys      = filter === 'all' || filter === 'keys'
@@ -101,17 +104,17 @@ export default function Inventory() {
                 <div className="text-center">
                   <span className="text-5xl block mb-3">🗝️</span>
                   <p className="font-display text-xl font-semibold" style={{ color: '#f8fafc' }}>
-                    Réclamer la clé
+                    {t('inventory.modal.title')}
                   </p>
                   <p className="text-sm mt-1" style={{ color: '#fbbf24' }}>{modal.crate.displayName}</p>
                   <p className="text-xs mt-4 rounded-xl p-3"
                      style={{ color: 'rgba(241,245,249,0.6)', background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.12)' }}>
-                    Cette clé vous sera remise en jeu à votre prochaine connexion (ou immédiatement si vous êtes connecté).
+                    {t('inventory.modal.info')}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={() => setModal(null)} variant="secondary" size="md">Annuler</Button>
-                  <Button onClick={() => claimKey(modal.crate)} size="md">Confirmer</Button>
+                  <Button onClick={() => setModal(null)} variant="secondary" size="md">{t('common.cancel')}</Button>
+                  <Button onClick={() => claimKey(modal.crate)} size="md">{t('common.confirm')}</Button>
                 </div>
               </>
             )}
@@ -119,7 +122,7 @@ export default function Inventory() {
               <div className="flex flex-col items-center gap-3 py-6">
                 <div className="w-8 h-8 rounded-full border-2 animate-spin"
                      style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#fbbf24' }} />
-                <p className="text-sm" style={{ color: 'rgba(241,245,249,0.6)' }}>Réclamation en cours…</p>
+                <p className="text-sm" style={{ color: 'rgba(241,245,249,0.6)' }}>{t('inventory.modal.loading')}</p>
               </div>
             )}
             {modal.step === 'done' && (
@@ -128,7 +131,7 @@ export default function Inventory() {
                   <span className="text-5xl block mb-3">{modal.ok ? '✅' : '❌'}</span>
                   <p className="text-sm" style={{ color: modal.ok ? '#4ade80' : '#f87171' }}>{modal.message}</p>
                 </div>
-                <Button onClick={() => setModal(null)} fullWidth size="md">Fermer</Button>
+                <Button onClick={() => setModal(null)} fullWidth size="md">{t('common.close')}</Button>
               </>
             )}
           </Card>
@@ -138,14 +141,14 @@ export default function Inventory() {
       <GridShell>
         {/* HERO */}
         <HeroBanner
-          eyebrow="Inventaire"
+          eyebrow={t('inventory.eyebrow')}
           variant="ember"
-          title={<>Coffre de <span className="text-sun-300">{profile.username}</span></>}
-          subtitle="Gère tes clés de caisses, tes badges et tes objets cosmétiques. Réclame ce qui t'attend en jeu."
+          title={<>{t('inventory.hero.titleStart')}<span className="text-sun-300">{profile.username}</span></>}
+          subtitle={t('inventory.hero.subtitle')}
           cta={
             <>
-              <Button to="/shop" size="lg">🛒 Boutique</Button>
-              <Button to="/profile" variant="secondary" size="lg">Mon profil</Button>
+              <Button to="/shop" size="lg">{t('inventory.hero.buttonShop')}</Button>
+              <Button to="/profile" variant="secondary" size="lg">{t('inventory.hero.buttonProfile')}</Button>
             </>
           }
           rightSlot={
@@ -154,15 +157,15 @@ export default function Inventory() {
                    style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
                 <p className="text-3xl mb-1">🪙</p>
                 <p className="font-display text-2xl font-semibold" style={{ color: '#f8fafc' }}>
-                  {profile.balance != null ? fmtBalance(profile.balance) : '—'}
+                  {profile.balance != null ? fmtBalance(profile.balance, locale) : '—'}
                 </p>
-                <p className="text-[10px] mt-1 uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.5)' }}>Coins</p>
+                <p className="text-[10px] mt-1 uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('inventory.hero.coins')}</p>
               </div>
               <div className="rounded-2xl p-4 text-center"
                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <p className="text-3xl mb-1">🗝️</p>
                 <p className="font-display text-2xl font-semibold" style={{ color: '#f8fafc' }}>{totalKeys}</p>
-                <p className="text-[10px] mt-1 uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.5)' }}>Clés</p>
+                <p className="text-[10px] mt-1 uppercase tracking-widest" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('inventory.hero.keys')}</p>
               </div>
             </div>
           }
@@ -170,19 +173,19 @@ export default function Inventory() {
 
         {/* STATS */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
-          <StatCard label="Solde" accent="gold" icon="💰"
-                    value={profile.balance != null ? `${fmtBalance(profile.balance)} $` : '—'} hint="Coins disponibles" />
-          <StatCard label="Clés" accent="violet" icon="🗝️" value={totalKeys} hint="Toutes caisses" />
-          <StatCard label="Grade" accent="sky" icon={roleIcon} value={profile.role} hint="Statut actuel" />
-          <StatCard label="Temps de jeu" accent="jade" icon="⏱"
-                    value={profile.playtime_formatted ?? '—'} hint="Total cumulé" />
+          <StatCard label={t('inventory.stats.balance')} accent="gold" icon="💰"
+                    value={profile.balance != null ? `${fmtBalance(profile.balance, locale)} $` : '—'} hint={t('inventory.stats.balanceHint')} />
+          <StatCard label={t('inventory.stats.keys')} accent="violet" icon="🗝️" value={totalKeys} hint={t('inventory.stats.keysHint')} />
+          <StatCard label={t('inventory.stats.role')} accent="sky" icon={roleIcon} value={profile.role} hint={t('inventory.stats.roleHint')} />
+          <StatCard label={t('inventory.stats.playtime')} accent="jade" icon="⏱"
+                    value={profile.playtime_formatted ?? '—'} hint={t('inventory.stats.playtimeHint')} />
         </div>
 
         {/* MAIN: filters sidebar + items */}
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 lg:gap-7">
           {/* Filters sidebar */}
           <aside className="lg:sticky lg:top-8 self-start space-y-5">
-            <SectionDivider label="Catégories" />
+            <SectionDivider label={t('inventory.filters.label')} />
             <Card padding="sm">
               <div className="space-y-1">
                 {filters.map(f => {
@@ -208,10 +211,10 @@ export default function Inventory() {
               </div>
             </Card>
 
-            <SectionDivider label="Aide" />
+            <SectionDivider label={t('inventory.help.label')} />
             <Card padding="md">
               <p className="text-xs leading-relaxed" style={{ color: 'rgba(241,245,249,0.6)' }}>
-                Les clés et objets sont remis en jeu lors de ta prochaine connexion (ou immédiatement si tu es online).
+                {t('inventory.help.text')}
               </p>
             </Card>
           </aside>
@@ -220,8 +223,8 @@ export default function Inventory() {
           <div className="space-y-10">
             {showKeys && (
               <section>
-                <SectionDivider label="Clés de caisses"
-                  hint={totalKeys > 0 ? `${totalKeys} clé${totalKeys > 1 ? 's' : ''} disponibles` : 'Aucune clé'}
+                <SectionDivider label={t('inventory.keys.section')}
+                  hint={totalKeys > 0 ? t('inventory.keys.available', { count: totalKeys }) : t('inventory.keys.empty')}
                   action={totalKeys > 0 ? <Tag tone="gold">{totalKeys}</Tag> : undefined} />
 
                 {/* Slot grid */}
@@ -269,15 +272,15 @@ export default function Inventory() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate" style={{ color: '#f8fafc' }}>{entry.displayName}</p>
                             {entry.pendingClaim
-                              ? <Tag tone="gold" size="xs">⏳ En attente</Tag>
-                              : <Tag tone="jade" size="xs">Disponible</Tag>}
+                              ? <Tag tone="gold" size="xs">{t('inventory.keys.statusPending')}</Tag>
+                              : <Tag tone="jade" size="xs">{t('inventory.keys.statusAvailable')}</Tag>}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="font-display text-xl font-semibold tabular-nums" style={{ color: entry.color ?? '#fbbf24' }}>
                               ×{entry.count}
                             </span>
                             <Button onClick={() => setModal({ crate: entry, step: 'confirm' })} size="sm">
-                              Réclamer
+                              {t('inventory.keys.claim')}
                             </Button>
                           </div>
                         </div>
@@ -287,7 +290,7 @@ export default function Inventory() {
                 ) : (
                   <Card padding="lg">
                     <p className="text-center text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                      Aucune clé en inventaire. Achète-en dans la boutique ou réclame des récompenses !
+                      {t('inventory.keys.emptyDesc')}
                     </p>
                   </Card>
                 )}
@@ -296,7 +299,7 @@ export default function Inventory() {
 
             {showBadges && (
               <section>
-                <SectionDivider label="Grades & Badges" hint="Distinctions débloquées" />
+                <SectionDivider label={t('inventory.badges.section')} hint={t('inventory.badges.subtitle')} />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   <Card padding="md" hover>
                     <div className="flex items-center gap-3">
@@ -306,7 +309,7 @@ export default function Inventory() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold" style={{ color: '#f8fafc' }}>{profile.role}</p>
-                        <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>Grade actif</p>
+                        <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('inventory.badges.active')}</p>
                       </div>
                       <Tag tone="jade" size="xs">●</Tag>
                     </div>
@@ -318,8 +321,8 @@ export default function Inventory() {
                         🎖️
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold" style={{ color: '#f8fafc' }}>Vétéran</p>
-                        <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>100h de jeu</p>
+                        <p className="text-sm font-semibold" style={{ color: '#f8fafc' }}>{t('inventory.badges.veteran.name')}</p>
+                        <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('inventory.badges.veteran.desc')}</p>
                       </div>
                       <span className="text-xs">🔒</span>
                     </div>
@@ -331,8 +334,8 @@ export default function Inventory() {
                         🏅
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold" style={{ color: '#f8fafc' }}>Conquérant</p>
-                        <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>Top 10 classement</p>
+                        <p className="text-sm font-semibold" style={{ color: '#f8fafc' }}>{t('inventory.badges.conqueror.name')}</p>
+                        <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('inventory.badges.conqueror.desc')}</p>
                       </div>
                       <span className="text-xs">🔒</span>
                     </div>
@@ -343,10 +346,10 @@ export default function Inventory() {
 
             {showCosmetics && (
               <section>
-                <SectionDivider label="Cosmétiques" hint="Skins, particules, capes…" />
+                <SectionDivider label={t('inventory.cosmetics.section')} hint={t('inventory.cosmetics.subtitle')} />
                 <Card padding="lg">
                   <p className="text-center text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                    ✨ Les cosmétiques arrivent bientôt !
+                    {t('inventory.cosmetics.empty')}
                   </p>
                 </Card>
               </section>

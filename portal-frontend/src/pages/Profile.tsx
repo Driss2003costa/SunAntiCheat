@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
 import { GridShell, ProfileHero, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 
-function fmtDate(ts: number | null | undefined) {
+function fmtDate(ts: number | null | undefined, locale: string) {
   if (!ts) return '—'
-  return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+  return new Date(ts).toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 function fmtBalance(n: number) {
@@ -23,6 +24,8 @@ const ROLE_TONE: Record<string, 'gold' | 'sky' | 'violet' | 'danger' | 'neutral'
 
 export default function Profile() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   const [profile, setProfile] = useState<PlayerProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -87,10 +90,10 @@ export default function Profile() {
         body: JSON.stringify({ bio }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erreur')
+      if (!res.ok) throw new Error(data.error || t('common.error'))
       setBio(data.bio ?? bio); setBioEdit(false)
     } catch (e: any) {
-      setBioError(e.message || 'Erreur de sauvegarde')
+      setBioError(e.message || t('profile.bioErrorSave'))
     } finally { setBioSaving(false) }
   }
 
@@ -102,7 +105,7 @@ export default function Profile() {
       setDailyResult(res)
       api.dailyStatus(token).then(setDaily).catch(() => {})
     } catch (e: any) {
-      setDailyError(e.error || e.message || 'Erreur')
+      setDailyError(e.error || e.message || t('common.error'))
     } finally { setDailyClaim(false) }
   }
 
@@ -115,8 +118,8 @@ export default function Profile() {
   )
   if (error || !profile) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 pb-28" style={{ background: '#080d19' }}>
-      <p className="text-red-400 text-center">{error || 'Profil introuvable.'}</p>
-      <Link to="/login" className="text-sm" style={{ color: '#fbbf24' }}>Retour à la connexion</Link>
+      <p className="text-red-400 text-center">{error || t('profile.errorNotFound')}</p>
+      <Link to="/login" className="text-sm" style={{ color: '#fbbf24' }}>{t('profile.errorLink')}</Link>
       <Navbar />
     </div>
   )
@@ -139,38 +142,38 @@ export default function Profile() {
           uuid={profile.uuid}
           actions={
             <>
-              <Button onClick={() => setBioEdit(true)} variant="secondary" size="sm">✎ Modifier la bio</Button>
-              <Button href={`/portal/player/${profile.username}`} target="_blank" variant="ghost" size="sm">↗ Profil public</Button>
-              <Button onClick={logout} variant="ghost" size="sm">Déconnexion</Button>
+              <Button onClick={() => setBioEdit(true)} variant="secondary" size="sm">{t('profile.hero.editBio')}</Button>
+              <Button href={`/portal/player/${profile.username}`} target="_blank" variant="ghost" size="sm">{t('profile.hero.publicProfile')}</Button>
+              <Button onClick={logout} variant="ghost" size="sm">{t('profile.hero.logout')}</Button>
             </>
           }
         />
 
         {/* STATS */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
-          <StatCard label="Solde" accent="gold" icon="💰"
-                    value={profile.balance != null ? fmtBalance(profile.balance) : '—'} hint="Économie serveur" />
-          <StatCard label="Temps de jeu" accent="jade" icon="⏱"
-                    value={profile.playtime_formatted ?? '—'} hint="Total cumulé" />
-          <StatCard label="Amis" accent="violet" icon="👥"
-                    value={friendCount != null ? String(friendCount) : '—'} hint="Connexions" />
-          <StatCard label="Rôle" accent="sky" icon="✦" value={profile.role} hint="Statut compte" />
+          <StatCard label={t('common.balance')} accent="gold" icon="💰"
+                    value={profile.balance != null ? fmtBalance(profile.balance) : '—'} hint={t('common.serverEconomy')} />
+          <StatCard label={t('common.playtime')} accent="jade" icon="⏱"
+                    value={profile.playtime_formatted ?? '—'} hint={t('common.totalCumulative')} />
+          <StatCard label={t('profile.stats.friends')} accent="violet" icon="👥"
+                    value={friendCount != null ? String(friendCount) : '—'} hint={t('profile.stats.friendsHint')} />
+          <StatCard label={t('common.role')} accent="sky" icon="✦" value={profile.role} hint={t('common.accountStatus')} />
         </div>
 
         {/* BIO EDITOR */}
         {bioEditing && (
           <div className="mb-10">
             <Card padding="lg">
-              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-sun-300 mb-3">Modifier ta bio</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-sun-300 mb-3">{t('profile.bioEdit.label')}</p>
               <textarea value={bio} onChange={e => setBio(e.target.value.slice(0, 160))} rows={3}
-                placeholder="Présente-toi en quelques mots…"
+                placeholder={t('profile.bioEdit.placeholder') as string}
                 className="w-full rounded-xl px-4 py-3 text-sm resize-none focus:outline-none"
                 style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(139,92,246,0.4)', color: '#f1f5f9' }} />
               <div className="flex items-center justify-between gap-3 mt-3">
                 <span className="text-xs" style={{ color: 'rgba(241,245,249,0.45)' }}>{bio.length}/160</span>
                 <div className="flex gap-2">
-                  <Button onClick={() => { setBioEdit(false); setBioError('') }} variant="ghost" size="sm">Annuler</Button>
-                  <Button onClick={saveBio} size="sm" disabled={bioSaving}>{bioSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+                  <Button onClick={() => { setBioEdit(false); setBioError('') }} variant="ghost" size="sm">{t('common.cancel')}</Button>
+                  <Button onClick={saveBio} size="sm" disabled={bioSaving}>{bioSaving ? t('common.saving') : t('common.save')}</Button>
                 </div>
               </div>
               {bioError && <p className="text-xs text-red-400 mt-2">{bioError}</p>}
@@ -182,7 +185,7 @@ export default function Profile() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6">
           {/* LEFT SIDEBAR */}
           <aside className="lg:col-span-3 space-y-5">
-            <SectionDivider label="Identité" />
+            <SectionDivider label={t('profile.section.identity')} />
             <Card padding="lg">
               <div className="flex flex-col items-center text-center">
                 <img src={`https://mc-heads.net/avatar/${profile.username}/96`}
@@ -192,21 +195,21 @@ export default function Profile() {
                 <h3 className="font-display text-xl font-semibold" style={{ color: '#f8fafc' }}>{profile.username}</h3>
                 <div className="flex gap-2 mt-2 flex-wrap justify-center">
                   <Tag tone={ROLE_TONE[profile.role] ?? 'neutral'} size="xs">{profile.role}</Tag>
-                  <Tag tone={profile.online ? 'jade' : 'neutral'} size="xs">{profile.online ? 'En ligne' : 'Hors ligne'}</Tag>
+                  <Tag tone={profile.online ? 'jade' : 'neutral'} size="xs">{profile.online ? t('common.online') : t('common.offline')}</Tag>
                 </div>
               </div>
               <div className="mt-5 space-y-2 text-xs">
                 <div className="flex justify-between gap-3">
-                  <span style={{ color: 'rgba(241,245,249,0.5)' }}>Inscrit le</span>
-                  <span style={{ color: '#f1f5f9' }}>{fmtDate(profile.created_at)}</span>
+                  <span style={{ color: 'rgba(241,245,249,0.5)' }}>{t('profile.identity.joinedOn')}</span>
+                  <span style={{ color: '#f1f5f9' }}>{fmtDate(profile.created_at, locale)}</span>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <span style={{ color: 'rgba(241,245,249,0.5)' }}>Dernière connex.</span>
-                  <span style={{ color: '#f1f5f9' }}>{fmtDate(profile.last_login)}</span>
+                  <span style={{ color: 'rgba(241,245,249,0.5)' }}>{t('profile.identity.lastLogin')}</span>
+                  <span style={{ color: '#f1f5f9' }}>{fmtDate(profile.last_login, locale)}</span>
                 </div>
                 <div className="pt-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                   <span className="text-[10px] font-semibold uppercase tracking-widest block mb-1"
-                        style={{ color: 'rgba(241,245,249,0.45)' }}>UUID</span>
+                        style={{ color: 'rgba(241,245,249,0.45)' }}>{t('profile.identity.uuid')}</span>
                   <span className="font-mono text-[10px] break-all" style={{ color: 'rgba(241,245,249,0.6)' }}>{profile.uuid}</span>
                 </div>
               </div>
@@ -218,9 +221,11 @@ export default function Profile() {
             {/* DAILY */}
             {daily?.config?.enabled && (
               <section>
-                <SectionDivider label="Récompense quotidienne"
-                  hint={`Série en cours : ${daily.streak} jour${daily.streak > 1 ? 's' : ''}`}
-                  action={daily.canClaim ? <Tag tone="gold">🎁 Disponible</Tag> : <Tag tone="neutral">⏳ {cooldown || '—'}</Tag>} />
+                <SectionDivider label={t('profile.daily.section')}
+                  hint={t('profile.daily.streak', { count: daily.streak })}
+                  action={daily.canClaim
+                    ? <Tag tone="gold">{t('profile.daily.available')}</Tag>
+                    : <Tag tone="neutral">{t('profile.daily.cooldown', { cooldown: cooldown || '—' })}</Tag>} />
                 <Card variant={daily.canClaim ? 'glass-warm' : 'glass'} padding="lg">
                   <div className="grid grid-cols-7 gap-2 mb-5">
                     {daily.config.days.slice(0, daily.config.cycleDays).map(d => {
@@ -235,7 +240,7 @@ export default function Profile() {
                             opacity: isDone && !isCurrent ? 0.5 : 1,
                           }}>
                           <span className="text-lg leading-none">{d.icon ?? '🎁'}</span>
-                          <span className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>J{d.day}</span>
+                          <span className="text-[10px]" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('profile.daily.day', { day: d.day })}</span>
                           {d.bonusCoins > 0 && <span className="text-[10px] font-bold" style={{ color: '#fbbf24' }}>{d.bonusCoins}$</span>}
                           {isDone && <span className="text-emerald-400 text-[10px]">✓</span>}
                         </div>
@@ -245,22 +250,22 @@ export default function Profile() {
                   {dailyResult ? (
                     <div className="rounded-xl p-4 text-center space-y-1"
                          style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
-                      <p className="text-sm font-semibold text-emerald-400">{dailyResult.icon ?? '🎁'} {dailyResult.displayName ?? `Jour ${dailyResult.day}`}</p>
+                      <p className="text-sm font-semibold text-emerald-400">{dailyResult.icon ?? '🎁'} {dailyResult.displayName ?? t('profile.daily.day', { day: dailyResult.day })}</p>
                       {dailyResult.bonusCoins > 0 && <p className="text-xs" style={{ color: '#fbbf24' }}>+{dailyResult.bonusCoins} coins</p>}
                       <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{dailyResult.message}</p>
                     </div>
                   ) : daily.canClaim ? (
                     <div className="space-y-2">
                       <Button onClick={claimDaily} disabled={dailyClaiming} fullWidth size="lg">
-                        {dailyClaiming ? 'Réclamation…' : '🎁 Réclamer ma récompense'}
+                        {dailyClaiming ? t('profile.daily.claiming') : t('profile.daily.claimButton')}
                       </Button>
                       <p className="text-center text-[11px]" style={{ color: 'rgba(241,245,249,0.45)' }}>
-                        🎮 Vous devez être connecté en jeu pour réclamer
+                        {t('profile.daily.ingameHint')}
                       </p>
                     </div>
                   ) : (
                     <div className="text-center py-2">
-                      <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>Prochaine récompense dans</p>
+                      <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('profile.daily.nextIn')}</p>
                       <p className="text-xl font-semibold font-mono mt-1" style={{ color: '#f8fafc' }}>{cooldown}</p>
                     </div>
                   )}
@@ -271,18 +276,20 @@ export default function Profile() {
 
             {/* SANCTIONS */}
             <section>
-              <SectionDivider label="Sanctions"
-                action={sanctions.length > 0 ? <Tag tone="danger">{sanctions.length} active(s)</Tag> : <Tag tone="jade">✓ Compte clean</Tag>} />
+              <SectionDivider label={t('profile.sanctions.section')}
+                action={sanctions.length > 0
+                  ? <Tag tone="danger">{t('profile.sanctions.active', { count: sanctions.length })}</Tag>
+                  : <Tag tone="jade">{t('profile.sanctions.clean')}</Tag>} />
               {sanctions.length > 0 ? (
                 <Card padding="md" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.2)' }}>
                   <div className="space-y-1">
-                    {sanctions.map(s => <SanctionRow key={s.id} s={s} />)}
+                    {sanctions.map(s => <SanctionRow key={s.id} s={s} t={t} />)}
                   </div>
                 </Card>
               ) : (
                 <Card padding="lg">
                   <p className="text-center text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                    ✓ Aucune sanction active. Continue comme ça !
+                    {t('profile.sanctions.empty')}
                   </p>
                 </Card>
               )}
@@ -291,7 +298,7 @@ export default function Profile() {
             {/* REFERRAL */}
             {referral && (
               <section>
-                <SectionDivider label="Code de parrainage" hint="Validés après 24h d'activité du filleul" />
+                <SectionDivider label={t('profile.referral.section')} hint={t('profile.referral.hint')} />
                 <Card padding="lg">
                   <div className="flex items-center gap-3 mb-4">
                     <code className="flex-1 rounded-xl px-4 py-3 text-sm font-mono font-bold tracking-widest text-center"
@@ -304,19 +311,19 @@ export default function Profile() {
                           .then(() => { setRefCopied(true); setTimeout(() => setRefCopied(false), 2000) })
                       }}
                       variant={refCopied ? 'secondary' : 'primary'} size="md">
-                      {refCopied ? '✓ Copié' : 'Copier'}
+                      {refCopied ? t('profile.referral.copied') : t('profile.referral.copy')}
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl py-3 text-center"
                          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <p className="font-display text-3xl font-semibold" style={{ color: '#f8fafc' }}>{referral.total}</p>
-                      <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Inscrits</p>
+                      <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('profile.referral.registered')}</p>
                     </div>
                     <div className="rounded-xl py-3 text-center"
                          style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.15)' }}>
                       <p className="font-display text-3xl font-semibold" style={{ color: '#fbbf24' }}>{referral.validated}</p>
-                      <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Validés</p>
+                      <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('profile.referral.validated')}</p>
                     </div>
                   </div>
                 </Card>
@@ -326,39 +333,39 @@ export default function Profile() {
 
           {/* RIGHT SIDEBAR */}
           <aside className="lg:col-span-3 space-y-5">
-            <SectionDivider label="Actions rapides" />
+            <SectionDivider label={t('profile.sidebar.actions')} />
             <Card padding="md">
               <div className="space-y-2">
-                <Button to="/inventory" variant="secondary" fullWidth size="md">🎒 Inventaire</Button>
-                <Button to="/leaderboard" variant="secondary" fullWidth size="md">🏆 Classement</Button>
-                <Button to="/quests" variant="secondary" fullWidth size="md">🎯 Quêtes</Button>
-                <Button to="/career" variant="secondary" fullWidth size="md">⚡ Carrière</Button>
+                <Button to="/inventory" variant="secondary" fullWidth size="md">{t('profile.actions.inventory')}</Button>
+                <Button to="/leaderboard" variant="secondary" fullWidth size="md">{t('profile.actions.leaderboard')}</Button>
+                <Button to="/quests" variant="secondary" fullWidth size="md">{t('profile.actions.quests')}</Button>
+                <Button to="/career" variant="secondary" fullWidth size="md">{t('profile.actions.career')}</Button>
               </div>
             </Card>
 
-            <SectionDivider label="Activité récente" />
+            <SectionDivider label={t('profile.sidebar.activity')} />
             <Card padding="md">
               <div className="space-y-3 text-sm">
                 <div className="flex items-start gap-3">
                   <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: profile.online ? '#34d399' : '#64748b' }} />
                   <div className="min-w-0 flex-1">
-                    <p style={{ color: '#f1f5f9' }}>{profile.online ? 'Actif maintenant' : 'Hors ligne'}</p>
-                    <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{fmtDate(profile.last_login)}</p>
+                    <p style={{ color: '#f1f5f9' }}>{profile.online ? t('profile.activity.activeNow') : t('profile.activity.offline')}</p>
+                    <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{fmtDate(profile.last_login, locale)}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: '#fbbf24' }} />
                   <div className="min-w-0 flex-1">
-                    <p style={{ color: '#f1f5f9' }}>Compte créé</p>
-                    <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{fmtDate(profile.created_at)}</p>
+                    <p style={{ color: '#f1f5f9' }}>{t('profile.activity.accountCreated')}</p>
+                    <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{fmtDate(profile.created_at, locale)}</p>
                   </div>
                 </div>
                 {daily && (
                   <div className="flex items-start gap-3">
                     <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: '#a78bfa' }} />
                     <div className="min-w-0 flex-1">
-                      <p style={{ color: '#f1f5f9' }}>Série quotidienne : {daily.streak}j</p>
-                      <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{daily.canClaim ? 'Récompense dispo' : 'À jour'}</p>
+                      <p style={{ color: '#f1f5f9' }}>{t('profile.activity.dailyStreak', { count: daily.streak })}</p>
+                      <p className="text-xs" style={{ color: 'rgba(241,245,249,0.5)' }}>{daily.canClaim ? t('profile.activity.rewardAvailable') : t('profile.activity.uptodate')}</p>
                     </div>
                   </div>
                 )}
@@ -372,17 +379,17 @@ export default function Profile() {
   )
 }
 
-function SanctionRow({ s }: { s: ActiveSanction }) {
+function SanctionRow({ s, t }: { s: ActiveSanction; t: (k: string, v?: any) => string }) {
   const fmtExpiry = (ts: number | null) =>
-    ts ? new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent'
+    ts ? new Date(ts).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : t('profile.sanctions.permanent')
   const tone: 'danger' | 'rose' | 'gold' | 'sky' | 'neutral' =
     s.type === 'BAN' ? 'danger' : s.type === 'MUTE' ? 'rose' : s.type === 'WARN' ? 'gold' : s.type === 'KICK' ? 'sky' : 'neutral'
   return (
     <div className="px-3 py-3 flex items-start gap-3 border-b last:border-b-0" style={{ borderColor: 'rgba(239,68,68,0.08)' }}>
       <Tag tone={tone} size="sm">{s.type}</Tag>
       <div className="flex-1 min-w-0">
-        <p className="text-sm truncate" style={{ color: '#f1f5f9' }}>{s.reason || 'Aucune raison'}</p>
-        <p className="text-xs mt-0.5" style={{ color: 'rgba(241,245,249,0.5)' }}>Par {s.issued_by} · {fmtExpiry(s.expires_at)}</p>
+        <p className="text-sm truncate" style={{ color: '#f1f5f9' }}>{s.reason || t('profile.sanctions.noReason')}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('profile.sanctions.by', { user: s.issued_by })} · {fmtExpiry(s.expires_at)}</p>
       </div>
     </div>
   )

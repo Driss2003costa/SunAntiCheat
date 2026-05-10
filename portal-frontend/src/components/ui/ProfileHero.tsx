@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type RoleTone = 'gold' | 'sky' | 'violet' | 'danger' | 'neutral'
 
@@ -22,9 +23,9 @@ const ROLE_COLORS: Record<RoleTone, { ring: string; glow: string; text: string }
   neutral: { ring: 'rgba(148,163,184,0.45)', glow: 'rgba(148,163,184,0.25)', text: 'rgba(241,245,249,0.85)' },
 }
 
-function fmtDate(ts: number | null | undefined) {
+function fmtDate(ts: number | null | undefined, locale: string) {
   if (!ts) return '—'
-  return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+  return new Date(ts).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 /**
@@ -38,7 +39,9 @@ export default function ProfileHero({
   username, role, roleTone = 'neutral', bio,
   online, joinedAt, lastLogin, uuid, actions,
 }: Props) {
+  const { t, i18n } = useTranslation()
   const rc = ROLE_COLORS[roleTone]
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
 
   return (
     <section className="relative overflow-hidden rounded-3xl mb-10 lg:mb-14"
@@ -103,7 +106,7 @@ export default function ProfileHero({
                       backdropFilter: 'blur(6px)',
                     }}>
                 <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
-                {online ? 'En ligne' : 'Hors ligne'}
+                {online ? t('common.online') : t('common.offline')}
               </span>
             </div>
           </div>
@@ -114,7 +117,7 @@ export default function ProfileHero({
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.4em]"
                   style={{ color: 'rgba(241,245,249,0.45)' }}>
-              Carte joueur
+              {t('profileHero.label')}
             </span>
             <span className="h-px flex-1 max-w-[80px]"
                   style={{ background: 'linear-gradient(90deg, rgba(139,92,246,0.5), transparent)' }} />
@@ -139,7 +142,7 @@ export default function ProfileHero({
                style={{ borderLeft: '2px solid rgba(139,92,246,0.35)' }}>
             <p className="text-sm lg:text-base italic"
                style={{ color: bio ? 'rgba(241,245,249,0.78)' : 'rgba(241,245,249,0.4)' }}>
-              {bio ? `« ${bio} »` : 'Aucune bio. Personnalise ta carte joueur.'}
+              {bio ? `« ${bio} »` : t('profileHero.bioEmpty')}
             </p>
           </div>
 
@@ -152,9 +155,9 @@ export default function ProfileHero({
 
         {/* ── Méta-data (droite) ───────────────────────────────────────── */}
         <div className="lg:min-w-[220px] grid grid-cols-2 lg:grid-cols-1 gap-3 self-center">
-          <MetaRow label="Inscrit" value={fmtDate(joinedAt)} />
-          <MetaRow label="Dernière connexion" value={fmtDate(lastLogin)} />
-          <MetaRow label="Identifiant"
+          <MetaRow label={t('profileHero.joinedOn')} value={fmtDate(joinedAt, locale)} />
+          <MetaRow label={t('profileHero.lastLogin')} value={fmtDate(lastLogin, locale)} />
+          <MetaRow label={t('profileHero.identifier')}
                    value={uuid ? <span className="font-mono">{uuid.slice(0, 8)}…</span> : '—'} mono />
         </div>
       </div>

@@ -1,17 +1,23 @@
-import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import Navbar from '../components/Navbar'
 import { Button, Tag } from '../components/ui'
 
-const META: Record<string, { title: string; description: string; icon: string; eta?: string }> = {
-  '/home':      { title: 'Accueil',     icon: '🏠', description: 'Votre tableau de bord arrive bientôt.' },
-  '/inventory': { title: 'Inventaire',  icon: '🎒', description: 'Gérez votre inventaire en jeu depuis ici.', eta: 'Bientôt' },
-  '/minigames': { title: 'Mini-jeux',   icon: '🎮', description: 'Suivez vos scores et statistiques de mini-jeux.', eta: 'En développement' },
-  '/career':    { title: 'Carrière',    icon: '💼', description: 'Votre progression de carrière sur le serveur.', eta: 'Bientôt' },
-  '/shop':      { title: 'Boutique',    icon: '🛍', description: 'La boutique en jeu arrive prochainement.' },
+const ICONS: Record<string, string> = {
+  '/home': '🏠', '/inventory': '🎒', '/minigames': '🎮', '/career': '💼', '/shop': '🛍',
 }
 
 export default function ComingSoon({ path }: { path: string }) {
-  const meta = META[path] ?? { title: 'Page', icon: '⚙️', description: 'Cette fonctionnalité est en cours de développement.' }
+  const { t } = useTranslation()
+  const ns = path.replace('/', '') // ex. "/home" -> "home"
+  const known = ['home', 'inventory', 'minigames', 'career', 'shop'].includes(ns) ? ns : 'default'
+  const meta = {
+    icon: ICONS[path] ?? '⚙️',
+    title: t(`comingSoon.${known}.title`),
+    description: t(`comingSoon.${known}.desc`),
+    eta: known !== 'default' && known !== 'home' && known !== 'shop'
+      ? t(`comingSoon.${known}.badge`)
+      : undefined,
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden flex flex-col" style={{ background: '#080d19' }}>
@@ -57,11 +63,11 @@ export default function ComingSoon({ path }: { path: string }) {
         </div>
 
         {/* Badge */}
-        <Tag tone="gold">{meta.eta ?? 'À venir'}</Tag>
+        <Tag tone="gold">{meta.eta ?? t('comingSoon.comingBadge')}</Tag>
 
         {/* Title */}
         <div className="max-w-2xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">Bientôt disponible</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300 mb-4">{t('comingSoon.available')}</p>
           <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight text-white mb-4 leading-[1.05]">
             {meta.title}
           </h1>
@@ -88,15 +94,14 @@ export default function ComingSoon({ path }: { path: string }) {
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
         >
           <p className="text-xs text-white/50 leading-relaxed">
-            Cette fonctionnalité est actuellement en cours de développement.
-            Reviens bientôt pour la découvrir !
+            {t('comingSoon.message')}
           </p>
         </div>
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center gap-3 mt-2">
-          <Button to="/portal/profile" size="md">Mon profil</Button>
-          <Button to="/portal/home" variant="secondary" size="md">Accueil</Button>
+          <Button to="/portal/profile" size="md">{t('comingSoon.buttonProfile')}</Button>
+          <Button to="/portal/home" variant="secondary" size="md">{t('comingSoon.buttonHome')}</Button>
         </div>
       </main>
 
