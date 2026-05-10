@@ -320,6 +320,9 @@ export const api = {
   questCreate:     (data: any) => request<any>('/api/quests', { method: 'POST', body: JSON.stringify(data) }),
   questUpdate:     (id: string, data: any) => request<any>(`/api/quests/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   questDelete:     (id: string) => request<any>(`/api/quests/${id}`, { method: 'DELETE' }),
+  questTemplates:  () => request<{ categories: any[]; templates: any[] }>('/api/quests/templates'),
+  questFromTemplate: (templateId: string, overrides: any = {}) =>
+    request<any>('/api/quests/from-template', { method: 'POST', body: JSON.stringify({ templateId, ...overrides }) }),
 
   // Experiments (A/B testing)
   experimentsList:  () => request<{ experiments: any[] }>('/api/experiments'),

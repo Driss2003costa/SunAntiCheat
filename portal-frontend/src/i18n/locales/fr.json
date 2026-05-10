@@ -588,7 +588,22 @@
       "completions": "Complétions",
       "inProgress": "En cours"
     },
-    "loginHint": "pour voir ta progression personnelle."
+    "loginHint": "pour voir ta progression personnelle.",
+    "sections": {
+      "limited": "Temps limité",
+      "limitedHint": "Ne traîne pas avant la fin du compteur",
+      "active": "À faire",
+      "activeHint_one": "{{count}} quête à compléter",
+      "activeHint_other": "{{count}} quêtes à compléter",
+      "completed": "Terminées",
+      "completedHint_one": "{{count}} quête complétée",
+      "completedHint_other": "{{count}} quêtes complétées"
+    },
+    "card": {
+      "goal": "{{progress}}/{{goal}}",
+      "rewardChip": "🎁 {{reward}}",
+      "notStarted": "À démarrer"
+    }
   },
   "friends": {
     "errorLoading": "Erreur de chargement.",

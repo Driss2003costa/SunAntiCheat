@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSections } from '../App'
-import { Card, SectionDivider, Tag } from './ui'
+import { Card, Tag } from './ui'
 import Countdown from './Countdown'
 import type { FeatureStatus, SectionDetail } from '../api/client'
 
@@ -57,10 +57,6 @@ export default function ServerStatusCard() {
 
   return (
     <section>
-      <SectionDivider
-        label={t('serverStatus.section')}
-        hint={t('serverStatus.sectionHint')}/>
-
       <Card padding="lg" className="overflow-hidden relative">
         {/* Halo coloré selon le statut global */}
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl pointer-events-none"

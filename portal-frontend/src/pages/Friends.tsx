@@ -152,7 +152,6 @@ export default function Friends() {
           <section>
             {tab === 'friends' && (
               <>
-                <SectionDivider label={t('friends.section.myFriendsCount', { count: friends.length })} />
                 {loading ? <Spinner /> : friends.length === 0 ? (
                   <EmptyCard text={t('friends.empty.friends')} />
                 ) : (

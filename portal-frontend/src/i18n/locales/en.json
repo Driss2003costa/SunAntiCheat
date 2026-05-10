@@ -588,7 +588,22 @@
       "completions": "Completions",
       "inProgress": "In progress"
     },
-    "loginHint": "to see your personal progress."
+    "loginHint": "to see your personal progress.",
+    "sections": {
+      "limited": "Limited time",
+      "limitedHint": "Don't sleep on the timer",
+      "active": "To do",
+      "activeHint_one": "{{count}} quest to complete",
+      "activeHint_other": "{{count}} quests to complete",
+      "completed": "Completed",
+      "completedHint_one": "{{count}} quest completed",
+      "completedHint_other": "{{count}} quests completed"
+    },
+    "card": {
+      "goal": "{{progress}}/{{goal}}",
+      "rewardChip": "🎁 {{reward}}",
+      "notStarted": "Not started"
+    }
   },
   "friends": {
     "errorLoading": "Loading error.",

@@ -99,7 +99,6 @@ export default function Shop() {
     <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="shop" />
       <GridShell>
-        <DegradedNotice sectionKey="shop"/>
         <HeroBanner
           eyebrow={t('shop.eyebrow')}
           variant="sun"
@@ -124,25 +123,6 @@ export default function Shop() {
             )
           }
         />
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {([
-            { k: 'all',    l: t('shop.filters.all') },
-            { k: 'vip',    l: t('shop.filters.vip') },
-            { k: 'crates', l: t('shop.filters.crates') },
-          ] as const).map(c => (
-            <button key={c.k} onClick={() => setCategory(c.k as Category)}
-              className="px-4 py-2 rounded-full text-xs font-semibold transition-all"
-              style={{
-                background: category === c.k ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${category === c.k ? 'rgba(251,191,36,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                color: category === c.k ? '#fbbf24' : 'rgba(241,245,249,0.6)',
-              }}>
-              {c.l}
-            </button>
-          ))}
-        </div>
 
         {/* Featured VIP hero */}
         {showVip && featuredPlan && (
@@ -315,7 +295,6 @@ export default function Shop() {
         )}
 
         {/* Economy info */}
-        <SectionDivider label={t('shop.economy.section')} hint={t('shop.economy.hint')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
             { icon: '🪙', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.3)',  title: t('shop.economy.earningTitle'),  desc: t('shop.economy.earningDesc') },

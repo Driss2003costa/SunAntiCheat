@@ -7,8 +7,10 @@ import PageAura from '../components/PageAura'
 import { GridShell, HeroBanner, SectionDivider, Card, Button, Tag } from '../components/ui'
 
 type PublicQuest = {
-  id: string; title: string; description: string; icon: string; color: string
-  type: string; target: string; goal: number; rewardLabel: string
+  id: string; title: string; description: string;
+  titleEn?: string; descriptionEn?: string
+  icon: string; color: string
+  type: string; target: string; goal: number; rewardLabel: string; rewardLabelEn?: string
   repeatable: boolean; completions: number; inProgress: number; endsAt?: number
 }
 type QuestProgress = { questId: string; title: string; progress: number; goal: number; completed: boolean }
@@ -60,7 +62,22 @@ function QuestTimer({ endsAt, totalMs, onExpired }: { endsAt: number; totalMs: n
   )
 }
 
-type Filter = 'all' | 'active' | 'completed' | 'timed'
+/** Petit header de section interne — sobre, sans rivaliser avec le hero. */
+function SectionHeader({ icon, label, count, accent }: { icon: string; label: string; count?: number; accent: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-base" style={{ filter: `drop-shadow(0 0 8px ${accent}40)` }}>{icon}</span>
+      <h3 className="font-semibold text-[11px] uppercase tracking-[0.25em]" style={{ color: '#f8fafc' }}>{label}</h3>
+      {count != null && (
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: `${accent}1a`, color: accent, border: `1px solid ${accent}33` }}>
+          {count}
+        </span>
+      )}
+      <span className="flex-1 h-px ml-1" style={{ background: `linear-gradient(90deg, ${accent}33, transparent)` }} />
+    </div>
+  )
+}
 
 export default function Quests() {
   const navigate = useNavigate()
@@ -68,11 +85,18 @@ export default function Quests() {
   const [quests,   setQuests]   = useState<PublicQuest[]>([])
   const [progress, setProgress] = useState<Record<string, QuestProgress>>({})
   const [loading,  setLoading]  = useState(true)
-  const [filter,   setFilter]   = useState<Filter>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const token = getToken()
 
   const numberLocale = i18n.resolvedLanguage?.startsWith('fr') ? 'fr-FR' : 'en-GB'
+  const isEn = !i18n.resolvedLanguage?.startsWith('fr')
+
+  // Picker localisé : si l'utilisateur est en EN et que la quête a une trad EN, l'utilise
+  const localized = (q: PublicQuest) => ({
+    title:       isEn && q.titleEn       ? q.titleEn       : q.title,
+    description: isEn && q.descriptionEn ? q.descriptionEn : q.description,
+    rewardLabel: isEn && q.rewardLabelEn ? q.rewardLabelEn : q.rewardLabel,
+  })
 
   const fmtTarget = (target: string) => {
     if (!target || target === 'ANY') return t('quests.target.all')
@@ -100,36 +124,125 @@ export default function Quests() {
 
   const handleExpired = useCallback((id: string) => setQuests(qs => qs.filter(q => q.id !== id)), [])
 
-  const counts = useMemo(() => ({
-    all:       quests.length,
-    active:    quests.filter(q => !progress[q.id]?.completed).length,
-    completed: quests.filter(q => !!progress[q.id]?.completed).length,
-    timed:     quests.filter(q => q.endsAt != null).length,
-  }), [quests, progress])
+  // ─── Buckets : limited > completed > active (chaque quête dans un seul) ──
+  const { limitedQuests, activeQuests, completedQuests } = useMemo(() => {
+    const limited: PublicQuest[] = []
+    const active: PublicQuest[]  = []
+    const completed: PublicQuest[] = []
+    const nowMs = Date.now()
+    for (const q of quests) {
+      const isCompleted = !!progress[q.id]?.completed
+      const isLimited   = q.endsAt != null && q.endsAt > nowMs
+      if (isLimited && !isCompleted) limited.push(q)
+      else if (isCompleted)          completed.push(q)
+      else                            active.push(q)
+    }
+    return { limitedQuests: limited, activeQuests: active, completedQuests: completed }
+  }, [quests, progress])
 
-  const filtered = useMemo(() => quests.filter(q => {
-    if (filter === 'active')    return !progress[q.id]?.completed
-    if (filter === 'completed') return !!progress[q.id]?.completed
-    if (filter === 'timed')     return q.endsAt != null
-    return true
-  }), [quests, progress, filter])
+  const allOrdered = useMemo(
+    () => [...limitedQuests, ...activeQuests, ...completedQuests],
+    [limitedQuests, activeQuests, completedQuests],
+  )
 
   const globalComp = quests.reduce((s, q) => s + q.completions, 0)
   const globalInPr = quests.reduce((s, q) => s + q.inProgress,  0)
 
-  const FILTERS: { key: Filter; label: string }[] = [
-    { key: 'all',       label: t('quests.filters.all') },
-    { key: 'active',    label: t('quests.filters.inProgress') },
-    { key: 'completed', label: t('quests.filters.completed') },
-    { key: 'timed',     label: t('quests.filters.limited') },
-  ]
-
   const selected = useMemo(
-    () => filtered.find(q => q.id === selectedId) ?? filtered[0] ?? null,
-    [filtered, selectedId]
+    () => allOrdered.find(q => q.id === selectedId) ?? allOrdered[0] ?? null,
+    [allOrdered, selectedId],
   )
 
   const totalMs = 7 * 24 * 3600 * 1000
+
+  // ─── Card de quête enrichie (utilisée dans les 3 sections) ─────────────
+  const renderQuestCard = (q: PublicQuest) => {
+    const prog = progress[q.id] ?? null
+    const pct = prog ? Math.min(100, Math.round((prog.progress / q.goal) * 100)) : 0
+    const done = prog?.completed ?? false
+    const isActive = selected?.id === q.id
+    const loc = localized(q)
+
+    return (
+      <Card key={q.id} hover padding="md" onClick={() => setSelectedId(q.id)}
+            className={done ? 'opacity-70' : ''}
+            style={{ borderColor: isActive ? 'rgba(251,191,36,0.45)' : undefined }}>
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
+               style={{ background: `${q.color}18`, border: `1px solid ${q.color}33` }}>
+            {q.icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-start gap-2">
+              <h3 className="font-semibold text-sm truncate flex-1" style={{ color: '#f8fafc' }}>{loc.title}</h3>
+              {q.repeatable && (
+                <span className="text-[10px] shrink-0" title={t('quests.detail.tagRepeatable') as string}>🔁</span>
+              )}
+            </div>
+
+            {/* Description (truncated) */}
+            {loc.description && (
+              <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'rgba(241,245,249,0.5)' }}>
+                {loc.description}
+              </p>
+            )}
+
+            {/* Meta row : type · target · reward */}
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                    style={{ background: 'rgba(56,189,248,0.10)', color: '#7dd3fc', border: '1px solid rgba(56,189,248,0.25)' }}>
+                {typeLabel(q.type)}
+              </span>
+              {q.target && q.target !== 'ANY' && (
+                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(241,245,249,0.7)' }}>
+                  {fmtTarget(q.target)}
+                </span>
+              )}
+              {loc.rewardLabel && (
+                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{ background: 'rgba(251,191,36,0.10)', color: '#fcd34d', border: '1px solid rgba(251,191,36,0.25)' }}>
+                  🎁 {loc.rewardLabel}
+                </span>
+              )}
+            </div>
+
+            {/* Progress (only if logged + has progress) */}
+            {prog && (
+              <div className="mt-2.5">
+                <div className="flex items-center justify-between text-[10px] mb-1">
+                  <span className="font-mono tabular-nums" style={{ color: done ? '#34d399' : 'rgba(241,245,249,0.65)' }}>
+                    {t('quests.card.goal', { progress: prog.progress, goal: q.goal })}
+                  </span>
+                  <span className="font-bold" style={{ color: done ? '#34d399' : '#fbbf24' }}>
+                    {pct}%
+                  </span>
+                </div>
+                <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="h-full rounded-full transition-all duration-500"
+                       style={{
+                         width: `${pct}%`,
+                         background: done
+                           ? 'linear-gradient(90deg,#10b981,#34d399)'
+                           : `linear-gradient(90deg,${q.color},${q.color}cc)`,
+                       }} />
+                </div>
+              </div>
+            )}
+            {!prog && token && (
+              <p className="text-[10px] mt-2" style={{ color: 'rgba(241,245,249,0.4)' }}>
+                {t('quests.card.notStarted')}
+              </p>
+            )}
+          </div>
+          {q.endsAt != null && q.endsAt - Date.now() > 0 && (
+            <QuestTimer endsAt={q.endsAt} totalMs={totalMs} onExpired={() => handleExpired(q.id)} />
+          )}
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <div className="min-h-screen" style={{ background: '#080d19' }}>
@@ -139,7 +252,7 @@ export default function Quests() {
           eyebrow={t('quests.eyebrow')}
           variant="ember"
           title={<>{t('quests.hero.titleStart')}<span className="text-sun-300">{t('quests.hero.titleHighlight')}</span>{t('quests.hero.titleEnd')}</>}
-          subtitle={t('quests.hero.subtitle', { count: quests.length, available: quests.length, completed: counts.completed })}
+          subtitle={t('quests.hero.subtitle', { count: quests.length, available: quests.length, completed: completedQuests.length })}
           rightSlot={
             (globalComp > 0 || globalInPr > 0) && (
               <div className="w-full max-w-sm">
@@ -160,76 +273,54 @@ export default function Quests() {
           }
         />
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {FILTERS.map(f => (
-            <button key={f.key} onClick={() => { setFilter(f.key); setSelectedId(null) }}
-              className="px-4 py-2 rounded-full text-xs font-semibold transition-all"
-              style={{
-                background: filter === f.key ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${filter === f.key ? 'rgba(251,191,36,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                color: filter === f.key ? '#fbbf24' : 'rgba(241,245,249,0.6)',
-              }}>
-              {f.label} <span className="ml-1 opacity-60">{counts[f.key]}</span>
-            </button>
-          ))}
-        </div>
-
         {loading ? (
           <Card padding="lg" className="text-center">
             <div className="w-7 h-7 rounded-full border-2 animate-spin mx-auto mb-3"
                  style={{ borderColor: 'rgba(251,191,36,0.2)', borderTopColor: '#f59e0b' }} />
             <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.loading')}</p>
           </Card>
-        ) : filtered.length === 0 ? (
+        ) : quests.length === 0 ? (
           <Card padding="lg" className="text-center">
             <span className="text-4xl block mb-3">📭</span>
             <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.empty')}</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Quests list */}
-            <div className="flex flex-col gap-3 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-2">
-              {filtered.map(q => {
-                const prog = progress[q.id] ?? null
-                const pct = prog ? Math.min(100, Math.round((prog.progress / q.goal) * 100)) : 0
-                const done = prog?.completed ?? false
-                const isActive = selected?.id === q.id
-                return (
-                  <Card key={q.id} hover padding="sm" onClick={() => setSelectedId(q.id)}
-                        style={{ borderColor: isActive ? 'rgba(251,191,36,0.45)' : undefined }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
-                           style={{ background: `${q.color}15`, border: `1px solid ${q.color}28` }}>
-                        {q.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-sm truncate" style={{ color: '#f8fafc' }}>{q.title}</h3>
-                          {done && <Tag tone="jade" size="xs">✓</Tag>}
-                          {q.repeatable && <Tag tone="violet" size="xs">🔁</Tag>}
-                        </div>
-                        {prog && (
-                          <div className="mt-1.5">
-                            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                              <div className="h-full rounded-full"
-                                   style={{ width: `${pct}%`, background: done ? 'linear-gradient(90deg,#10b981,#34d399)' : `linear-gradient(90deg,${q.color},${q.color}cc)` }} />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      {q.endsAt != null && q.endsAt - Date.now() > 0 && (
-                        <QuestTimer endsAt={q.endsAt} totalMs={totalMs} onExpired={() => handleExpired(q.id)} />
-                      )}
-                    </div>
-                  </Card>
-                )
-              })}
+            {/* Liste groupée par sections */}
+            <div className="flex flex-col gap-6 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-2">
+              {limitedQuests.length > 0 && (
+                <section>
+                  <SectionHeader icon="⏱" label={t('quests.sections.limited')} count={limitedQuests.length} accent="#f87171" />
+                  <div className="flex flex-col gap-3">
+                    {limitedQuests.map(renderQuestCard)}
+                  </div>
+                </section>
+              )}
+
+              {activeQuests.length > 0 && (
+                <section>
+                  <SectionHeader icon="📋" label={t('quests.sections.active')} count={activeQuests.length} accent="#fbbf24" />
+                  <div className="flex flex-col gap-3">
+                    {activeQuests.map(renderQuestCard)}
+                  </div>
+                </section>
+              )}
+
+              {completedQuests.length > 0 && (
+                <section>
+                  <SectionHeader icon="✓" label={t('quests.sections.completed')} count={completedQuests.length} accent="#34d399" />
+                  <div className="flex flex-col gap-3">
+                    {completedQuests.map(renderQuestCard)}
+                  </div>
+                </section>
+              )}
             </div>
 
             {/* Detail panel */}
             <div className="lg:sticky lg:top-6 lg:self-start">
-              {selected ? (
+              {selected ? (() => {
+                const sl = localized(selected)
+                return (
                 <Card variant="glass-warm" padding="lg">
                   <div className="flex items-start gap-4 mb-5">
                     <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shrink-0"
@@ -237,9 +328,9 @@ export default function Quests() {
                       {selected.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h2 className="font-display text-2xl font-semibold mb-1" style={{ color: '#f8fafc' }}>{selected.title}</h2>
-                      {selected.description && (
-                        <p className="text-sm" style={{ color: 'rgba(241,245,249,0.6)' }}>{selected.description}</p>
+                      <h2 className="font-display text-2xl font-semibold mb-1" style={{ color: '#f8fafc' }}>{sl.title}</h2>
+                      {sl.description && (
+                        <p className="text-sm" style={{ color: 'rgba(241,245,249,0.6)' }}>{sl.description}</p>
                       )}
                     </div>
                   </div>
@@ -247,7 +338,7 @@ export default function Quests() {
                   <div className="flex flex-wrap gap-2 mb-5">
                     <Tag tone="sky">{typeLabel(selected.type)}</Tag>
                     <Tag tone="neutral">{fmtTarget(selected.target)}</Tag>
-                    {selected.rewardLabel && <Tag tone="gold">🎁 {selected.rewardLabel}</Tag>}
+                    {sl.rewardLabel && <Tag tone="gold">🎁 {sl.rewardLabel}</Tag>}
                     {selected.repeatable && <Tag tone="violet">{t('quests.detail.tagRepeatable')}</Tag>}
                   </div>
 
@@ -285,7 +376,8 @@ export default function Quests() {
                     </div>
                   )}
                 </Card>
-              ) : (
+                )
+              })() : (
                 <Card padding="lg" className="text-center">
                   <p className="text-sm" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('quests.noDetailSelected')}</p>
                 </Card>

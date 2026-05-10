@@ -258,7 +258,6 @@ export default function Home() {
 
         {/* ─── NAVIGATION GRID ──────────────────────────────────────────── */}
         <section>
-          <SectionDivider label={t('home.explore.label')} hint={t('home.explore.hint')} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
             {quickLinks.map(q => (
               <Link key={q.to} to={q.to} className="no-underline">

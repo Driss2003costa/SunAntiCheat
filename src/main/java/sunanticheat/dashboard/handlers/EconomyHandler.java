@@ -148,12 +148,17 @@ public final class EconomyHandler {
                 .map(e -> Map.<String, Object>of("name", e.getKey(), "spent", round(e.getValue()), "count", buyerCount.get(e.getKey())))
                 .collect(Collectors.toList());
 
-        // Top items
-        Map<String, Long> itemQty = new HashMap<>();
-        Map<String, Double> itemRev = new HashMap<>();
+        // Top items + breakdown complet par item (acheteurs uniques inclus)
+        Map<String, Long>           itemQty    = new HashMap<>();
+        Map<String, Double>         itemRev    = new HashMap<>();
+        Map<String, Long>           itemTxs    = new HashMap<>(); // nombre de transactions
+        Map<String, java.util.Set<String>> itemBuyers = new HashMap<>();
         all.stream().filter(t -> "BUY".equals(t.type())).forEach(t -> {
-            itemQty.merge(t.itemDisplayName(), (long) t.quantity(), Long::sum);
-            itemRev.merge(t.itemDisplayName(), t.totalPrice(), Double::sum);
+            String name = t.itemDisplayName();
+            itemQty.merge(name, (long) t.quantity(), Long::sum);
+            itemRev.merge(name, t.totalPrice(), Double::sum);
+            itemTxs.merge(name, 1L, Long::sum);
+            itemBuyers.computeIfAbsent(name, k -> new java.util.HashSet<>()).add(t.playerName());
         });
         List<Map<String, Object>> topItems = itemQty.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
@@ -161,11 +166,32 @@ public final class EconomyHandler {
                 .map(e -> Map.<String, Object>of("item", e.getKey(), "quantity", e.getValue(), "revenue", round(itemRev.getOrDefault(e.getKey(), 0.0))))
                 .collect(Collectors.toList());
 
-        HttpHelper.json(ex, 200, Map.of(
-                "totalBuy", buys, "totalSell", sells,
-                "volumeBuy", round(volBuy), "volumeSell", round(volSell),
-                "topBuyers", topBuyers, "topItems", topItems
-        ));
+        // Liste complète triée par quantité, pour la section "Ventes par item"
+        List<Map<String, Object>> itemSales = itemQty.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .map(e -> {
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("item",        e.getKey());
+                    m.put("quantity",    e.getValue());
+                    m.put("revenue",     round(itemRev.getOrDefault(e.getKey(), 0.0)));
+                    m.put("transactions", itemTxs.getOrDefault(e.getKey(), 0L));
+                    m.put("buyers",      itemBuyers.getOrDefault(e.getKey(), java.util.Collections.emptySet()).size());
+                    long qty = e.getValue();
+                    double rev = itemRev.getOrDefault(e.getKey(), 0.0);
+                    m.put("avgPrice",    qty > 0 ? round(rev / qty) : 0.0);
+                    return m;
+                })
+                .collect(Collectors.toList());
+
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("totalBuy", buys);
+        out.put("totalSell", sells);
+        out.put("volumeBuy", round(volBuy));
+        out.put("volumeSell", round(volSell));
+        out.put("topBuyers", topBuyers);
+        out.put("topItems", topItems);
+        out.put("itemSales", itemSales);
+        HttpHelper.json(ex, 200, out);
     }
 
     /** GET /api/economy/transactions/export?days=7&type=&player= */
