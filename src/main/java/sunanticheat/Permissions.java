@@ -8,6 +8,8 @@ public final class Permissions {
     private Permissions() {}
 
     public static final String RELOAD = "sunguard.reload";
+    /** Gérer l'auto-update (/sunguard update check|status|apply). */
+    public static final String UPDATE = "sunguard.update";
     /** Analyse manuelle Multiverse-Inventories monde spawn (/sunguard mvinvscan). */
     public static final String MVINV_SCAN = "sunguard.mvinv.scan";
     /** Analyse des conteneurs chargés de mondes ciblés (/sunguard chestscan). */
