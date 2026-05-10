@@ -62,19 +62,34 @@ function QuestTimer({ endsAt, totalMs, onExpired }: { endsAt: number; totalMs: n
   )
 }
 
-/** Petit header de section interne — sobre, sans rivaliser avec le hero. */
-function SectionHeader({ icon, label, count, accent }: { icon: string; label: string; count?: number; accent: string }) {
+/** Petit header de section interne — visible mais sobre, sans rivaliser avec le hero. */
+function SectionHeader({ icon, label, count, accent, hint }: { icon: string; label: string; count?: number; accent: string; hint?: string }) {
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <span className="text-base" style={{ filter: `drop-shadow(0 0 8px ${accent}40)` }}>{icon}</span>
-      <h3 className="font-semibold text-[11px] uppercase tracking-[0.25em]" style={{ color: '#f8fafc' }}>{label}</h3>
+    <div className="flex items-center gap-3 mb-3">
+      <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
+            style={{
+              background: `${accent}1a`,
+              border: `1px solid ${accent}40`,
+              boxShadow: `0 0 16px ${accent}20`,
+            }}>
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3 className="font-display text-base font-semibold leading-tight" style={{ color: accent }}>
+          {label}
+        </h3>
+        {hint && (
+          <p className="text-[11px] mt-0.5" style={{ color: 'rgba(241,245,249,0.5)' }}>
+            {hint}
+          </p>
+        )}
+      </div>
       {count != null && (
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: `${accent}1a`, color: accent, border: `1px solid ${accent}33` }}>
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
+              style={{ background: `${accent}1a`, color: accent, border: `1px solid ${accent}40` }}>
           {count}
         </span>
       )}
-      <span className="flex-1 h-px ml-1" style={{ background: `linear-gradient(90deg, ${accent}33, transparent)` }} />
     </div>
   )
 }
@@ -290,7 +305,11 @@ export default function Quests() {
             <div className="flex flex-col gap-6 lg:max-h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-2">
               {limitedQuests.length > 0 && (
                 <section>
-                  <SectionHeader icon="⏱" label={t('quests.sections.limited')} count={limitedQuests.length} accent="#f87171" />
+                  <SectionHeader icon="⏱"
+                                 label={t('quests.sections.limited')}
+                                 hint={t('quests.sections.limitedHint') as string}
+                                 count={limitedQuests.length}
+                                 accent="#f87171" />
                   <div className="flex flex-col gap-3">
                     {limitedQuests.map(renderQuestCard)}
                   </div>
@@ -299,7 +318,11 @@ export default function Quests() {
 
               {activeQuests.length > 0 && (
                 <section>
-                  <SectionHeader icon="📋" label={t('quests.sections.active')} count={activeQuests.length} accent="#fbbf24" />
+                  <SectionHeader icon="📋"
+                                 label={t('quests.sections.active')}
+                                 hint={t('quests.sections.activeHint', { count: activeQuests.length }) as string}
+                                 count={activeQuests.length}
+                                 accent="#fbbf24" />
                   <div className="flex flex-col gap-3">
                     {activeQuests.map(renderQuestCard)}
                   </div>
@@ -308,7 +331,11 @@ export default function Quests() {
 
               {completedQuests.length > 0 && (
                 <section>
-                  <SectionHeader icon="✓" label={t('quests.sections.completed')} count={completedQuests.length} accent="#34d399" />
+                  <SectionHeader icon="✓"
+                                 label={t('quests.sections.completed')}
+                                 hint={t('quests.sections.completedHint', { count: completedQuests.length }) as string}
+                                 count={completedQuests.length}
+                                 accent="#34d399" />
                   <div className="flex flex-col gap-3">
                     {completedQuests.map(renderQuestCard)}
                   </div>
