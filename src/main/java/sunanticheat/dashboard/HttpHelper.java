@@ -73,6 +73,13 @@ public final class HttpHelper {
             var claims = jwt.validate(header.substring(7));
             DashboardUser user = users.get(claims.getSubject().toLowerCase());
             if (user == null) { error(ex, 401, "Utilisateur inconnu"); return null; }
+            // Re-vérifie le statut OP à chaque requête : si l'utilisateur a été
+            // dé-OP entre-temps, son token devient immédiatement invalide.
+            if (!sunanticheat.dashboard.auth.OpCheck.isOp(user.username())) {
+                error(ex, 403,
+                        "Accès refusé : vous devez être OP sur le serveur Minecraft pour accéder au panel admin.");
+                return null;
+            }
             return user;
         } catch (Exception e) {
             error(ex, 401, "Token invalide ou expiré");

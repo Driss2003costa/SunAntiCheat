@@ -6,6 +6,7 @@ import sunanticheat.dashboard.DashboardUser;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.JwtUtil;
 import sunanticheat.dashboard.audit.Audit;
+import sunanticheat.dashboard.auth.OpCheck;
 import sunanticheat.dashboard.auth.RateLimiter;
 import sunanticheat.dashboard.auth.StoredUser;
 import sunanticheat.dashboard.auth.TotpUtil;
@@ -58,6 +59,16 @@ public final class AuthHandler {
         if (user == null) {
             HttpHelper.error(ex, 401, "Identifiants incorrects");
             Audit.system("LOGIN_FAILED", username, "Mauvais mot de passe (IP " + ip + ")");
+            return;
+        }
+
+        // Restriction OP serveur : seul un joueur OP sur le serveur Minecraft
+        // peut accéder au panel admin, même avec des identifiants valides.
+        if (!OpCheck.isOp(user.username())) {
+            HttpHelper.error(ex, 403,
+                    "Accès refusé : vous devez être OP sur le serveur Minecraft pour accéder au panel admin.");
+            Audit.system("LOGIN_DENIED_NOT_OP", user.username(),
+                    "Identifiants valides mais utilisateur non-OP (IP " + ip + ")");
             return;
         }
 
