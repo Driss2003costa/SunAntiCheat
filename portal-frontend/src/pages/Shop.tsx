@@ -1,22 +1,17 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, getToken, clearToken, type PlayerProfile, type VipPlan, type CrateShopEntry } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
 import DegradedNotice from '../components/DegradedNotice'
 import { GridShell, HeroBanner, SectionDivider, Card, Button, Tag } from '../components/ui'
 
-function fmtBalance(n: number) {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-}
-function fmtPrice(n: number) {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 type Category = 'all' | 'vip' | 'crates'
 
 export default function Shop() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const [profile,      setProfile]      = useState<PlayerProfile | null>(null)
   const [plans,        setPlans]        = useState<VipPlan[]>([])
   const [crates,       setCrates]       = useState<CrateShopEntry[]>([])
@@ -28,6 +23,12 @@ export default function Shop() {
   const [crateMsg,     setCrateMsg]     = useState<{ id: string; msg: string; ok: boolean } | null>(null)
   const [localBalance, setLocalBalance] = useState<number | null>(null)
   const [category,     setCategory]     = useState<Category>('all')
+
+  const numberLocale = i18n.resolvedLanguage?.startsWith('fr') ? 'fr-FR' : 'en-GB'
+  const fmtBalance = (n: number) =>
+    n.toLocaleString(numberLocale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  const fmtPrice = (n: number) =>
+    n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   useEffect(() => {
     const token = getToken()
@@ -52,9 +53,9 @@ export default function Shop() {
     try {
       const res = await api.crateBuy(token, crate.id, 1)
       setLocalBalance(res.newBalance)
-      setCrateMsg({ id: crate.id, msg: res.free ? 'Clé offerte !' : res.message, ok: true })
+      setCrateMsg({ id: crate.id, msg: res.free ? t('shop.crates.gift') : res.message, ok: true })
     } catch (e: any) {
-      setCrateMsg({ id: crate.id, msg: e.error || e.message || "Erreur lors de l'achat", ok: false })
+      setCrateMsg({ id: crate.id, msg: e.error || e.message || t('shop.errorBuy'), ok: false })
     } finally { setCrateBusy(null) }
   }
 
@@ -68,10 +69,10 @@ export default function Shop() {
         body: JSON.stringify({ planId: plan.id, playerName: profile.username, gateway }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Erreur')
+      if (!res.ok) throw new Error(data.error || t('common.error'))
       window.location.href = data.redirectUrl
     } catch (e: any) {
-      setCheckoutErr(e.message || 'Une erreur est survenue.')
+      setCheckoutErr(e.message || t('shop.errorCheckout'))
       setCheckoutBusy(false)
     }
   }
@@ -100,21 +101,21 @@ export default function Shop() {
       <GridShell>
         <DegradedNotice sectionKey="shop"/>
         <HeroBanner
-          eyebrow="Boutique"
+          eyebrow={t('shop.eyebrow')}
           variant="sun"
-          title={<>Sublime ton expérience <span className="text-sun-300">SunGuard</span></>}
-          subtitle="Soutiens le serveur, débloque des avantages exclusifs et ouvre des caisses pour des récompenses rares."
+          title={<>{t('shop.hero.titleStart')}<span className="text-sun-300">{t('shop.hero.titleHighlight')}</span>{t('shop.hero.titleEnd')}</>}
+          subtitle={t('shop.hero.subtitle')}
           cta={
             <>
-              <Button onClick={() => setCategory('vip')}    size="lg">Voir les VIPs</Button>
-              <Button onClick={() => setCategory('crates')} variant="secondary" size="lg">Caisses & Clés</Button>
+              <Button onClick={() => setCategory('vip')}    size="lg">{t('shop.hero.buttonVip')}</Button>
+              <Button onClick={() => setCategory('crates')} variant="secondary" size="lg">{t('shop.hero.buttonCrates')}</Button>
             </>
           }
           rightSlot={
             localBalance != null && (
               <div className="text-right">
                 <p className="text-[11px] font-bold uppercase tracking-[0.3em] mb-2" style={{ color: '#FFB347' }}>
-                  Ton solde
+                  {t('shop.hero.balance')}
                 </p>
                 <p className="font-display text-5xl lg:text-6xl font-semibold" style={{ color: '#fbbf24' }}>
                   {fmtBalance(localBalance)} <span className="text-3xl">$</span>
@@ -127,11 +128,11 @@ export default function Shop() {
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-8">
           {([
-            { k: 'all',    l: 'Tout' },
-            { k: 'vip',    l: 'Abonnements VIP' },
-            { k: 'crates', l: 'Caisses' },
+            { k: 'all',    l: t('shop.filters.all') },
+            { k: 'vip',    l: t('shop.filters.vip') },
+            { k: 'crates', l: t('shop.filters.crates') },
           ] as const).map(c => (
-            <button key={c.k} onClick={() => setCategory(c.k)}
+            <button key={c.k} onClick={() => setCategory(c.k as Category)}
               className="px-4 py-2 rounded-full text-xs font-semibold transition-all"
               style={{
                 background: category === c.k ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
@@ -146,7 +147,7 @@ export default function Shop() {
         {/* Featured VIP hero */}
         {showVip && featuredPlan && (
           <>
-            <SectionDivider label="Vedette" hint="L'offre la plus populaire du moment" />
+            <SectionDivider label={t('shop.featured.section')} hint={t('shop.featured.hint')} />
             <Card variant="glass-warm" padding="lg" className="mb-12 lg:mb-16 relative overflow-hidden">
               <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-3xl"
                    style={{ background: 'rgba(251,191,36,0.20)' }} />
@@ -158,7 +159,7 @@ export default function Shop() {
                       {featuredPlan.icon ?? '⭐'}
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300">Pack vedette</p>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-sun-300">{t('shop.featured.badge')}</p>
                       <h2 className="font-display text-3xl lg:text-4xl font-semibold" style={{ color: '#f8fafc' }}>
                         {featuredPlan.displayName}
                       </h2>
@@ -183,20 +184,20 @@ export default function Shop() {
                     {fmtPrice(featuredPlan.priceEur)} €
                   </p>
                   <p className="text-xs mb-5" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                    {featuredPlan.durationDays} jour{featuredPlan.durationDays > 1 ? 's' : ''}
+                    {t('shop.featured.duration', { count: featuredPlan.durationDays })}
                   </p>
                   {checkoutPlan?.id === featuredPlan.id ? (
                     <div className="space-y-2 max-w-xs ml-auto">
                       <div className="grid grid-cols-2 gap-2">
-                        <Button onClick={() => startCheckout(featuredPlan, 'STRIPE')} disabled={checkoutBusy} variant="secondary">💳 Carte</Button>
-                        <Button onClick={() => startCheckout(featuredPlan, 'PAYPAL')} disabled={checkoutBusy} variant="secondary">PayPal</Button>
+                        <Button onClick={() => startCheckout(featuredPlan, 'STRIPE')} disabled={checkoutBusy} variant="secondary">{t('shop.featured.buttonCard')}</Button>
+                        <Button onClick={() => startCheckout(featuredPlan, 'PAYPAL')} disabled={checkoutBusy} variant="secondary">{t('shop.featured.buttonPaypal')}</Button>
                       </div>
-                      <Button onClick={() => { setCheckoutPlan(null); setCheckoutErr('') }} variant="ghost" fullWidth size="sm">Annuler</Button>
+                      <Button onClick={() => { setCheckoutPlan(null); setCheckoutErr('') }} variant="ghost" fullWidth size="sm">{t('shop.featured.buttonCancel')}</Button>
                       {checkoutErr && <p className="text-xs text-red-400">{checkoutErr}</p>}
                     </div>
                   ) : (
                     <Button onClick={() => { setCheckoutPlan(featuredPlan); setCheckoutErr('') }} size="lg">
-                      Acheter maintenant →
+                      {t('shop.featured.buyNow')}
                     </Button>
                   )}
                 </div>
@@ -208,7 +209,7 @@ export default function Shop() {
         {/* VIP Grid */}
         {showVip && otherPlans.length > 0 && (
           <>
-            <SectionDivider label="Autres abonnements VIP" hint={`${otherPlans.length} plan${otherPlans.length > 1 ? 's' : ''} disponible${otherPlans.length > 1 ? 's' : ''}`} />
+            <SectionDivider label={t('shop.vip.section')} hint={t('shop.vip.hint', { count: otherPlans.length })} />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mb-12 lg:mb-16">
               {otherPlans.map(plan => {
                 const c = plan.color ?? '#fbbf24'
@@ -223,7 +224,7 @@ export default function Shop() {
                       <div className="flex-1 min-w-0">
                         <p className="font-display text-lg font-semibold truncate" style={{ color: '#f8fafc' }}>{plan.displayName}</p>
                         <p className="text-[11px]" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                          {plan.durationDays} jour{plan.durationDays > 1 ? 's' : ''}
+                          {t('shop.vip.duration', { count: plan.durationDays })}
                         </p>
                       </div>
                     </div>
@@ -247,13 +248,13 @@ export default function Shop() {
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
                           <Button onClick={() => startCheckout(plan, 'STRIPE')} disabled={checkoutBusy} variant="secondary" size="sm">💳</Button>
-                          <Button onClick={() => startCheckout(plan, 'PAYPAL')} disabled={checkoutBusy} variant="secondary" size="sm">PayPal</Button>
+                          <Button onClick={() => startCheckout(plan, 'PAYPAL')} disabled={checkoutBusy} variant="secondary" size="sm">{t('shop.featured.buttonPaypal')}</Button>
                         </div>
-                        <Button onClick={() => { setCheckoutPlan(null); setCheckoutErr('') }} variant="ghost" fullWidth size="sm">Annuler</Button>
+                        <Button onClick={() => { setCheckoutPlan(null); setCheckoutErr('') }} variant="ghost" fullWidth size="sm">{t('shop.featured.buttonCancel')}</Button>
                         {checkoutErr && <p className="text-xs text-red-400 text-center">{checkoutErr}</p>}
                       </div>
                     ) : (
-                      <Button onClick={() => { setCheckoutPlan(plan); setCheckoutErr('') }} fullWidth>Acheter</Button>
+                      <Button onClick={() => { setCheckoutPlan(plan); setCheckoutErr('') }} fullWidth>{t('shop.crates.buy')}</Button>
                     )}
                   </Card>
                 )
@@ -265,15 +266,15 @@ export default function Shop() {
         {showVip && plans.length === 0 && (
           <Card padding="lg" className="text-center mb-12">
             <span className="text-4xl block mb-3">⭐</span>
-            <p className="font-semibold" style={{ color: '#f8fafc' }}>Aucun plan VIP configuré</p>
-            <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Les offres seront disponibles prochainement.</p>
+            <p className="font-semibold" style={{ color: '#f8fafc' }}>{t('shop.vip.emptyTitle')}</p>
+            <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('shop.vip.emptyDesc')}</p>
           </Card>
         )}
 
         {/* Crates Grid */}
         {showCrates && crates.length > 0 && (
           <>
-            <SectionDivider label="Caisses & Clés" hint="Tente ta chance pour des récompenses rares" />
+            <SectionDivider label={t('shop.crates.section')} hint={t('shop.crates.hint')} />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mb-12 lg:mb-16">
               {crates.map(crate => {
                 const c = crate.color ?? '#fbbf24'
@@ -295,7 +296,7 @@ export default function Shop() {
                     <div className="mb-3">
                       {crate.price > 0
                         ? <p className="font-display text-2xl font-semibold" style={{ color: c }}>{fmtBalance(crate.price)} $</p>
-                        : <Tag tone="jade">Gratuit</Tag>}
+                        : <Tag tone="jade">{t('shop.crates.free')}</Tag>}
                     </div>
                     {msg && (
                       <p className={`text-xs text-center py-1.5 mb-2 rounded-lg ${msg.ok ? 'text-emerald-400' : 'text-red-400'}`}
@@ -304,7 +305,7 @@ export default function Shop() {
                       </p>
                     )}
                     <Button onClick={() => buyCrate(crate)} disabled={isBusy} fullWidth>
-                      {isBusy ? 'Achat…' : crate.price > 0 ? 'Acheter' : 'Obtenir'}
+                      {isBusy ? t('shop.crates.buying') : crate.price > 0 ? t('shop.crates.buy') : t('shop.crates.obtain')}
                     </Button>
                   </Card>
                 )
@@ -314,13 +315,13 @@ export default function Shop() {
         )}
 
         {/* Economy info */}
-        <SectionDivider label="Économie en jeu" hint="Comment gagner et dépenser des coins" />
+        <SectionDivider label={t('shop.economy.section')} hint={t('shop.economy.hint')} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
-            { icon: '🪙', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.3)',  title: 'Gagner des coins',  desc: 'Joue, mine, accomplis des quêtes ou réclame ta récompense quotidienne.' },
-            { icon: '🛍️', bg: 'rgba(56,189,248,0.12)',  border: 'rgba(56,189,248,0.3)',  title: 'Boutique /shop',    desc: 'Dépense tes coins via /shop pour acheter des items en jeu.' },
-            { icon: '📦', bg: 'rgba(139,92,246,0.12)',  border: 'rgba(139,92,246,0.3)',  title: 'Caisses & Clés',    desc: 'Obtiens des clés via les missions et ouvre des caisses.' },
-            { icon: '📈', bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',  title: 'Métiers',           desc: 'Génère des revenus passifs en exerçant un métier.' },
+            { icon: '🪙', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.3)',  title: t('shop.economy.earningTitle'),  desc: t('shop.economy.earningDesc') },
+            { icon: '🛍️', bg: 'rgba(56,189,248,0.12)',  border: 'rgba(56,189,248,0.3)',  title: t('shop.economy.spendingTitle'), desc: t('shop.economy.spendingDesc') },
+            { icon: '📦', bg: 'rgba(139,92,246,0.12)',  border: 'rgba(139,92,246,0.3)',  title: t('shop.economy.cratesTitle'),   desc: t('shop.economy.cratesDesc') },
+            { icon: '📈', bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',  title: t('shop.economy.jobsTitle'),     desc: t('shop.economy.jobsDesc') },
           ].map(row => (
             <Card key={row.title} padding="md">
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mb-3"

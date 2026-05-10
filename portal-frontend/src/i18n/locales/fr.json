@@ -547,18 +547,48 @@
       "limited": "⏱ Limitées"
     },
     "hero": {
+      "titleStart": "Tes ",
+      "titleHighlight": "quêtes",
+      "titleEnd": " du moment",
       "subtitle_one": "{{available}} quête disponible · {{completed}} terminée",
       "subtitle_other": "{{available}} quêtes disponibles · {{completed}} terminées"
     },
     "communityProgress": {
       "label": "Progression communautaire",
       "value_one": "{{count}} complétion",
-      "value_other": "{{count}} complétions"
+      "value_other": "{{count}} complétions",
+      "suffix_one": "complétion",
+      "suffix_other": "complétions"
     },
     "loading": "Chargement des quêtes…",
     "empty": "Aucune quête dans cette catégorie.",
     "noDetailSelected": "Sélectionne une quête pour voir les détails.",
-    "loginButton": "Connecte-toi"
+    "loginButton": "Connecte-toi",
+    "eyebrow": "Aventure",
+    "types": {
+      "BREAK_BLOCK": "Casser",
+      "PLACE_BLOCK": "Placer",
+      "KILL_ENTITY": "Tuer",
+      "KILL_PLAYER": "PvP",
+      "CRAFT_ITEM": "Craft",
+      "FISH_CATCH": "Pêche",
+      "PLAY_TIME": "Temps"
+    },
+    "target": {
+      "all": "Tous"
+    },
+    "timer": {
+      "expiresIn": "Expire dans {{duration}}",
+      "day": "j",
+      "hour": "h"
+    },
+    "detail": {
+      "section": "Ma progression",
+      "tagRepeatable": "🔁 Répétable",
+      "completions": "Complétions",
+      "inProgress": "En cours"
+    },
+    "loginHint": "pour voir ta progression personnelle."
   },
   "friends": {
     "errorLoading": "Erreur de chargement.",
@@ -793,7 +823,9 @@
       "streak": "Streak",
       "streakHint": "Quotidienne",
       "quests": "Quêtes",
-      "questsHint": "Complétées"
+      "questsHint": "Complétées",
+      "rankOf": "sur {{total}}",
+      "streakDays": "{{count}}j"
     },
     "questsSection": "Quêtes en cours",
     "questsHint": "Progression actuelle",
@@ -805,7 +837,8 @@
       "section": "Trophées",
       "obtained_one": "{{count}} obtenu",
       "obtained_other": "{{count}} obtenus",
-      "empty": "Aucun trophée pour l'instant"
+      "empty": "Aucun trophée pour l'instant",
+      "tooltip": "{{name}} — {{rarity}}"
     },
     "info": {
       "section": "Informations",
@@ -815,8 +848,38 @@
     },
     "cta": {
       "title": "Rejoins {{username}} sur SunGuard",
-      "subtitle": "Crée ton compte et commence ton aventure dès aujourd'hui."
-    }
+      "subtitle": "Crée ton compte et commence ton aventure dès aujourd'hui.",
+      "buttonCreate": "Créer un compte",
+      "buttonLogin": "Connexion"
+    },
+    "nav": {
+      "leaderboard": "Classement",
+      "login": "Connexion"
+    },
+    "loading": "Chargement du profil…",
+    "errorGeneric": "Profil introuvable.",
+    "share": {
+      "copied": "✓ Lien copié",
+      "button": "⬡ Partager"
+    },
+    "roles": {
+      "ADMIN": "Admin",
+      "MODERATOR": "Modérateur",
+      "VIP": "VIP",
+      "PLAYER": "Joueur"
+    },
+    "rarity": {
+      "common": "Commun",
+      "rare": "Rare",
+      "epic": "Épique",
+      "legendary": "Légendaire"
+    },
+    "lastSeenMin": "Vu il y a {{count}} min",
+    "lastSeenHour": "Vu il y a {{count}}h",
+    "lastSeenDay": "Vu il y a {{count}}j",
+    "lastSeenMonth_one": "Vu il y a {{count}} mois",
+    "lastSeenMonth_other": "Vu il y a {{count}} mois",
+    "bioFallback": "Membre SunGuard depuis {{date}}"
   },
   "comingSoon": {
     "home": {

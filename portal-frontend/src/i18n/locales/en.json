@@ -547,18 +547,48 @@
       "limited": "⏱ Limited"
     },
     "hero": {
+      "titleStart": "Your ",
+      "titleHighlight": "quests",
+      "titleEnd": " right now",
       "subtitle_one": "{{available}} quest available · {{completed}} completed",
       "subtitle_other": "{{available}} quests available · {{completed}} completed"
     },
     "communityProgress": {
       "label": "Community progress",
       "value_one": "{{count}} completion",
-      "value_other": "{{count}} completions"
+      "value_other": "{{count}} completions",
+      "suffix_one": "completion",
+      "suffix_other": "completions"
     },
     "loading": "Loading quests…",
     "empty": "No quest in this category.",
     "noDetailSelected": "Select a quest to view details.",
-    "loginButton": "Log in"
+    "loginButton": "Log in",
+    "eyebrow": "Adventure",
+    "types": {
+      "BREAK_BLOCK": "Break",
+      "PLACE_BLOCK": "Place",
+      "KILL_ENTITY": "Kill",
+      "KILL_PLAYER": "PvP",
+      "CRAFT_ITEM": "Craft",
+      "FISH_CATCH": "Fish",
+      "PLAY_TIME": "Time"
+    },
+    "target": {
+      "all": "All"
+    },
+    "timer": {
+      "expiresIn": "Expires in {{duration}}",
+      "day": "d",
+      "hour": "h"
+    },
+    "detail": {
+      "section": "My progress",
+      "tagRepeatable": "🔁 Repeatable",
+      "completions": "Completions",
+      "inProgress": "In progress"
+    },
+    "loginHint": "to see your personal progress."
   },
   "friends": {
     "errorLoading": "Loading error.",
@@ -793,7 +823,9 @@
       "streak": "Streak",
       "streakHint": "Daily",
       "quests": "Quests",
-      "questsHint": "Completed"
+      "questsHint": "Completed",
+      "rankOf": "of {{total}}",
+      "streakDays": "{{count}}d"
     },
     "questsSection": "Ongoing quests",
     "questsHint": "Current progress",
@@ -805,7 +837,8 @@
       "section": "Trophies",
       "obtained_one": "{{count}} earned",
       "obtained_other": "{{count}} earned",
-      "empty": "No trophy yet"
+      "empty": "No trophy yet",
+      "tooltip": "{{name}} — {{rarity}}"
     },
     "info": {
       "section": "Information",
@@ -815,8 +848,38 @@
     },
     "cta": {
       "title": "Join {{username}} on SunGuard",
-      "subtitle": "Create your account and start your adventure today."
-    }
+      "subtitle": "Create your account and start your adventure today.",
+      "buttonCreate": "Create an account",
+      "buttonLogin": "Log in"
+    },
+    "nav": {
+      "leaderboard": "Leaderboard",
+      "login": "Log in"
+    },
+    "loading": "Loading profile…",
+    "errorGeneric": "Profile not found.",
+    "share": {
+      "copied": "✓ Link copied",
+      "button": "⬡ Share"
+    },
+    "roles": {
+      "ADMIN": "Admin",
+      "MODERATOR": "Moderator",
+      "VIP": "VIP",
+      "PLAYER": "Player"
+    },
+    "rarity": {
+      "common": "Common",
+      "rare": "Rare",
+      "epic": "Epic",
+      "legendary": "Legendary"
+    },
+    "lastSeenMin": "Seen {{count}} min ago",
+    "lastSeenHour": "Seen {{count}}h ago",
+    "lastSeenDay": "Seen {{count}}d ago",
+    "lastSeenMonth_one": "Seen {{count}} month ago",
+    "lastSeenMonth_other": "Seen {{count}} months ago",
+    "bioFallback": "SunGuard member since {{date}}"
   },
   "comingSoon": {
     "home": {
