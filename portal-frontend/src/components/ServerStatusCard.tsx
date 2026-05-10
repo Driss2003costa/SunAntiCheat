@@ -56,7 +56,7 @@ export default function ServerStatusCard() {
   const meta = STATUS_META[overall]
 
   return (
-    <div className="mb-12 lg:mb-16">
+    <section>
       <SectionDivider
         label={t('serverStatus.section')}
         hint={t('serverStatus.sectionHint')}/>
@@ -140,6 +140,6 @@ export default function ServerStatusCard() {
           </div>
         </div>
       </Card>
-    </div>
+    </section>
   )
 }

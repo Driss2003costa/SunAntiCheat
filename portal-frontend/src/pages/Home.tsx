@@ -187,8 +187,12 @@ export default function Home() {
           }
         />
 
+        {/* Toutes les sections sont espacées uniformément via le container parent.
+            Ne pas ajouter de `mb-*` sur les enfants directs : laisser space-y faire le rythme. */}
+        <div className="space-y-12 lg:space-y-16 pb-8">
+
         {/* ─── STATS GRID ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
           <StatCard
             label={t('common.balance')} accent="gold" icon="💰" size="md"
             value={profile.balance != null ? fmtBalance(profile.balance) : '—'}
@@ -213,7 +217,7 @@ export default function Home() {
 
         {/* ─── DAILY REWARD (full width banner) ─────────────────────────── */}
         {daily?.config?.enabled && (
-          <div className="mb-12 lg:mb-16">
+          <div>
             <Link to="/profile" className="block group no-underline">
               <Card variant={daily.canClaim ? 'glass-warm' : 'glass'} hover padding="lg"
                     className="overflow-hidden relative">
@@ -253,30 +257,33 @@ export default function Home() {
         <ServerStatusCard />
 
         {/* ─── NAVIGATION GRID ──────────────────────────────────────────── */}
-        <SectionDivider label={t('home.explore.label')} hint={t('home.explore.hint')} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 mb-12 lg:mb-16">
-          {quickLinks.map(q => (
-            <Link key={q.to} to={q.to} className="no-underline">
-              <Card hover padding="lg" className="h-full group">
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-2xl transition-transform group-hover:scale-110"
-                       style={{ background: accentBg[q.accent], border: `1px solid ${accentBorder[q.accent]}` }}>
-                    {q.emoji}
+        <section>
+          <SectionDivider label={t('home.explore.label')} hint={t('home.explore.hint')} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+            {quickLinks.map(q => (
+              <Link key={q.to} to={q.to} className="no-underline">
+                <Card hover padding="lg" className="h-full group">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-2xl transition-transform group-hover:scale-110"
+                         style={{ background: accentBg[q.accent], border: `1px solid ${accentBorder[q.accent]}` }}>
+                      {q.emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-display text-xl font-semibold mb-1" style={{ color: '#f8fafc' }}>{q.label}</h3>
+                      <p className="text-sm" style={{ color: 'rgba(241,245,249,0.55)' }}>{q.desc}</p>
+                    </div>
+                    <span className="text-sun-300 opacity-0 group-hover:opacity-100 transition-opacity self-center">→</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-display text-xl font-semibold mb-1" style={{ color: '#f8fafc' }}>{q.label}</h3>
-                    <p className="text-sm" style={{ color: 'rgba(241,245,249,0.55)' }}>{q.desc}</p>
-                  </div>
-                  <span className="text-sun-300 opacity-0 group-hover:opacity-100 transition-opacity self-center">→</span>
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* ─── ACCOUNT STATUS (2 columns) ───────────────────────────────── */}
-        <SectionDivider label={t('home.status.section')} />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-8">
+        <section>
+          <SectionDivider label={t('home.status.section')} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
               <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>
@@ -313,6 +320,8 @@ export default function Home() {
                 : t('home.status.noSanctionsDesc')}
             </p>
           </Card>
+          </div>
+        </section>
         </div>
       </GridShell>
 
