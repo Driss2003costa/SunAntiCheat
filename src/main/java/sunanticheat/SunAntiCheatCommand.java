@@ -12,6 +12,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import sunanticheat.Permissions;
 import sunanticheat.blocklog.BlockLogInspectionMode;
 import sunanticheat.blocklog.BlockLogStore;
+import sunanticheat.dashboard.DashboardModule;
+import sunanticheat.dashboard.update.AutoUpdater;
 import sunanticheat.menu.MainMenuGui;
 import sunanticheat.weaponmechanics.WorldContainerWeaponMechanicsScanner;
 
@@ -164,6 +166,13 @@ public class SunAntiCheatCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§aConfiguration rechargée.");
             return true;
         }
+        if ("update".equalsIgnoreCase(args[0])) {
+            if (!sender.hasPermission(Permissions.UPDATE)) {
+                sender.sendMessage("§cVous n'avez pas la permission de gérer les mises à jour.");
+                return true;
+            }
+            return handleUpdate(sender, args);
+        }
         if ("mvinvscan".equalsIgnoreCase(args[0])) {
             if (!sender.hasPermission(Permissions.MVINV_SCAN)) {
                 sender.sendMessage("§cVous n'avez pas la permission d'analyser les inventaires Multiverse-Inventories (spawn).");
@@ -307,8 +316,59 @@ public class SunAntiCheatCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§eUsage: /sunguard firstjoin <status|enable|disable|delay <ticks>|setcommand <cmd>|addcommand <cmd>|clearcommands>");
             return true;
         }
-        sender.sendMessage("§eUsage: /sunguard | /sunguard reload | /sunguard mvinvscan [joueur] | /sunguard chestscan <monde1,monde2,...> | /sunguard blocklog | /sunguard sanction <joueur> | /sunguard reports | /sunguard rollback <joueur> [rayon] [minutes] | /sunguard firstjoin ...");
+        sender.sendMessage("§eUsage: /sunguard | /sunguard reload | /sunguard mvinvscan [joueur] | /sunguard chestscan <monde1,monde2,...> | /sunguard blocklog | /sunguard sanction <joueur> | /sunguard reports | /sunguard rollback <joueur> [rayon] [minutes] | /sunguard firstjoin ... | /sunguard update <check|status|apply>");
         return true;
+    }
+
+    private boolean handleUpdate(CommandSender sender, String[] args) {
+        DashboardModule dash = plugin.getDashboardModule();
+        AutoUpdater au = dash != null ? dash.getAutoUpdater() : null;
+        if (au == null) {
+            sender.sendMessage("§cAuto-update non initialisé "
+                    + "(dashboard.auto-update.enabled: false ?).");
+            return true;
+        }
+        String action = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "status";
+        switch (action) {
+            case "status" -> {
+                String latest = au.getLatestVersion();
+                sender.sendMessage("§6[Update] §fVersion actuelle : §a" + au.getCurrentVersion());
+                sender.sendMessage("§6[Update] §fDernière connue : §a" + (latest != null ? latest : "—"));
+                sender.sendMessage("§6[Update] §fMise à jour disponible : "
+                        + (au.isUpdateAvailable() ? "§aoui" : "§7non"));
+                sender.sendMessage("§6[Update] §fTéléchargée en attente : "
+                        + (au.isDownloadedPending() ? "§aoui (redémarrage requis)" : "§7non"));
+                return true;
+            }
+            case "check" -> {
+                sender.sendMessage("§eVérification en arrière-plan…");
+                au.triggerCheck();
+                return true;
+            }
+            case "apply" -> {
+                if (!au.isDownloadedPending()) {
+                    sender.sendMessage("§cAucune mise à jour téléchargée à appliquer. "
+                            + "Lance §f/sunguard update check§c d'abord.");
+                    return true;
+                }
+                int seconds = Math.max(5, plugin.getConfig().getInt(
+                        "dashboard.auto-update.apply-countdown-seconds", 30));
+                String latest = au.getLatestVersion();
+                String label = latest != null ? "v" + latest : "nouvelle version";
+                plugin.getServer().broadcastMessage("§e[SunAntiCheat] §fRedémarrage dans §a"
+                        + seconds + "s §fpour appliquer §a" + label + "§f.");
+                sender.sendMessage("§aArrêt programmé dans " + seconds + "s. "
+                        + "Le serveur doit être lancé avec un wrapper qui le relance "
+                        + "(systemd, screen, pm2…) pour que Paper applique la mise à jour.");
+                plugin.getServer().getScheduler().runTaskLater(plugin,
+                        () -> plugin.getServer().shutdown(), seconds * 20L);
+                return true;
+            }
+            default -> {
+                sender.sendMessage("§eUsage: /sunguard update <check|status|apply>");
+                return true;
+            }
+        }
     }
 
     private static int parseInt(String s, int def) {
@@ -340,6 +400,9 @@ public class SunAntiCheatCommand implements CommandExecutor, TabCompleter {
             }
             if (sender.hasPermission("sunguard.firstjoin.manage") && "firstjoin".toLowerCase().startsWith(args[0].toLowerCase())) {
                 out.add("firstjoin");
+            }
+            if (sender.hasPermission(Permissions.UPDATE) && "update".startsWith(args[0].toLowerCase(Locale.ROOT))) {
+                out.add("update");
             }
             if (sender.hasPermission(Permissions.MVINV_SCAN) && "mvinvscan".toLowerCase().startsWith(args[0].toLowerCase())) {
                 out.add("mvinvscan");
@@ -381,6 +444,13 @@ public class SunAntiCheatCommand implements CommandExecutor, TabCompleter {
             List<String> out = new ArrayList<>();
             for (String s : List.of("status", "enable", "disable", "delay", "setcommand", "addcommand", "clearcommands")) {
                 if (s.startsWith(args[1].toLowerCase())) out.add(s);
+            }
+            return out;
+        }
+        if (args.length == 2 && "update".equalsIgnoreCase(args[0]) && sender.hasPermission(Permissions.UPDATE)) {
+            List<String> out = new ArrayList<>();
+            for (String s : List.of("check", "status", "apply")) {
+                if (s.startsWith(args[1].toLowerCase(Locale.ROOT))) out.add(s);
             }
             return out;
         }

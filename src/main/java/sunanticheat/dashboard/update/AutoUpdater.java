@@ -61,6 +61,10 @@ public final class AutoUpdater {
             .build();
 
     private volatile boolean stopping = false;
+    private volatile String latestVersion;
+    private volatile boolean updateAvailable = false;
+    private volatile boolean downloadedPending = false;
+    private volatile boolean checking = false;
 
     public AutoUpdater(JavaPlugin plugin, String repo, String token, boolean allowPrerelease, long checkIntervalMs) {
         this.plugin = plugin;
@@ -89,6 +93,8 @@ public final class AutoUpdater {
 
     /** Vérifie GitHub et télécharge si une nouvelle version est dispo. */
     public void checkAndUpdate() {
+        if (checking) return;
+        checking = true;
         try {
             JsonObject release = fetchLatestRelease();
             if (release == null) return;
@@ -96,12 +102,15 @@ public final class AutoUpdater {
             String tagName = optString(release, "tag_name");
             if (tagName == null) return;
             String latestVersion = tagName.startsWith("v") ? tagName.substring(1) : tagName;
+            this.latestVersion = latestVersion;
             String currentVersion = plugin.getDescription().getVersion();
 
             if (compareVersions(latestVersion, currentVersion) <= 0) {
+                updateAvailable = false;
                 logger.info("[AutoUpdate] Plugin à jour (v" + currentVersion + ")");
                 return;
             }
+            updateAvailable = true;
 
             // Nouvelle version dispo — trouve l'asset .jar
             JsonArray assets = release.has("assets") && release.get("assets").isJsonArray()
@@ -153,13 +162,26 @@ public final class AutoUpdater {
             }
             File target = new File(updateDir, jarName);
             downloadTo(jarUrl, target);
+            downloadedPending = true;
 
             logger.info("[AutoUpdate] ✅ JAR téléchargé : " + target.getAbsolutePath());
             logger.info("[AutoUpdate] La mise à jour sera appliquée au prochain redémarrage.");
         } catch (Throwable t) {
             logger.log(Level.WARNING, "[AutoUpdate] Échec du check : " + t.getMessage(), t);
+        } finally {
+            checking = false;
         }
     }
+
+    /** Force un check immédiat (async). */
+    public void triggerCheck() {
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::checkAndUpdate);
+    }
+
+    public String getCurrentVersion()    { return plugin.getDescription().getVersion(); }
+    public String getLatestVersion()     { return latestVersion; }
+    public boolean isUpdateAvailable()   { return updateAvailable; }
+    public boolean isDownloadedPending() { return downloadedPending; }
 
     private JsonObject fetchLatestRelease() throws IOException, InterruptedException {
         // L'API "/releases/latest" retourne uniquement les releases stables.

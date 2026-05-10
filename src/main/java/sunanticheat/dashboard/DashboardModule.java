@@ -135,6 +135,7 @@ public final class DashboardModule {
     public DailyRewardStore getDailyRewardStore() { return dailyRewardStore; }
     public AlertStore getAlertStore()             { return alertStore; }
     public Database getDatabase()                 { return database; }
+    public AutoUpdater getAutoUpdater()           { return autoUpdater; }
     public sunanticheat.dashboard.quests.QuestStore getQuestStore() { return questStore; }
     public VipStore getVipStore()                 { return vipStore; }
     private PlayerLogService playerLogService;

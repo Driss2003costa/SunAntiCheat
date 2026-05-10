@@ -22,8 +22,8 @@ commands:
     description: "Commande interne — tracking clicks sur annonces (ne pas utiliser)"
     usage: "/sunann click <annId> <variantId>"
   sunguard:
-    description: "Menu, reload, mvinvscan, chestscan, blocklog, sanctions, reports, rollback, firstjoin"
-    usage: "/sunguard [reload|mvinvscan [joueur]|chestscan <monde1,monde2,...>|blocklog|sanction [joueur]|reports|rollback <joueur> [rayon] [min]|firstjoin ...]"
+    description: "Menu, reload, mvinvscan, chestscan, blocklog, sanctions, reports, rollback, firstjoin, update"
+    usage: "/sunguard [reload|mvinvscan [joueur]|chestscan <monde1,monde2,...>|blocklog|sanction [joueur]|reports|rollback <joueur> [rayon] [min]|firstjoin ...|update <check|status|apply>]"
   xray:
     description: "Menu anti-x-ray ou réinitialisation des scores"
     usage: "/xray [reset <joueurs>]"
@@ -37,6 +37,9 @@ commands:
 permissions:
   sunguard.reload:
     description: "Permet de recharger la configuration du plugin"
+    default: op
+  sunguard.update:
+    description: "Gérer l'auto-update (check, status, apply)"
     default: op
   sunguard.mvinv.scan:
     description: "Analyser les inventaires Multiverse-Inventories du monde spawn (WM)"
