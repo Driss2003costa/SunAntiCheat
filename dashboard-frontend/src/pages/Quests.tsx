@@ -317,6 +317,149 @@ function RewardBuilder({ command, onChange }: { command: string; onChange: (cmd:
 
 const inpInner: React.CSSProperties = { background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)' }
 
+// ── ExpirationBuilder — sélecteur 3 modes : aucune / minuteur / date ───────────
+const DURATION_PRESETS: { label: string; days: number; hours: number; minutes: number }[] = [
+  { label: '1h',  days: 0, hours: 1,  minutes: 0 },
+  { label: '6h',  days: 0, hours: 6,  minutes: 0 },
+  { label: '24h', days: 1, hours: 0,  minutes: 0 },
+  { label: '3j',  days: 3, hours: 0,  minutes: 0 },
+  { label: '7j',  days: 7, hours: 0,  minutes: 0 },
+  { label: '14j', days: 14, hours: 0, minutes: 0 },
+  { label: '30j', days: 30, hours: 0, minutes: 0 },
+]
+
+function ExpirationBuilder({ editing, setEditing }: { editing: any; setEditing: (e: any) => void }) {
+  const mode: 'none' | 'duration' | 'date' = editing.endsMode || 'none'
+
+  // Live preview de la date d'expiration en mode minuteur
+  const previewMs = (Number(editing.endsDays) || 0) * 86_400_000
+                  + (Number(editing.endsHours) || 0) * 3_600_000
+                  + (Number(editing.endsMinutes) || 0) * 60_000
+  const previewDate = previewMs > 0 ? new Date(Date.now() + previewMs) : null
+
+  const tabs: { id: typeof mode; label: string; emoji: string }[] = [
+    { id: 'none',     label: 'Aucune',       emoji: '∞' },
+    { id: 'duration', label: 'Minuteur',     emoji: '⏱' },
+    { id: 'date',     label: 'Date précise', emoji: '📅' },
+  ]
+
+  return (
+    <div className="rounded-lg p-3 space-y-3"
+         style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+      <div>
+        <div className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+          ⏳ Expiration de la quête
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {tabs.map(t => (
+            <button key={t.id}
+                    onClick={() => setEditing({ ...editing, endsMode: t.id })}
+                    className="px-3 py-1.5 rounded text-xs font-semibold transition"
+                    style={{
+                      background: mode === t.id ? 'var(--primary)' : 'var(--surface)',
+                      color: mode === t.id ? 'white' : 'var(--text-muted)',
+                      border: `1px solid ${mode === t.id ? 'var(--primary)' : 'var(--border)'}`,
+                    }}>
+              {t.emoji} {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Mode minuteur : J / H / M */}
+      {mode === 'duration' && (
+        <div className="rounded p-3 space-y-2"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="grid grid-cols-3 gap-2">
+            <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Jours
+              <input type="number" min={0} max={365}
+                     value={editing.endsDays ?? 0}
+                     onChange={e => setEditing({ ...editing, endsDays: Math.max(0, +e.target.value || 0) })}
+                     className="w-full mt-1 px-3 py-2 rounded text-base font-mono text-center" style={inpInner}/>
+            </label>
+            <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Heures
+              <input type="number" min={0} max={23}
+                     value={editing.endsHours ?? 0}
+                     onChange={e => setEditing({ ...editing, endsHours: Math.max(0, Math.min(23, +e.target.value || 0)) })}
+                     className="w-full mt-1 px-3 py-2 rounded text-base font-mono text-center" style={inpInner}/>
+            </label>
+            <label className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Minutes
+              <input type="number" min={0} max={59}
+                     value={editing.endsMinutes ?? 0}
+                     onChange={e => setEditing({ ...editing, endsMinutes: Math.max(0, Math.min(59, +e.target.value || 0)) })}
+                     className="w-full mt-1 px-3 py-2 rounded text-base font-mono text-center" style={inpInner}/>
+            </label>
+          </div>
+
+          {/* Presets rapides */}
+          <div className="flex flex-wrap gap-1 items-center">
+            <span className="text-[10px] uppercase tracking-wider mr-1" style={{ color: 'var(--text-muted)' }}>Préréglages :</span>
+            {DURATION_PRESETS.map(p => {
+              const active = editing.endsDays === p.days && editing.endsHours === p.hours && editing.endsMinutes === p.minutes
+              return (
+                <button key={p.label}
+                        onClick={() => setEditing({ ...editing, endsDays: p.days, endsHours: p.hours, endsMinutes: p.minutes })}
+                        className="px-2 py-1 rounded text-[11px] font-mono"
+                        style={{
+                          background: active ? 'rgba(251,191,36,0.18)' : 'var(--surface-2)',
+                          color: active ? '#fbbf24' : 'var(--text-muted)',
+                          border: `1px solid ${active ? 'rgba(251,191,36,0.4)' : 'var(--border)'}`,
+                        }}>
+                  {p.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Preview */}
+          {previewDate ? (
+            <div className="rounded p-2"
+                 style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}>
+              <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#34d399' }}>
+                Expirera le
+              </div>
+              <div className="text-sm font-mono mt-0.5" style={{ color: '#6ee7b7' }}>
+                {previewDate.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}
+              </div>
+              <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Soit {editing.endsDays || 0}j {editing.endsHours || 0}h {editing.endsMinutes || 0}min après création
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] italic" style={{ color: 'var(--text-muted)' }}>
+              Saisis au moins une valeur ou choisis un préréglage.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Mode date précise */}
+      {mode === 'date' && (
+        <div className="rounded p-3"
+             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <input
+            type="datetime-local"
+            value={editing.endsAtLocal ?? ''}
+            onChange={e => setEditing({ ...editing, endsAtLocal: e.target.value })}
+            className="w-full px-3 py-2 rounded"
+            style={inpInner}
+          />
+        </div>
+      )}
+
+      {/* Mode aucune : info inline */}
+      {mode === 'none' && (
+        <p className="text-[11px] italic px-1" style={{ color: 'var(--text-muted)' }}>
+          La quête restera active indéfiniment.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Timer hook ─────────────────────────────────────────────────────────────────
 function useAdminTimer(endsAt: number | null | undefined) {
   const [now, setNow] = useState(Date.now())
@@ -625,17 +768,29 @@ export default function Quests() {
     icon: '⭐', color: '#8B5CF6',
     type: 'BREAK_BLOCK', target: 'ANY', goal: 100,
     rewardCommand: '', rewardLabel: '', rewardLabelEn: '',
-    enabled: true, repeatable: false, endsAtLocal: '',
+    enabled: true, repeatable: false,
+    endsMode: 'none' as 'none' | 'duration' | 'date',
+    endsDays: 7, endsHours: 0, endsMinutes: 0,
+    endsAtLocal: '',
   })
 
   const save = async () => {
     if (!editing) return
     const payload = { ...editing }
-    if (payload.endsAtLocal) {
-      payload.endsAt = new Date(payload.endsAtLocal).getTime()
+    if (editing.endsMode === 'duration') {
+      const ms = (Number(editing.endsDays) || 0) * 86_400_000
+              + (Number(editing.endsHours) || 0) * 3_600_000
+              + (Number(editing.endsMinutes) || 0) * 60_000
+      payload.endsAt = ms > 0 ? Date.now() + ms : null
+    } else if (editing.endsMode === 'date' && editing.endsAtLocal) {
+      payload.endsAt = new Date(editing.endsAtLocal).getTime()
     } else {
       payload.endsAt = null
     }
+    delete payload.endsMode
+    delete payload.endsDays
+    delete payload.endsHours
+    delete payload.endsMinutes
     delete payload.endsAtLocal
     if (editing.id) await api.questUpdate(editing.id, payload)
     else await api.questCreate(payload)
@@ -666,7 +821,12 @@ export default function Quests() {
             key={q.id}
             q={q}
             canEdit={canEdit}
-            onEdit={() => setEditing({ ...q, endsAtLocal: q.endsAt ? new Date(q.endsAt).toISOString().slice(0,16) : '' })}
+            onEdit={() => setEditing({
+              ...q,
+              endsMode: q.endsAt ? 'date' : 'none',
+              endsDays: 7, endsHours: 0, endsMinutes: 0,
+              endsAtLocal: q.endsAt ? new Date(q.endsAt).toISOString().slice(0,16) : '',
+            })}
             onDelete={async () => { if (confirm('Supprimer ?')) { await api.questDelete(q.id); refresh() } }}
             onExpired={handleExpired}
           />
@@ -748,16 +908,7 @@ export default function Quests() {
                 <input type="checkbox" checked={editing.repeatable} onChange={e => setEditing({ ...editing, repeatable: e.target.checked })}/> Répétable
               </label>
             </div>
-            <label className="text-xs block" style={{ color: 'var(--text-muted)' }}>
-              Expiration (optionnelle)
-              <input
-                type="datetime-local"
-                value={editing.endsAtLocal ?? ''}
-                onChange={e => setEditing({ ...editing, endsAtLocal: e.target.value })}
-                className="w-full mt-1 px-3 py-2 rounded"
-                style={inp}
-              />
-            </label>
+            <ExpirationBuilder editing={editing} setEditing={setEditing} />
             <div className="flex gap-2">
               <button onClick={save} className="flex-1 px-4 py-2 rounded text-white" style={{ background: 'var(--primary)' }}>💾 Sauvegarder</button>
               <button onClick={() => setEditing(null)} className="px-4 py-2 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>Annuler</button>
