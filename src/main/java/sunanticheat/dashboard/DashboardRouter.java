@@ -556,8 +556,10 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/quests")                   && GET(method))  { questHandler.list(ex, jwt, users); return; }
         if (eq(path, "/api/quests")                   && POST(method)) { questHandler.create(ex, jwt, users); return; }
         // Library de templates (placé avant /api/quests/{id} pour ne pas être capté)
-        if (eq(path, "/api/quests/templates")         && GET(method))  { questHandler.listTemplates(ex, jwt, users); return; }
-        if (eq(path, "/api/quests/from-template")     && POST(method)) { questHandler.createFromTemplate(ex, jwt, users); return; }
+        if (eq(path, "/api/quests/templates")             && GET(method))  { questHandler.listTemplates(ex, jwt, users); return; }
+        if (eq(path, "/api/quests/from-template")         && POST(method)) { questHandler.createFromTemplate(ex, jwt, users); return; }
+        if (eq(path, "/api/quests/rotation")              && GET(method))  { questHandler.rotationStatus(ex, jwt, users); return; }
+        if (eq(path, "/api/quests/rotation/regenerate")   && POST(method)) { questHandler.rotationRegenerate(ex, jwt, users); return; }
         if (path.startsWith("/api/quests/player/")    && GET(method))  { questHandler.playerProgress(ex, jwt, users, id(path, "/api/quests/player/")); return; }
         if (path.startsWith("/api/quests/")           && PATCH(method))  { questHandler.update(ex, jwt, users, id(path, "/api/quests/")); return; }
         if (path.startsWith("/api/quests/")           && DELETE(method)) { questHandler.delete(ex, jwt, users, id(path, "/api/quests/")); return; }

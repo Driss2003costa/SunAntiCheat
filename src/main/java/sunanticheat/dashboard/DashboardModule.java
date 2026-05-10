@@ -498,7 +498,12 @@ public final class DashboardModule {
         PlayerJwtUtil playerJwtUtil = new PlayerJwtUtil(portalJwtSecret);
         sunanticheat.dashboard.quests.QuestTemplateLoader questTemplates =
                 new sunanticheat.dashboard.quests.QuestTemplateLoader(plugin.getLogger());
-        questHandler = new QuestHandler(questStore, playerJwtUtil, questTemplates);
+        sunanticheat.dashboard.quests.QuestRotationService questRotation =
+                new sunanticheat.dashboard.quests.QuestRotationService(
+                        plugin, questStore, questTemplates,
+                        plugin.getDataFolder(), plugin.getLogger(), blobs);
+        questRotation.start();
+        questHandler = new QuestHandler(questStore, playerJwtUtil, questTemplates, questRotation);
 
         // ── Système social (amis, chat, parrainage) ───────────────────────────
         FriendStore friendStore     = new FriendStore(database, plugin.getLogger());
