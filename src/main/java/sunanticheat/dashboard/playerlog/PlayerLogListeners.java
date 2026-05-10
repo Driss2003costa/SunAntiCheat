@@ -47,6 +47,42 @@ public final class PlayerLogListeners implements Listener {
             "help", "list", "rules", "ping", "msg-list", "tabcomplete"
     );
 
+    /**
+     * Commandes de téléport reconnues : on tag l'action avec un suffixe pour que
+     * l'admin puisse les distinguer en un coup d'œil dans les logs.
+     * head (lowercase) → kind (suffixe ajouté à l'action COMMAND_…)
+     */
+    private static final Map<String, String> TELEPORT_CMD_KIND = Map.ofEntries(
+            Map.entry("home",     "HOME"),
+            Map.entry("h",        "HOME"),
+            Map.entry("homes",    "HOME"),
+            Map.entry("sethome",  "HOME"),
+            Map.entry("delhome",  "HOME"),
+            Map.entry("listhomes","HOME"),
+            Map.entry("tp",       "TP"),
+            Map.entry("teleport", "TP"),
+            Map.entry("tphere",   "TP"),
+            Map.entry("tpall",    "TP"),
+            Map.entry("tpa",      "TPA"),
+            Map.entry("tpaccept", "TPA"),
+            Map.entry("tpdeny",   "TPA"),
+            Map.entry("tpahere",  "TPA"),
+            Map.entry("tpyes",    "TPA"),
+            Map.entry("tpno",     "TPA"),
+            Map.entry("tpcancel", "TPA"),
+            Map.entry("spawn",    "SPAWN"),
+            Map.entry("setspawn", "SPAWN"),
+            Map.entry("warp",     "WARP"),
+            Map.entry("warps",    "WARP"),
+            Map.entry("setwarp",  "WARP"),
+            Map.entry("delwarp",  "WARP"),
+            Map.entry("back",     "BACK"),
+            Map.entry("return",   "BACK"),
+            Map.entry("rtp",      "RTP"),
+            Map.entry("wild",     "RTP"),
+            Map.entry("randomtp", "RTP")
+    );
+
     /** Téléport <= 8 blocs ignoré (évite le spam pour les enderpearl, /sit, etc.). */
     private static final double MIN_TP_DISTANCE_SQ = 64.0;
 
@@ -137,17 +173,28 @@ public final class PlayerLogListeners implements Listener {
         String cmd = full.startsWith("/") ? full.substring(1) : full;
         int sp = cmd.indexOf(' ');
         String head = sp == -1 ? cmd : cmd.substring(0, sp);
-        if (IGNORED_CMDS.contains(head.toLowerCase())) return;
+        String headLow = head.toLowerCase();
+        if (IGNORED_CMDS.contains(headLow)) return;
         String args = sp == -1 ? null : cmd.substring(sp + 1);
         // Anonymise les commandes potentiellement sensibles (login/register)
-        if (head.equalsIgnoreCase("login") || head.equalsIgnoreCase("register")
-            || head.equalsIgnoreCase("changepassword") || head.equalsIgnoreCase("l")) {
+        if (headLow.equals("login") || headLow.equals("register")
+            || headLow.equals("changepassword") || headLow.equals("l")) {
             args = "***";
         }
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("command", head);
         if (args != null) meta.put("args", args.length() > 200 ? args.substring(0, 200) + "…" : args);
-        service.logWithPayload(ev.getPlayer(), "CHAT", "COMMAND", "/" + head, meta);
+
+        // Tag les commandes de téléport pour qu'elles soient identifiables côté frontend
+        String tpKind = TELEPORT_CMD_KIND.get(headLow);
+        String action;
+        if (tpKind != null) {
+            meta.put("commandKind", tpKind);
+            action = "COMMAND_" + tpKind;
+        } else {
+            action = "COMMAND";
+        }
+        service.logWithPayload(ev.getPlayer(), "CHAT", action, "/" + head, meta);
     }
 
     // ── CONTAINER ────────────────────────────────────────────────────────────

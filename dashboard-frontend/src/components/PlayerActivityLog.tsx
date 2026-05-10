@@ -23,6 +23,13 @@ const ACTION_ICONS: Record<string, string> = {
   JOIN: '🟢', QUIT: '⚫', KICK: '👢',
   DEATH: '💀',
   CHAT_MESSAGE: '💬', COMMAND: '⌨️',
+  COMMAND_HOME: '🏠',
+  COMMAND_TP:    '↗️',
+  COMMAND_TPA:   '📨',
+  COMMAND_SPAWN: '🌟',
+  COMMAND_WARP:  '🌀',
+  COMMAND_BACK:  '↩️',
+  COMMAND_RTP:   '🎲',
   OPEN: '📦', CLOSE: '📕',
   TP: '🌍',
 }
@@ -229,6 +236,7 @@ function ActivityRow({ entry }: { entry: any }) {
   const icon = ACTION_ICONS[entry.action] || meta.icon
   const time = new Date(entry.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
+  const detail = actionDetail(entry)
   return (
     <div className="cursor-pointer" onClick={() => setExpanded(!expanded)}
          style={{ borderBottom: '1px solid var(--border)' }}>
@@ -238,11 +246,11 @@ function ActivityRow({ entry }: { entry: any }) {
         <div className="flex-1 min-w-0">
           <div className="text-sm">
             <span className="font-bold" style={{ color: meta.color }}>{humanAction(entry)}</span>
-            {entry.target && (
+            {detail && (
               <span style={{ color: 'var(--text-muted)' }}> · </span>
             )}
-            {entry.target && (
-              <span className="font-medium" style={{ color: 'var(--text)' }}>{truncate(entry.target, 60)}</span>
+            {detail && (
+              <span className="font-medium font-mono" style={{ color: 'var(--text)' }}>{truncate(detail, 80)}</span>
             )}
           </div>
           {entry.world && (
@@ -268,16 +276,35 @@ function ActivityRow({ entry }: { entry: any }) {
 function humanAction(entry: any): string {
   const a = entry.action
   switch (a) {
-    case 'JOIN':         return 'Connecté'
-    case 'QUIT':         return 'Déconnecté'
-    case 'KICK':         return 'Kicked'
-    case 'DEATH':        return entry.target ? `Tué par ${entry.target}` : 'Mort'
-    case 'CHAT_MESSAGE': return '"' + truncate(entry.target || '', 80) + '"'
-    case 'COMMAND':      return entry.target || 'Commande'
-    case 'OPEN':         return 'A ouvert ' + (entry.target || 'un conteneur')
-    case 'TP':           return 'Téléporté ' + (entry.target ? '→ ' + entry.target : '')
-    default:             return a
+    case 'JOIN':          return 'Connecté'
+    case 'QUIT':          return 'Déconnecté'
+    case 'KICK':          return 'Kicked'
+    case 'DEATH':         return entry.target ? `Tué par ${entry.target}` : 'Mort'
+    case 'CHAT_MESSAGE':  return '"' + truncate(entry.target || '', 80) + '"'
+    case 'COMMAND':       return 'Commande'
+    case 'COMMAND_HOME':  return 'Home'
+    case 'COMMAND_TP':    return 'Téléport'
+    case 'COMMAND_TPA':   return 'Demande TPA'
+    case 'COMMAND_SPAWN': return 'Spawn'
+    case 'COMMAND_WARP':  return 'Warp'
+    case 'COMMAND_BACK':  return 'Retour'
+    case 'COMMAND_RTP':   return 'Téléport aléatoire'
+    case 'OPEN':          return 'A ouvert ' + (entry.target || 'un conteneur')
+    case 'TP':            return 'Téléporté ' + (entry.target ? '→ ' + entry.target : '')
+    default:              return a
   }
+}
+
+/** Texte secondaire affiché à droite du label principal. */
+function actionDetail(entry: any): string {
+  const a = entry.action
+  const args = entry.payload?.args ? String(entry.payload.args) : ''
+  // Pour les commandes : "head args" combinés (ex. "/home myhome")
+  if (a?.startsWith('COMMAND')) {
+    const head = entry.target || ''
+    return args ? `${head} ${truncate(args, 40)}` : head
+  }
+  return entry.target || ''
 }
 
 function truncate(s: string, n: number): string {
