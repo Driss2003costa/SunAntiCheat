@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   api, getToken, clearToken,
   type PlayerProfile, type CustomJob, type PlayerJobProgress,
@@ -12,12 +13,13 @@ import PageAura from '../components/PageAura'
 import DegradedNotice from '../components/DegradedNotice'
 import { GridShell, HeroBanner, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
 
-function fmtEarned(n: number) {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
+function fmtEarned(n: number, locale: string) {
+  return n.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' $'
 }
 
 export default function Career() {
   const navigate  = useNavigate()
+  const { t, i18n } = useTranslation()
   const [profile,     setProfile]     = useState<PlayerProfile | null>(null)
   const [jobs,        setJobs]        = useState<CustomJob[]>([])
   const [progress,    setProgress]    = useState<PlayerJobProgress[]>([])
@@ -29,6 +31,8 @@ export default function Career() {
   const [unavailable, setUnavailable] = useState(false)
   const [busyJob,     setBusyJob]     = useState<string | null>(null)
   const [toast,       setToast]       = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
+
+  const numberLocale = i18n.resolvedLanguage?.startsWith('fr') ? 'fr-FR' : 'en-GB'
 
   const loadAll = async (uuid: string) => {
     const token = getToken()
@@ -68,32 +72,32 @@ export default function Career() {
     setBusyJob(jobId)
     try {
       const r = await api.jobJoin(token, jobId)
-      setToast({ kind: 'ok', msg: 'Métier rejoint !' })
+      setToast({ kind: 'ok', msg: t('career.toast.joined') })
       setSlots({ used: r.used, max: r.max, rank: r.rank })
       await loadAll(profile.uuid)
     } catch (e: any) {
       const reason = e?.reason ?? ''
-      const msg = e?.status === 401       ? 'Session expirée.'
-                : reason === 'NO_SLOT'    ? 'Limite de métiers atteinte.'
-                : reason === 'DISABLED'   ? 'Ce métier est désactivé.'
-                : reason === 'ALREADY_IN' ? 'Déjà dans ce métier.'
-                : reason === 'NOT_FOUND'  ? 'Métier introuvable.'
-                : 'Action impossible.'
+      const msg = e?.status === 401       ? t('career.error.sessionExpired')
+                : reason === 'NO_SLOT'    ? t('career.error.noSlot')
+                : reason === 'DISABLED'   ? t('career.error.disabled')
+                : reason === 'ALREADY_IN' ? t('career.error.alreadyIn')
+                : reason === 'NOT_FOUND'  ? t('career.error.notFound')
+                : t('career.error.generic')
       setToast({ kind: 'err', msg })
     } finally { setBusyJob(null) }
   }
 
   const handleLeave = async (jobId: string) => {
     const token = getToken(); if (!token || !profile) return
-    if (!window.confirm('Quitter ce métier ? Tu garderas ton XP.')) return
+    if (!window.confirm(t('career.confirm.leave'))) return
     setBusyJob(jobId)
     try {
       const r = await api.jobLeave(token, jobId)
-      setToast({ kind: 'ok', msg: 'Métier quitté.' })
+      setToast({ kind: 'ok', msg: t('career.toast.left') })
       setSlots({ used: r.used, max: r.max, rank: r.rank })
       await loadAll(profile.uuid)
     } catch (e: any) {
-      setToast({ kind: 'err', msg: e?.status === 401 ? 'Session expirée.' : 'Action impossible.' })
+      setToast({ kind: 'err', msg: e?.status === 401 ? t('career.error.sessionExpired') : t('career.error.generic') })
     } finally { setBusyJob(null) }
   }
 
@@ -123,18 +127,18 @@ export default function Career() {
       <GridShell>
         <DegradedNotice sectionKey="career"/>
         <HeroBanner
-          eyebrow="Carrière"
+          eyebrow={t('career.eyebrow')}
           variant="jade"
-          title={<>Construis ton <span className="text-emerald-300">empire</span></>}
-          subtitle={`${progress.length} métier${progress.length > 1 ? 's' : ''} actif${progress.length > 1 ? 's' : ''} · ${jobs.length} disponible${jobs.length > 1 ? 's' : ''}. Progresse, monte en niveau et débloque des étoiles permanentes.`}
+          title={<>{t('career.hero.titleStart')}<span className="text-emerald-300">{t('career.hero.titleHighlight')}</span></>}
+          subtitle={t('career.hero.subtitle', { count: progress.length, active: progress.length, available: jobs.length })}
         />
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-12 lg:mb-16">
-          <StatCard label="Métiers actifs" accent="jade"   icon="💼" value={progress.length} hint={`${jobs.length} disponibles`} />
-          <StatCard label="Niveau total"   accent="gold"   icon="✦"  value={totalLevel} hint={`Moy. ${avgLevel}`} />
-          <StatCard label="Total gagné"    accent="gold"   icon="💰" value={fmtEarned(totalEarned)} hint="Cumul des revenus" />
-          <StatCard label="Étoiles"        accent="violet" icon="⭐" value={totalStars} hint="Prestige cumulé" />
+          <StatCard label={t('career.stats.active')} accent="jade"   icon="💼" value={progress.length} hint={t('career.stats.activeHint', { count: jobs.length })} />
+          <StatCard label={t('career.stats.level')}  accent="gold"   icon="✦"  value={totalLevel} hint={t('career.stats.levelHint', { avg: avgLevel })} />
+          <StatCard label={t('career.stats.earned')} accent="gold"   icon="💰" value={fmtEarned(totalEarned, numberLocale)} hint={t('career.stats.earnedHint')} />
+          <StatCard label={t('career.stats.stars')}  accent="violet" icon="⭐" value={totalStars} hint={t('career.stats.starsHint')} />
         </div>
 
         {/* Slots */}
@@ -145,14 +149,14 @@ export default function Career() {
             <Card padding="md" className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>Slots métiers</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>{t('career.slots.label')}</p>
                   <Tag tone="neutral" size="xs">{slots.rank}</Tag>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-display text-xl font-semibold" style={{ color: full ? '#fb923c' : '#fbbf24' }}>
                     {slots.used}<span style={{ color: 'rgba(241,245,249,0.4)' }}>/</span>{slots.max}
                   </span>
-                  <Tag tone={full ? 'rose' : 'gold'} size="xs">{full ? 'Plein' : `${free} libre${free > 1 ? 's' : ''}`}</Tag>
+                  <Tag tone={full ? 'rose' : 'gold'} size="xs">{full ? t('career.slots.full') : t('career.slots.free', { count: free })}</Tag>
                 </div>
               </div>
               <div className="flex gap-1">
@@ -174,12 +178,12 @@ export default function Career() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-12 lg:mb-16">
             {tickets.length > 0 && (
               <Card padding="md">
-                <p className="text-[11px] font-bold uppercase tracking-[0.25em] mb-3" style={{ color: '#a78bfa' }}>Tickets actifs</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] mb-3" style={{ color: '#a78bfa' }}>{t('career.tickets.label')}</p>
                 <div className="flex flex-wrap gap-2">
-                  {tickets.map(t => {
-                    const h = t.expires_at > Date.now() ? Math.max(1, Math.round((t.expires_at - Date.now()) / 3_600_000)) : 0
-                    const label = t.type === 'extra_slot' ? '+1 slot' : t.type === 'xp_boost_25' ? '+25% XP' : t.type === 'bypass_heatmap' ? 'Bypass heatmap' : t.type
-                    return <Tag key={t.id} tone="violet">{label} · {h}h</Tag>
+                  {tickets.map(tk => {
+                    const h = tk.expires_at > Date.now() ? Math.max(1, Math.round((tk.expires_at - Date.now()) / 3_600_000)) : 0
+                    const label = tk.type === 'extra_slot' ? t('career.tickets.extraSlot') : tk.type === 'xp_boost_25' ? t('career.tickets.xpBonus') : tk.type === 'bypass_heatmap' ? t('career.tickets.bypassHeatmap') : tk.type
+                    return <Tag key={tk.id} tone="violet">{label} · {h}h</Tag>
                   })}
                 </div>
               </Card>
@@ -187,13 +191,13 @@ export default function Career() {
             {dynamics?.enabled && (
               <Card padding="md">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>Monde dynamique</p>
-                  <Tag tone="jade" size="xs">● en direct</Tag>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: 'rgba(241,245,249,0.55)' }}>{t('career.dynamics.label')}</p>
+                  <Tag tone="jade" size="xs">{t('career.dynamics.live')}</Tag>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {dynamics.season && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Saison</p>
+                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('career.dynamics.season')}</p>
                       <p className="text-sm font-semibold flex items-center gap-2" style={{ color: '#f8fafc' }}>
                         <span className="text-xl">{dynamics.season.icon}</span>{dynamics.season.label}
                       </p>
@@ -201,7 +205,7 @@ export default function Career() {
                   )}
                   {bulletinJob && (
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#fbbf24' }}>En demande</p>
+                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: '#fbbf24' }}>{t('career.dynamics.demand')}</p>
                       <p className="text-sm font-semibold truncate" style={{ color: '#f8fafc' }}>
                         {bulletinJob.name}
                         <span className="font-mono ml-1 text-xs" style={{ color: '#fbbf24' }}>×{(dynamics.bulletin?.multiplier ?? 1).toFixed(1)}</span>
@@ -224,15 +228,15 @@ export default function Career() {
         {unavailable && (
           <Card padding="lg" className="text-center mb-12">
             <span className="text-4xl block mb-3">🔧</span>
-            <p className="font-semibold" style={{ color: '#f8fafc' }}>Module hors ligne</p>
-            <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Le système de métiers n'est pas disponible pour le moment.</p>
+            <p className="font-semibold" style={{ color: '#f8fafc' }}>{t('career.offline.title')}</p>
+            <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('career.offline.desc')}</p>
           </Card>
         )}
 
         {/* Active jobs */}
         {progress.length > 0 && (
           <>
-            <SectionDivider label="Mes métiers" hint={`${progress.length} en cours`} />
+            <SectionDivider label={t('career.active.section')} hint={t('career.active.hint', { count: progress.length })} />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mb-12 lg:mb-16">
               {progress.map(prog => {
                 const job    = jobs.find(j => j.id === prog.job_id)
@@ -252,7 +256,7 @@ export default function Career() {
                       <div className="flex-1 min-w-0">
                         <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{prog.job_name}</p>
                         <p className="text-xs" style={{ color: isMax ? '#fbbf24' : '#34d399' }}>
-                          Niv. {prog.level}{isMax ? ' ✦' : ` / ${prog.max_level}`}
+                          {t('career.job.level', { level: prog.level })}{isMax ? ' ✦' : ` / ${prog.max_level}`}
                         </p>
                       </div>
                       {isHot && <Tag tone="gold" size="xs">★</Tag>}
@@ -261,7 +265,7 @@ export default function Career() {
                     {!isMax ? (
                       <div className="mb-3">
                         <div className="flex justify-between text-[10px] mb-1.5" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                          <span>Vers Niv. {prog.level + 1}</span>
+                          <span>{t('career.job.progressLabel', { next: prog.level + 1 })}</span>
                           <span>{xpPct}%</span>
                         </div>
                         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
@@ -270,20 +274,20 @@ export default function Career() {
                         </div>
                       </div>
                     ) : (
-                      <Tag tone="gold">⭐ Niveau max</Tag>
+                      <Tag tone="gold">{t('career.job.maxLevel')}</Tag>
                     )}
 
                     {prog.total_earned > 0 && (
                       <p className="text-xs mt-2" style={{ color: 'rgba(241,245,249,0.55)' }}>
-                        {fmtEarned(prog.total_earned)}
-                        {recent > 0 && <span style={{ color: 'rgba(241,245,249,0.4)' }}> · {recent} actions/sem</span>}
+                        {fmtEarned(prog.total_earned, numberLocale)}
+                        {recent > 0 && <span style={{ color: 'rgba(241,245,249,0.4)' }}> · {t('career.job.actionsPerWeek', { count: recent })}</span>}
                       </p>
                     )}
 
                     <div className="mt-auto pt-3 grid grid-cols-2 gap-2">
-                      <Button to={`/career/job/${prog.job_id}`} variant="secondary" size="sm">Détails</Button>
+                      <Button to={`/career/job/${prog.job_id}`} variant="secondary" size="sm">{t('career.job.buttonDetails')}</Button>
                       <Button onClick={() => handleLeave(prog.job_id)} disabled={busyJob === prog.job_id} variant="danger" size="sm">
-                        {busyJob === prog.job_id ? '…' : 'Quitter'}
+                        {busyJob === prog.job_id ? '…' : t('career.job.buttonLeave')}
                       </Button>
                     </div>
                   </Card>
@@ -298,8 +302,8 @@ export default function Career() {
                 style={{ background: 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.18)' }}>
             <span className="text-4xl shrink-0">🌱</span>
             <div>
-              <p className="font-semibold" style={{ color: '#6ee7b7' }}>Aucun métier actif</p>
-              <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Choisis un métier ci-dessous pour commencer.</p>
+              <p className="font-semibold" style={{ color: '#6ee7b7' }}>{t('career.empty.title')}</p>
+              <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('career.empty.desc')}</p>
             </div>
           </Card>
         )}
@@ -307,7 +311,7 @@ export default function Career() {
         {/* Available jobs */}
         {inactiveJobs.length > 0 && (
           <>
-            <SectionDivider label={progress.length > 0 ? 'Autres métiers' : 'Métiers disponibles'} hint={`${inactiveJobs.length} à découvrir`} />
+            <SectionDivider label={progress.length > 0 ? t('career.inactive.section') : t('career.inactive.available')} hint={t('career.inactive.hint', { count: inactiveJobs.length })} />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {inactiveJobs.map(job => {
                 const isHot   = bulletinJob?.id === job.id
@@ -324,19 +328,19 @@ export default function Career() {
                           <MinecraftIcon icon={job.icon} size={32} />
                         </div>
                         {disabled
-                          ? <Tag tone="neutral" size="xs">⏸ OFF</Tag>
-                          : isHot && <Tag tone="gold" size="xs">★ Demande</Tag>}
+                          ? <Tag tone="neutral" size="xs">{t('career.job.tagDisabled')}</Tag>
+                          : isHot && <Tag tone="gold" size="xs">{t('career.job.tagFeatured')}</Tag>}
                       </div>
                       <p className="font-display text-base font-semibold mb-1" style={{ color: '#f8fafc' }}>{job.name}</p>
                       {job.description && <p className="text-xs flex-1 line-clamp-3" style={{ color: 'rgba(241,245,249,0.55)' }}>{job.description}</p>}
                       <div className="flex justify-between mt-3 mb-3 text-[10px]" style={{ color: 'rgba(241,245,249,0.4)' }}>
-                        <span>Niv. max {job.max_level}</span>
-                        {(job.actions?.length ?? 0) > 0 && <span>{job.actions!.length} actions</span>}
+                        <span>{t('career.job.maxLevelTotal', { level: job.max_level })}</span>
+                        {(job.actions?.length ?? 0) > 0 && <span>{t('career.job.actionsCount', { count: job.actions!.length })}</span>}
                       </div>
                     </button>
                     <Button onClick={() => handleJoin(job.id)} disabled={!canJoin} fullWidth size="sm"
                             variant={canJoin ? 'primary' : 'secondary'}>
-                      {disabled ? 'Désactivé' : noSlot ? 'Slots pleins' : busyJob === job.id ? '…' : '+ Rejoindre'}
+                      {disabled ? t('career.job.buttonDisabled') : noSlot ? t('career.job.buttonSlotsFull') : busyJob === job.id ? '…' : t('career.job.buttonJoin')}
                     </Button>
                   </Card>
                 )
@@ -348,8 +352,8 @@ export default function Career() {
         {!unavailable && jobs.length === 0 && (
           <Card padding="lg" className="text-center">
             <span className="text-4xl block mb-3">💼</span>
-            <p className="font-semibold" style={{ color: '#f8fafc' }}>Aucun métier configuré</p>
-            <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>Reviens plus tard.</p>
+            <p className="font-semibold" style={{ color: '#f8fafc' }}>{t('career.noConfigured.title')}</p>
+            <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.5)' }}>{t('career.noConfigured.desc')}</p>
           </Card>
         )}
       </GridShell>

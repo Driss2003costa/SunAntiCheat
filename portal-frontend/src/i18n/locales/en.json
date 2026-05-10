@@ -62,12 +62,30 @@
       "dailyNone": "—"
     },
     "quicklinks": {
-      "inventory":   { "label": "Inventory",   "desc": "Your items, keys and cosmetics" },
-      "minigames":   { "label": "Minigames",   "desc": "Arenas, leaderboards & rewards" },
-      "career":      { "label": "Career",      "desc": "Jobs, XP and progression" },
-      "shop":        { "label": "Shop",        "desc": "VIP, ranks & perks" },
-      "quests":      { "label": "Quests",      "desc": "Daily challenges & milestones" },
-      "leaderboard": { "label": "Leaderboard", "desc": "Top server players" }
+      "inventory": {
+        "label": "Inventory",
+        "desc": "Your items, keys and cosmetics"
+      },
+      "minigames": {
+        "label": "Minigames",
+        "desc": "Arenas, leaderboards & rewards"
+      },
+      "career": {
+        "label": "Career",
+        "desc": "Jobs, XP and progression"
+      },
+      "shop": {
+        "label": "Shop",
+        "desc": "VIP, ranks & perks"
+      },
+      "quests": {
+        "label": "Quests",
+        "desc": "Daily challenges & milestones"
+      },
+      "leaderboard": {
+        "label": "Leaderboard",
+        "desc": "Top server players"
+      }
     },
     "stats": {
       "rank": "Leaderboard"
@@ -355,8 +373,14 @@
       "section": "Ranks & Badges",
       "subtitle": "Unlocked distinctions",
       "active": "Active rank",
-      "veteran": { "name": "Veteran",   "desc": "100h playtime" },
-      "conqueror": { "name": "Conqueror", "desc": "Top 10 leaderboard" }
+      "veteran": {
+        "name": "Veteran",
+        "desc": "100h playtime"
+      },
+      "conqueror": {
+        "name": "Conqueror",
+        "desc": "Top 10 leaderboard"
+      }
     },
     "cosmetics": {
       "section": "Cosmetics",
@@ -482,7 +506,8 @@
       "stars": "Stars",
       "starsHint": "+{{percent}}% bonus",
       "xpRate": "XP / hour",
-      "xpRateHint": "recent avg."
+      "xpRateHint": "recent avg.",
+      "permanent": "{{percent}}% permanent"
     },
     "section": {
       "progress": "Progression"
@@ -506,6 +531,12 @@
     },
     "targets": {
       "label": "🏆 Top resources"
+    },
+    "eyebrow": "Job",
+    "time": {
+      "min": "min",
+      "hour": "h",
+      "day": "d"
     }
   },
   "quests": {
@@ -532,6 +563,10 @@
   "friends": {
     "errorLoading": "Loading error.",
     "confirmRemove": "Remove this friend?",
+    "eyebrow": "Community",
+    "heroTitleStart": "Your ",
+    "heroTitleHighlight": "friends",
+    "heroTitleEnd": " on SunGuard",
     "tabs": {
       "friends": "Friends",
       "incoming": "Incoming",
@@ -547,8 +582,11 @@
     },
     "section": {
       "myFriends": "My friends",
+      "myFriendsCount": "My friends · {{count}}",
       "incoming": "Incoming requests",
+      "incomingCount": "Incoming requests · {{count}}",
       "outgoing": "Sent requests",
+      "outgoingCount": "Sent requests · {{count}}",
       "search": "Search players"
     },
     "empty": {
@@ -585,6 +623,10 @@
     "viewProfile": "View profile",
     "header": "Messages",
     "headerSubtitle": "Chat privately with your SunGuard friends.",
+    "title": "Messages",
+    "conversationsLabel": "Conversations",
+    "noProfile": "No profile to display.",
+    "read": "Read",
     "noChatTitle": "No conversation selected",
     "noChatDesc": "Pick a conversation on the left to start."
   },
@@ -664,6 +706,11 @@
       "step2": "Use /minijeux or the main menu",
       "step3": "Join a queue or an arena",
       "step4": "Earn coins and climb the leaderboard!"
+    },
+    "cta": {
+      "viewLeaderboards": "View leaderboards",
+      "join": "Join",
+      "joinArrow": "Join →"
     }
   },
   "shop": {
@@ -691,7 +738,8 @@
       "duration_other": "{{count}} days",
       "buttonCard": "💳 Card",
       "buttonPaypal": "PayPal",
-      "buttonCancel": "Cancel"
+      "buttonCancel": "Cancel",
+      "buyNow": "Buy now →"
     },
     "vip": {
       "section": "Other VIP plans",
@@ -708,7 +756,8 @@
       "free": "Free",
       "buying": "Buying…",
       "buy": "Buy",
-      "obtain": "Get"
+      "obtain": "Get",
+      "gift": "Free key!"
     },
     "economy": {
       "earningTitle": "Earn coins",
@@ -718,8 +767,11 @@
       "cratesTitle": "Crates & Keys",
       "cratesDesc": "Get keys via missions and open crates.",
       "jobsTitle": "Jobs",
-      "jobsDesc": "Generate passive income by holding a job."
-    }
+      "jobsDesc": "Generate passive income by holding a job.",
+      "section": "In-game economy",
+      "hint": "How to earn and spend coins"
+    },
+    "eyebrow": "Shop"
   },
   "publicProfile": {
     "errorTitle": "Profile not found",

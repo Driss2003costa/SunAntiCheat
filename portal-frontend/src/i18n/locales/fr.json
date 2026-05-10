@@ -62,12 +62,30 @@
       "dailyNone": "—"
     },
     "quicklinks": {
-      "inventory": { "label": "Inventaire", "desc": "Tes objets, clés et cosmétiques" },
-      "minigames": { "label": "Mini-jeux", "desc": "Arènes, classements & rewards" },
-      "career":    { "label": "Carrière",  "desc": "Métiers, XP et progression" },
-      "shop":      { "label": "Boutique",  "desc": "VIP, ranks & avantages" },
-      "quests":    { "label": "Quêtes",    "desc": "Défis quotidiens & jalons" },
-      "leaderboard": { "label": "Classement", "desc": "Top joueurs du serveur" }
+      "inventory": {
+        "label": "Inventaire",
+        "desc": "Tes objets, clés et cosmétiques"
+      },
+      "minigames": {
+        "label": "Mini-jeux",
+        "desc": "Arènes, classements & rewards"
+      },
+      "career": {
+        "label": "Carrière",
+        "desc": "Métiers, XP et progression"
+      },
+      "shop": {
+        "label": "Boutique",
+        "desc": "VIP, ranks & avantages"
+      },
+      "quests": {
+        "label": "Quêtes",
+        "desc": "Défis quotidiens & jalons"
+      },
+      "leaderboard": {
+        "label": "Classement",
+        "desc": "Top joueurs du serveur"
+      }
     },
     "stats": {
       "rank": "Classement"
@@ -355,8 +373,14 @@
       "section": "Grades & Badges",
       "subtitle": "Distinctions débloquées",
       "active": "Grade actif",
-      "veteran": { "name": "Vétéran",   "desc": "100h de jeu" },
-      "conqueror": { "name": "Conquérant", "desc": "Top 10 classement" }
+      "veteran": {
+        "name": "Vétéran",
+        "desc": "100h de jeu"
+      },
+      "conqueror": {
+        "name": "Conquérant",
+        "desc": "Top 10 classement"
+      }
     },
     "cosmetics": {
       "section": "Cosmétiques",
@@ -482,7 +506,8 @@
       "stars": "Étoiles",
       "starsHint": "+{{percent}}% bonus",
       "xpRate": "XP / heure",
-      "xpRateHint": "moy. récente"
+      "xpRateHint": "moy. récente",
+      "permanent": "{{percent}}% permanent"
     },
     "section": {
       "progress": "Progression"
@@ -506,6 +531,12 @@
     },
     "targets": {
       "label": "🏆 Top ressources"
+    },
+    "eyebrow": "Métier",
+    "time": {
+      "min": "min",
+      "hour": "h",
+      "day": "j"
     }
   },
   "quests": {
@@ -532,6 +563,10 @@
   "friends": {
     "errorLoading": "Erreur de chargement.",
     "confirmRemove": "Supprimer cet ami ?",
+    "eyebrow": "Communauté",
+    "heroTitleStart": "Tes ",
+    "heroTitleHighlight": "amis",
+    "heroTitleEnd": " SunGuard",
     "tabs": {
       "friends": "Amis",
       "incoming": "Reçues",
@@ -547,8 +582,11 @@
     },
     "section": {
       "myFriends": "Mes amis",
+      "myFriendsCount": "Mes amis · {{count}}",
       "incoming": "Demandes reçues",
+      "incomingCount": "Demandes reçues · {{count}}",
       "outgoing": "Demandes envoyées",
+      "outgoingCount": "Demandes envoyées · {{count}}",
       "search": "Rechercher des joueurs"
     },
     "empty": {
@@ -585,6 +623,10 @@
     "viewProfile": "Voir le profil",
     "header": "Messagerie",
     "headerSubtitle": "Discute en privé avec tes amis SunGuard.",
+    "title": "Messages",
+    "conversationsLabel": "Conversations",
+    "noProfile": "Aucun profil à afficher.",
+    "read": "Lu",
     "noChatTitle": "Aucune conversation sélectionnée",
     "noChatDesc": "Choisis une conversation à gauche pour commencer."
   },
@@ -664,6 +706,11 @@
       "step2": "Utilise /minijeux ou le menu principal",
       "step3": "Rejoins une file d'attente ou une arène",
       "step4": "Gagne des coins et monte dans le classement !"
+    },
+    "cta": {
+      "viewLeaderboards": "Voir les classements",
+      "join": "Rejoindre",
+      "joinArrow": "Rejoindre →"
     }
   },
   "shop": {
@@ -675,7 +722,8 @@
       "subtitle": "Soutiens le serveur, débloque des avantages exclusifs et ouvre des caisses pour des récompenses rares.",
       "buttonVip": "Voir les VIPs",
       "buttonCrates": "Caisses & Clés",
-      "balance": "Ton solde"
+      "balance": "Ton solde",
+      "titleEnd": ""
     },
     "filters": {
       "all": "Tout",
@@ -690,7 +738,8 @@
       "duration_other": "{{count}} jours",
       "buttonCard": "💳 Carte",
       "buttonPaypal": "PayPal",
-      "buttonCancel": "Annuler"
+      "buttonCancel": "Annuler",
+      "buyNow": "Acheter maintenant →"
     },
     "vip": {
       "section": "Autres abonnements VIP",
@@ -707,7 +756,8 @@
       "free": "Gratuit",
       "buying": "Achat…",
       "buy": "Acheter",
-      "obtain": "Obtenir"
+      "obtain": "Obtenir",
+      "gift": "Clé offerte !"
     },
     "economy": {
       "earningTitle": "Gagner des coins",
@@ -717,8 +767,11 @@
       "cratesTitle": "Caisses & Clés",
       "cratesDesc": "Obtiens des clés via les missions et ouvre des caisses.",
       "jobsTitle": "Métiers",
-      "jobsDesc": "Génère des revenus passifs en exerçant un métier."
-    }
+      "jobsDesc": "Génère des revenus passifs en exerçant un métier.",
+      "section": "Économie en jeu",
+      "hint": "Comment gagner et dépenser des coins"
+    },
+    "eyebrow": "Boutique"
   },
   "publicProfile": {
     "errorTitle": "Profil introuvable",

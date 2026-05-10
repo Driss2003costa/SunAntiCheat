@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getToken } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
@@ -24,6 +25,8 @@ async function apiFetch(url: string, token: string, opts?: RequestInit) {
 
 export default function Friends() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const locale = (i18n.resolvedLanguage ?? i18n.language ?? 'fr').startsWith('fr') ? 'fr-FR' : 'en-GB'
   const token    = getToken()
   const [tab,      setTab]      = useState<Tab>('friends')
   const [friends,  setFriends]  = useState<Friend[]>([])
@@ -51,9 +54,9 @@ export default function Friends() {
       setFriends(f.friends)
       setIncoming(inc.requests)
       setOutgoing(out.requests)
-    } catch { setError('Erreur de chargement.') }
+    } catch { setError(t('friends.errorLoading')) }
     finally { setLoading(false) }
-  }, [token])
+  }, [token, t])
 
   useEffect(() => { load() }, [load])
 
@@ -80,7 +83,7 @@ export default function Friends() {
   async function decline(id: string) { try { await apiFetch(`${BASE}/friends/decline/${id}`, token!, { method: 'POST' }); await load() } catch {} }
   async function cancel(id: string)  { try { await apiFetch(`${BASE}/friends/cancel/${id}`,  token!, { method: 'POST' }); await load() } catch {} }
   async function remove(uuid: string) {
-    if (!confirm('Supprimer cet ami ?')) return
+    if (!confirm(t('friends.confirmRemove'))) return
     try { await apiFetch(`${BASE}/friends/${uuid}`, token!, { method: 'DELETE' }); await load() } catch {}
   }
   async function openChat(uuid: string) {
@@ -91,23 +94,25 @@ export default function Friends() {
   }
 
   const tabs: { key: Tab; label: string; icon: string; badge?: number }[] = [
-    { key: 'friends',  label: 'Amis',       icon: '👥', badge: friends.length  },
-    { key: 'incoming', label: 'Reçues',     icon: '📥', badge: incoming.length },
-    { key: 'outgoing', label: 'Envoyées',   icon: '📤', badge: outgoing.length },
-    { key: 'search',   label: 'Rechercher', icon: '🔍' },
+    { key: 'friends',  label: t('friends.tabs.friends'),  icon: '👥', badge: friends.length  },
+    { key: 'incoming', label: t('friends.tabs.incoming'), icon: '📥', badge: incoming.length },
+    { key: 'outgoing', label: t('friends.tabs.outgoing'), icon: '📤', badge: outgoing.length },
+    { key: 'search',   label: t('friends.tabs.search'),   icon: '🔍' },
   ]
+
+  const heroSubtitle = `${t('friends.hero.subtitle', { count: friends.length })}${incoming.length > 0 ? ` · ${t('friends.hero.incoming', { count: incoming.length })}` : ''}.`
 
   return (
     <div className="min-h-screen" style={{ background: '#080d19' }}>
       <PageAura theme="friends" />
       <GridShell>
         <HeroBanner
-          eyebrow="Communauté"
+          eyebrow={t('friends.eyebrow')}
           variant="aurora"
-          title={<>Tes <span className="text-emerald-300">amis</span> SunGuard</>}
-          subtitle={`${friends.length} ami${friends.length !== 1 ? 's' : ''}${incoming.length > 0 ? ` · ${incoming.length} demande${incoming.length > 1 ? 's' : ''} en attente` : ''}.`}
+          title={<>{t('friends.heroTitleStart')}<span className="text-emerald-300">{t('friends.heroTitleHighlight')}</span>{t('friends.heroTitleEnd')}</>}
+          subtitle={heroSubtitle}
           cta={
-            <Button onClick={() => setTab('search')} size="lg">+ Trouver des joueurs</Button>
+            <Button onClick={() => setTab('search')} size="lg">{t('friends.hero.buttonFind')}</Button>
           }
         />
 
@@ -122,20 +127,20 @@ export default function Friends() {
           <aside className="lg:sticky lg:top-6 lg:self-start">
             <Card padding="sm">
               <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
-                {tabs.map(t => (
-                  <button key={t.key} onClick={() => setTab(t.key)}
+                {tabs.map(tb => (
+                  <button key={tb.key} onClick={() => setTab(tb.key)}
                     className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all shrink-0 lg:w-full text-left"
                     style={{
-                      background: tab === t.key ? 'rgba(45,212,191,0.12)' : 'transparent',
-                      color: tab === t.key ? '#5eead4' : 'rgba(241,245,249,0.65)',
-                      border: tab === t.key ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
+                      background: tab === tb.key ? 'rgba(45,212,191,0.12)' : 'transparent',
+                      color: tab === tb.key ? '#5eead4' : 'rgba(241,245,249,0.65)',
+                      border: tab === tb.key ? '1px solid rgba(45,212,191,0.25)' : '1px solid transparent',
                     }}>
                     <span className="flex items-center gap-2">
-                      <span>{t.icon}</span>
-                      <span>{t.label}</span>
+                      <span>{tb.icon}</span>
+                      <span>{tb.label}</span>
                     </span>
-                    {t.badge != null && t.badge > 0 && (
-                      <Tag tone={tab === t.key ? 'jade' : 'neutral'} size="xs">{t.badge}</Tag>
+                    {tb.badge != null && tb.badge > 0 && (
+                      <Tag tone={tab === tb.key ? 'jade' : 'neutral'} size="xs">{tb.badge}</Tag>
                     )}
                   </button>
                 ))}
@@ -147,9 +152,9 @@ export default function Friends() {
           <section>
             {tab === 'friends' && (
               <>
-                <SectionDivider label={`Mes amis · ${friends.length}`} />
+                <SectionDivider label={t('friends.section.myFriendsCount', { count: friends.length })} />
                 {loading ? <Spinner /> : friends.length === 0 ? (
-                  <EmptyCard text="Aucun ami pour l'instant. Utilise la recherche !" />
+                  <EmptyCard text={t('friends.empty.friends')} />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {friends.map(f => (
@@ -160,12 +165,12 @@ export default function Friends() {
                           <div className="flex-1 min-w-0">
                             <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{f.username}</p>
                             <p className="text-[11px]" style={{ color: 'rgba(241,245,249,0.5)' }}>
-                              Ami depuis {new Date(f.since).toLocaleDateString('fr-FR')}
+                              {t('friends.card.since', { date: new Date(f.since).toLocaleDateString(locale) })}
                             </p>
                           </div>
                         </div>
                         <div className="flex gap-2 mt-3">
-                          <Button onClick={() => openChat(f.uuid)} variant="secondary" size="sm" fullWidth>💬 Message</Button>
+                          <Button onClick={() => openChat(f.uuid)} variant="secondary" size="sm" fullWidth>{t('friends.card.messageButton')}</Button>
                           <Button onClick={() => remove(f.uuid)} variant="danger" size="sm">✕</Button>
                         </div>
                       </Card>
@@ -177,9 +182,9 @@ export default function Friends() {
 
             {tab === 'incoming' && (
               <>
-                <SectionDivider label={`Demandes reçues · ${incoming.length}`} />
+                <SectionDivider label={t('friends.section.incomingCount', { count: incoming.length })} />
                 {loading ? <Spinner /> : incoming.length === 0 ? (
-                  <EmptyCard text="Aucune demande reçue." />
+                  <EmptyCard text={t('friends.empty.incoming')} />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {incoming.map(r => (
@@ -189,11 +194,11 @@ export default function Friends() {
                                className="w-12 h-12 rounded-xl shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{r.username}</p>
-                            <p className="text-xs" style={{ color: 'rgba(241,245,249,0.55)' }}>veut être votre ami</p>
+                            <p className="text-xs" style={{ color: 'rgba(241,245,249,0.55)' }}>{t('friends.card.wantsToBe')}</p>
                           </div>
                         </div>
                         <div className="flex gap-2 mt-3">
-                          <Button onClick={() => accept(r.id)} size="sm" fullWidth>✓ Accepter</Button>
+                          <Button onClick={() => accept(r.id)} size="sm" fullWidth>{t('friends.card.accept')}</Button>
                           <Button onClick={() => decline(r.id)} variant="danger" size="sm">✕</Button>
                         </div>
                       </Card>
@@ -205,9 +210,9 @@ export default function Friends() {
 
             {tab === 'outgoing' && (
               <>
-                <SectionDivider label={`Demandes envoyées · ${outgoing.length}`} />
+                <SectionDivider label={t('friends.section.outgoingCount', { count: outgoing.length })} />
                 {loading ? <Spinner /> : outgoing.length === 0 ? (
-                  <EmptyCard text="Aucune demande envoyée." />
+                  <EmptyCard text={t('friends.empty.outgoing')} />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {outgoing.map(r => (
@@ -217,9 +222,9 @@ export default function Friends() {
                                className="w-12 h-12 rounded-xl shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="font-display text-base font-semibold truncate" style={{ color: '#f8fafc' }}>{r.username}</p>
-                            <p className="text-xs" style={{ color: 'rgba(241,245,249,0.55)' }}>en attente</p>
+                            <p className="text-xs" style={{ color: 'rgba(241,245,249,0.55)' }}>{t('friends.card.pending')}</p>
                           </div>
-                          <Button onClick={() => cancel(r.id)} variant="danger" size="sm">Annuler</Button>
+                          <Button onClick={() => cancel(r.id)} variant="danger" size="sm">{t('friends.card.cancelRequest')}</Button>
                         </div>
                       </Card>
                     ))}
@@ -230,16 +235,16 @@ export default function Friends() {
 
             {tab === 'search' && (
               <>
-                <SectionDivider label="Rechercher des joueurs" />
+                <SectionDivider label={t('friends.section.search')} />
                 <Card padding="md" className="mb-5">
                   <input value={search} onChange={e => setSearch(e.target.value)}
-                    placeholder="Rechercher un joueur…"
+                    placeholder={t('friends.search.placeholder') as string}
                     className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
                     style={{ background: 'rgba(15,22,40,0.9)', border: '1px solid rgba(45,212,191,0.2)', color: '#f1f5f9' }} />
                 </Card>
                 {searching && <Spinner />}
                 {!searching && search.trim().length >= 2 && results.length === 0 && (
-                  <EmptyCard text="Aucun joueur trouvé." />
+                  <EmptyCard text={t('friends.empty.search')} />
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {results.map(u => (
@@ -267,10 +272,11 @@ export default function Friends() {
 }
 
 function RelationBtn({ relation, onAdd }: { relation: string; onAdd: () => void }) {
-  if (relation === 'friends')         return <Tag tone="jade">✓ Ami</Tag>
-  if (relation === 'request_sent')    return <Tag tone="neutral">Envoyée</Tag>
-  if (relation === 'request_received') return <Tag tone="gold">Reçue</Tag>
-  return <Button onClick={onAdd} size="sm">+ Ajouter</Button>
+  const { t } = useTranslation()
+  if (relation === 'friends')         return <Tag tone="jade">{t('friends.relation.friend')}</Tag>
+  if (relation === 'request_sent')    return <Tag tone="neutral">{t('friends.relation.sent')}</Tag>
+  if (relation === 'request_received') return <Tag tone="gold">{t('friends.relation.received')}</Tag>
+  return <Button onClick={onAdd} size="sm">{t('friends.relation.add')}</Button>
 }
 
 function Spinner() {
