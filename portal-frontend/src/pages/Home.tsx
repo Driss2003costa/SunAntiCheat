@@ -26,6 +26,12 @@ export default function Home() {
   const [rank, setRank]       = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const now = useLiveClock()
+  const hour = now.getHours()
+  const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
+  const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+
   useEffect(() => {
     const token = getToken()
     if (!token) { navigate('/login', { replace: true }); return }
@@ -57,12 +63,6 @@ export default function Home() {
     </div>
   )
   if (!profile) return null
-
-  const now = useLiveClock()
-  const hour = now.getHours()
-  const greeting = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
-  const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-  const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const quickLinks = [
     { to: '/inventory', emoji: '🎒', label: 'Inventaire', desc: 'Tes objets, clés et cosmétiques',  accent: 'violet' as const },
