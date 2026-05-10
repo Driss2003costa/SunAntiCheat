@@ -42,7 +42,6 @@ import sunanticheat.report.ReportListGui;
 import sunanticheat.report.ReportStorage;
 import sunanticheat.sanction.*;
 import sunanticheat.security.RiskyCommandListener;
-import sunanticheat.updater.UpdateManager;
 import sunanticheat.xray.BlockBreakListener;
 import sunanticheat.xray.XRayCommand;
 import sunanticheat.xray.XRayGui;
@@ -79,7 +78,6 @@ public class SunAntiCheat extends JavaPlugin {
     private sunanticheat.connection.ConnectionLogStorage connectionLogStorageRef;
     private GeoIpCache geoIpCache;
     private sunanticheat.jobs.CustomJobModule customJobModule;
-    private UpdateManager updateManager;
 
     public sunanticheat.alerts.StaffAlertService getStaffAlertService() { return staffAlertServiceRef; }
     public XRayAnalysisStore getXRayAnalysisStore() { return xRayAnalysisStore; }
@@ -119,7 +117,6 @@ public class SunAntiCheat extends JavaPlugin {
     public ReportStorage getReportStorage()        { return reportStorageRef; }
     public PlaytimeTracker getPlaytimeTracker()    { return playtimeTracker; }
     public sunanticheat.jobs.CustomJobModule getCustomJobModule() { return customJobModule; }
-    public UpdateManager getUpdateManager() { return updateManager; }
 
     @Override
     public void onEnable() {
@@ -288,10 +285,6 @@ public class SunAntiCheat extends JavaPlugin {
                 }
             }, 2L);
         }
-        // ── Auto-update ────────────────────────────────────────────────────────
-        updateManager = new UpdateManager(this);
-        updateManager.start();
-
         getLogger().info("SunAntiCheat activé ! (/sunguard, /sunguard reload, /xray, /sunplaytime)");
     }
 
@@ -377,9 +370,6 @@ public class SunAntiCheat extends JavaPlugin {
         }
         if (customJobModule != null) {
             customJobModule.shutdown();
-        }
-        if (updateManager != null) {
-            updateManager.applyUpdate();
         }
         getServer().getMessenger().unregisterIncomingPluginChannel(this, ClientInfoListeners.CHANNEL_CLIENT);
         getLogger().info("SunAntiCheat désactivé.");

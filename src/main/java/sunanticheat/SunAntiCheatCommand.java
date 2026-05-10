@@ -12,8 +12,9 @@ import org.bukkit.configuration.file.FileConfiguration;
 import sunanticheat.Permissions;
 import sunanticheat.blocklog.BlockLogInspectionMode;
 import sunanticheat.blocklog.BlockLogStore;
+import sunanticheat.dashboard.DashboardModule;
+import sunanticheat.dashboard.update.AutoUpdater;
 import sunanticheat.menu.MainMenuGui;
-import sunanticheat.updater.UpdateManager;
 import sunanticheat.weaponmechanics.WorldContainerWeaponMechanicsScanner;
 
 import java.util.ArrayList;
@@ -320,42 +321,45 @@ public class SunAntiCheatCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleUpdate(CommandSender sender, String[] args) {
-        UpdateManager um = plugin.getUpdateManager();
-        if (um == null) {
-            sender.sendMessage("§cAuto-update non initialisé.");
+        DashboardModule dash = plugin.getDashboardModule();
+        AutoUpdater au = dash != null ? dash.getAutoUpdater() : null;
+        if (au == null) {
+            sender.sendMessage("§cAuto-update non initialisé "
+                    + "(dashboard.auto-update.enabled: false ?).");
             return true;
         }
         String action = args.length >= 2 ? args[1].toLowerCase(Locale.ROOT) : "status";
         switch (action) {
             case "status" -> {
-                String latest = um.getLatestVersion();
-                sender.sendMessage("§6[Update] §fVersion actuelle : §a" + um.getCurrentVersion());
+                String latest = au.getLatestVersion();
+                sender.sendMessage("§6[Update] §fVersion actuelle : §a" + au.getCurrentVersion());
                 sender.sendMessage("§6[Update] §fDernière connue : §a" + (latest != null ? latest : "—"));
                 sender.sendMessage("§6[Update] §fMise à jour disponible : "
-                        + (um.isUpdateAvailable() ? "§aoui" : "§7non"));
+                        + (au.isUpdateAvailable() ? "§aoui" : "§7non"));
                 sender.sendMessage("§6[Update] §fTéléchargée en attente : "
-                        + (um.isDownloadedPending() ? "§aoui (redémarrage requis)" : "§7non"));
+                        + (au.isDownloadedPending() ? "§aoui (redémarrage requis)" : "§7non"));
                 return true;
             }
             case "check" -> {
                 sender.sendMessage("§eVérification en arrière-plan…");
-                um.triggerCheck();
+                au.triggerCheck();
                 return true;
             }
             case "apply" -> {
-                if (!um.isDownloadedPending()) {
+                if (!au.isDownloadedPending()) {
                     sender.sendMessage("§cAucune mise à jour téléchargée à appliquer. "
                             + "Lance §f/sunguard update check§c d'abord.");
                     return true;
                 }
-                int seconds = Math.max(5, plugin.getConfig().getInt("auto-update.apply-countdown-seconds", 30));
-                String latest = um.getLatestVersion();
+                int seconds = Math.max(5, plugin.getConfig().getInt(
+                        "dashboard.auto-update.apply-countdown-seconds", 30));
+                String latest = au.getLatestVersion();
                 String label = latest != null ? "v" + latest : "nouvelle version";
                 plugin.getServer().broadcastMessage("§e[SunAntiCheat] §fRedémarrage dans §a"
                         + seconds + "s §fpour appliquer §a" + label + "§f.");
                 sender.sendMessage("§aArrêt programmé dans " + seconds + "s. "
                         + "Le serveur doit être lancé avec un wrapper qui le relance "
-                        + "(systemd, screen, pm2…) pour que la mise à jour s'active.");
+                        + "(systemd, screen, pm2…) pour que Paper applique la mise à jour.");
                 plugin.getServer().getScheduler().runTaskLater(plugin,
                         () -> plugin.getServer().shutdown(), seconds * 20L);
                 return true;
