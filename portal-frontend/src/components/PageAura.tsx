@@ -157,7 +157,7 @@ export default function PageAura({ theme }: { theme: AuraTheme }) {
         @keyframes floatUp { 0%{transform:translateY(0);opacity:0} 10%{opacity:0.7} 90%{opacity:0.3} 100%{transform:translateY(-60px);opacity:0} }
       `}</style>
 
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden" aria-hidden
            style={{ background: t.bg }}>
 
         {/* Aurora blobs */}
