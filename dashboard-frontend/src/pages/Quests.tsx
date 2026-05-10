@@ -570,6 +570,106 @@ function QuestAdminCard({ q, canEdit, onEdit, onDelete, onExpired }: {
 }
 
 // ── Library modal ──────────────────────────────────────────────────────────────
+// ── RotationPanel — statut de la rotation hebdomadaire automatique ───────────
+function RotationPanel({ rotation, rotating, canEdit, onRegenerate }: {
+  rotation: any; rotating: boolean; canEdit: boolean; onRegenerate: () => void
+}) {
+  const lastTs = rotation.lastRotationAt || 0
+  const nextTs = rotation.nextRotationAt || 0
+  const now = Date.now()
+  const msUntilNext = Math.max(0, nextTs - now)
+  const days = Math.floor(msUntilNext / 86_400_000)
+  const hours = Math.floor((msUntilNext % 86_400_000) / 3_600_000)
+  const fmtDate = (ts: number) => ts > 0
+    ? new Date(ts).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+    : '—'
+
+  const active = rotation.activeQuests || []
+
+  return (
+    <div className="rounded-xl p-5"
+         style={{
+           background: 'linear-gradient(135deg, rgba(139,92,246,0.12), rgba(99,102,241,0.08))',
+           border: '1px solid rgba(139,92,246,0.30)',
+         }}>
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+        <div className="flex items-center gap-3">
+          <div className="text-3xl">🎲</div>
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+              Rotation hebdomadaire
+            </h2>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {rotation.minCount}–{rotation.maxCount} quêtes random piochées dans la bibliothèque chaque semaine, expiration auto à 7 jours.
+            </p>
+          </div>
+        </div>
+        {canEdit && (
+          <button onClick={onRegenerate} disabled={rotating}
+                  className="px-3 py-2 rounded text-sm font-semibold"
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'white',
+                    opacity: rotating ? 0.6 : 1,
+                  }}>
+            {rotating ? '⏳ Rotation…' : '🔄 Régénérer maintenant'}
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <div className="rounded-lg px-3 py-2"
+             style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)' }}>
+          <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Active
+          </div>
+          <div className="text-xl font-bold mt-0.5" style={{ color: '#a78bfa' }}>
+            {active.length} quête{active.length > 1 ? 's' : ''}
+          </div>
+        </div>
+        <div className="rounded-lg px-3 py-2"
+             style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)' }}>
+          <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Dernière rotation
+          </div>
+          <div className="text-sm mt-0.5 font-mono" style={{ color: 'var(--text)' }}>
+            {fmtDate(lastTs)}
+          </div>
+        </div>
+        <div className="rounded-lg px-3 py-2"
+             style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)' }}>
+          <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Prochaine rotation
+          </div>
+          <div className="text-sm mt-0.5 font-mono" style={{ color: 'var(--text)' }}>
+            {nextTs > 0 ? `dans ${days}j ${hours}h` : '—'}
+          </div>
+          <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {fmtDate(nextTs)}
+          </div>
+        </div>
+      </div>
+
+      {active.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {active.map((q: any) => (
+            <div key={q.id}
+                 className="px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5"
+                 style={{
+                   background: 'rgba(139,92,246,0.10)',
+                   border: '1px solid rgba(139,92,246,0.25)',
+                   color: 'var(--text)',
+                 }}>
+              <span>{q.icon}</span>
+              <span>{q.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function QuestLibraryModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const [data, setData] = useState<{ categories: any[]; templates: any[] } | null>(null)
   const [activeCat, setActiveCat] = useState<string>('all')
@@ -755,6 +855,13 @@ export default function Quests() {
   const [quests, setQuests] = useState<any[]>([])
   const [editing, setEditing] = useState<any | null>(null)
   const [showLibrary, setShowLibrary] = useState(false)
+  const [rotation, setRotation] = useState<any>(null)
+  const [rotating, setRotating] = useState(false)
+
+  const refreshRotation = async () => {
+    try { setRotation(await api.questRotationStatus()) } catch {}
+  }
+  useEffect(() => { refreshRotation() }, [])
 
   const refresh = async () => setQuests((await api.questsList()).quests)
   useEffect(() => { refresh(); const t = setInterval(refresh, 15000); return () => clearInterval(t) }, [])
@@ -814,6 +921,26 @@ export default function Quests() {
           </div>
         )}
       </div>
+
+      {/* Rotation hebdomadaire */}
+      {rotation && (
+        <RotationPanel
+          rotation={rotation}
+          rotating={rotating}
+          canEdit={canEdit}
+          onRegenerate={async () => {
+            if (!confirm('Lancer une nouvelle rotation maintenant ? Les quêtes hebdomadaires actuelles seront supprimées et remplacées.')) return
+            setRotating(true)
+            try {
+              const r = await api.questRotationRegenerate()
+              setRotation(r)
+              refresh()
+            } catch (e: any) {
+              alert('Erreur : ' + (e.message || e))
+            } finally { setRotating(false) }
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         {quests.map(q => (

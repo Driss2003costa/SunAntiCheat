@@ -323,6 +323,8 @@ export const api = {
   questTemplates:  () => request<{ categories: any[]; templates: any[] }>('/api/quests/templates'),
   questFromTemplate: (templateId: string, overrides: any = {}) =>
     request<any>('/api/quests/from-template', { method: 'POST', body: JSON.stringify({ templateId, ...overrides }) }),
+  questRotationStatus: () => request<any>('/api/quests/rotation'),
+  questRotationRegenerate: () => request<any>('/api/quests/rotation/regenerate', { method: 'POST' }),
 
   // Experiments (A/B testing)
   experimentsList:  () => request<{ experiments: any[] }>('/api/experiments'),

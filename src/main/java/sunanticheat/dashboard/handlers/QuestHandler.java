@@ -17,12 +17,15 @@ public final class QuestHandler {
     private final QuestStore store;
     private final PlayerJwtUtil playerJwt;
     private final sunanticheat.dashboard.quests.QuestTemplateLoader templates;
+    private final sunanticheat.dashboard.quests.QuestRotationService rotation;
 
     public QuestHandler(QuestStore store, PlayerJwtUtil playerJwt,
-                        sunanticheat.dashboard.quests.QuestTemplateLoader templates) {
+                        sunanticheat.dashboard.quests.QuestTemplateLoader templates,
+                        sunanticheat.dashboard.quests.QuestRotationService rotation) {
         this.store = store;
         this.playerJwt = playerJwt;
         this.templates = templates;
+        this.rotation = rotation;
     }
 
     public void publicList(HttpExchange ex) throws IOException {
@@ -101,6 +104,21 @@ public final class QuestHandler {
         DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
         if (u == null) return;
         HttpHelper.json(ex, 200, templates.publicView());
+    }
+
+    /** GET /api/quests/rotation — statut de la rotation hebdomadaire (admin). */
+    public void rotationStatus(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        if (HttpHelper.authenticate(ex, jwt, users) == null) return;
+        HttpHelper.json(ex, 200, rotation.status());
+    }
+
+    /** POST /api/quests/rotation/regenerate — force une nouvelle rotation maintenant. */
+    public void rotationRegenerate(HttpExchange ex, JwtUtil jwt, Map<String, DashboardUser> users) throws IOException {
+        DashboardUser u = HttpHelper.authenticate(ex, jwt, users);
+        if (u == null) return;
+        if (!HttpHelper.requirePermission(ex, u, Permission.CONTENT_MANAGE)) return;
+        rotation.rotate();
+        HttpHelper.json(ex, 200, rotation.status());
     }
 
     /** POST /api/quests/from-template — instancie une quête à partir d'un template. */
