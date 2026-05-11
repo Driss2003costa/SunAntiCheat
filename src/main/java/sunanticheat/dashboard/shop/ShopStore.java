@@ -107,22 +107,23 @@ public final class ShopStore {
     private void normalizePages(Shop s) {
         if (s.pages == null) s.pages = new ArrayList<>();
 
-        // Migration legacy → page unique si pages vide
+        // Migration legacy → page unique si pages vide. Préserve s.rows si présent,
+        // sinon 6 lignes (54 slots) pour matcher la capacité max d'un inventaire ESG.
         if (s.pages.isEmpty() && s.items != null && !s.items.isEmpty()) {
             ShopPage migrated = new ShopPage();
             migrated.id = UUID.randomUUID().toString();
             migrated.name = "Page 1";
-            migrated.rows = clampRows(s.rows != null ? s.rows : 3);
+            migrated.rows = clampRows(s.rows != null ? s.rows : 6);
             migrated.items = new ArrayList<>(s.items);
             s.pages.add(migrated);
         }
 
-        // Garantit au moins une page
+        // Garantit au moins une page (6 lignes par défaut pour ne pas perdre de capacité)
         if (s.pages.isEmpty()) {
             ShopPage p = new ShopPage();
             p.id = UUID.randomUUID().toString();
             p.name = "Page 1";
-            p.rows = clampRows(s.rows != null ? s.rows : 3);
+            p.rows = clampRows(s.rows != null ? s.rows : 6);
             p.items = new ArrayList<>();
             s.pages.add(p);
         }
@@ -147,7 +148,7 @@ public final class ShopStore {
     }
 
     private static int clampRows(int rows) {
-        return Math.max(1, Math.min(6, rows == 0 ? 3 : rows));
+        return Math.max(1, Math.min(6, rows == 0 ? 6 : rows));
     }
 
     public synchronized void deleteShop(String id) {
@@ -220,7 +221,7 @@ public final class ShopStore {
             ShopPage p = new ShopPage();
             p.id = UUID.randomUUID().toString();
             p.name = "Page 1";
-            p.rows = 3;
+            p.rows = 6;
             p.items = new ArrayList<>();
             s.pages.add(p);
         }

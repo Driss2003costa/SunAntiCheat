@@ -158,7 +158,7 @@ function materialIcon(m: string): string {
   return '📦'
 }
 
-function blankPage(name = 'Page 1', rows = 3) {
+function blankPage(name = 'Page 1', rows = 6) {
   return {
     id: uuid(),
     name,
@@ -177,7 +177,7 @@ function blankShop() {
     iconItemAdderId: '',
     category: 'Général',
     order: 0,
-    pages: [blankPage('Page 1', 3)],
+    pages: [blankPage('Page 1', 6)],
     permission: '',
     commandToOpen: '',
     enabled: true,
@@ -192,23 +192,23 @@ function blankShop() {
 function normalizeShop(shop: any): any {
   if (!shop) return shop
   let pages: any[] = Array.isArray(shop.pages) ? shop.pages.slice() : []
-  // Migration legacy → page unique
+  // Migration legacy → page unique (préserve la valeur historique, sinon 6 lignes par défaut)
   if (pages.length === 0 && Array.isArray(shop.items) && shop.items.length > 0) {
     pages = [{
       id: uuid(),
       name: 'Page 1',
-      rows: shop.rows || 3,
+      rows: shop.rows || 6,
       items: shop.items,
     }]
   }
   if (pages.length === 0) {
-    pages = [blankPage('Page 1', shop.rows || 3)]
+    pages = [blankPage('Page 1', shop.rows || 6)]
   }
-  // Hygiène
+  // Hygiène — préserve la valeur de p.rows si présente, sinon 6 lignes
   pages = pages.map((p: any, i: number) => ({
     id: p.id || uuid(),
     name: p.name || `Page ${i + 1}`,
-    rows: Math.max(1, Math.min(6, p.rows || 3)),
+    rows: Math.max(1, Math.min(6, p.rows || 6)),
     items: Array.isArray(p.items) ? p.items : [],
   }))
   return { ...shop, pages }
@@ -633,7 +633,10 @@ function ShopCard({ shop, onOpen, onStats, canEdit }: any) {
 }
 
 // ── Éditeur visuel de shop ──────────────────────────────────────────────────
-const MAX_PAGES = 6 // limite ESG Premium
+// ESG-Premium ne fixe pas de limite stricte sur le nombre de pages (pages.page1..pageN).
+// On élève le plafond à 10 pour matcher les configs ESG Plus existantes qui ont
+// fréquemment 7-10 pages, sans risque de perte d'items lors de la synchro.
+const MAX_PAGES = 10
 
 function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash }: any) {
   const [draft, setDraft] = useState<any>(() => normalizeShop(shop))
@@ -705,7 +708,7 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
   // ── Gestion des pages ─────────────────────────────────────────────────────
   const addPage = () => {
     if (pages.length >= MAX_PAGES) return
-    const newPage = blankPage(`Page ${pages.length + 1}`, 3)
+    const newPage = blankPage(`Page ${pages.length + 1}`, 6)
     setDraft({ ...draft, pages: [...pages, newPage] })
     setPageIndex(pages.length)
     setSelectedSlot(null)
@@ -889,6 +892,10 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
           {/* Onglets pages */}
           <div className="px-3 py-2 flex items-center gap-1 overflow-x-auto"
                style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+            <span className="text-xs mr-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}
+                  title="Chaque page = 1 inventaire ESG Plus (jusqu'à 54 slots). Ajoute des pages pour dépasser 54 slots.">
+              📑 Pages :
+            </span>
             {pages.map((p: any, i: number) => {
               const active = i === safePageIndex
               return (
@@ -932,21 +939,24 @@ function ShopEditor({ shop, onSave, onCancel, onDelete, canEdit, isAdmin, flash 
             })}
             {canEdit && pages.length < MAX_PAGES && (
               <button onClick={addPage}
-                      title="Ajouter une page"
+                      title={`Ajouter une page (jusqu'à ${MAX_PAGES} pages × 54 slots = ${MAX_PAGES * 54} slots au total)`}
                       className="px-3 py-1.5 rounded text-sm font-bold transition hover:scale-105"
                       style={{
-                        background: 'var(--surface)',
-                        color: 'var(--text)',
-                        border: '1px dashed var(--border)',
+                        background: pages.length === 1 ? 'var(--primary)' : 'var(--surface)',
+                        color: pages.length === 1 ? 'white' : 'var(--text)',
+                        border: pages.length === 1 ? '1px solid var(--primary)' : '1px dashed var(--border)',
                       }}>
-                + Page
+                + Ajouter une page
               </button>
             )}
             {canEdit && pages.length >= MAX_PAGES && (
               <span className="px-3 py-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                (max {MAX_PAGES} pages)
+                (max {MAX_PAGES} pages atteint)
               </span>
             )}
+            <span className="ml-auto text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+              {pages.length} page{pages.length > 1 ? 's' : ''} · {pages.reduce((sum: number, p: any) => sum + (p.items?.length || 0), 0)} items au total
+            </span>
           </div>
 
           <div className="flex-1 p-6 flex items-center justify-center overflow-auto">

@@ -263,7 +263,7 @@ public final class ShopSyncService {
         if (premium) {
             int idx = 1;
             for (ShopPage page : pages) {
-                int rows = Math.max(1, Math.min(6, page.rows == 0 ? 3 : page.rows));
+                int rows = Math.max(1, Math.min(6, page.rows == 0 ? 6 : page.rows));
                 ConfigurationSection sec = yaml.createSection("pages.page" + idx);
                 sec.set("gui-rows", rows);
                 String title = page.name != null && !page.name.isBlank()
@@ -276,7 +276,7 @@ public final class ShopSyncService {
         } else {
             // Free : pas de multipage, on prend uniquement la 1ère page
             ShopPage first = pages.get(0);
-            int rows = Math.max(1, Math.min(6, first.rows == 0 ? 3 : first.rows));
+            int rows = Math.max(1, Math.min(6, first.rows == 0 ? 6 : first.rows));
             yaml.set("displayName", shop.displayName != null ? shop.displayName : shop.name);
             yaml.set("rows", rows);
             if (shop.permission != null && !shop.permission.isBlank()) yaml.set("permission", shop.permission);
