@@ -80,6 +80,9 @@ public final class ShopSyncService {
             File shopsDir = new File(folder, "shops");
             if (!shopsDir.exists()) shopsDir.mkdirs();
 
+            // Migre d'éventuels backups d'anciennes versions vers backups/
+            migrateOldBackups();
+
             String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(new Date());
             int shopsWritten = 0;
             boolean premium = isPremium();
@@ -141,8 +144,12 @@ public final class ShopSyncService {
 
     /**
      * Restaure les backups ESG écrasés par des syncs précédentes.
-     * Parcourt shops/ et sections/ à la recherche de fichiers .backup-*
-     * et les restaure sur les fichiers .yml correspondants.
+     * Parcourt esg/backups/shops/ et esg/backups/sections/ à la recherche
+     * de fichiers .yml.backup-* et les restaure sur les fichiers .yml cibles.
+     *
+     * Avant 2.0.76, les backups étaient écrits directement à côté des fichiers
+     * sources (shops/x.yml.backup-...). Une migration automatique les déplace
+     * vers backups/ au début du rollback.
      *
      * Supprime aussi les fichiers que le dashboard a créés pour des shops
      * qui n'existent plus dans le store, et les sections/*.yml générées
@@ -156,6 +163,9 @@ public final class ShopSyncService {
             }
             File shopsDir = new File(folder, "shops");
             File sectionsDir = new File(folder, "sections");
+
+            // Migre d'éventuels backups d'anciennes versions vers backups/
+            migrateOldBackups();
 
             int restored = 0;
             int sectionsDeleted = 0;
@@ -207,10 +217,12 @@ public final class ShopSyncService {
         }
     }
 
-    /** Parcourt un dossier, pour chaque .yml.backup-* restaure sur le .yml cible. */
+    /** Parcourt un dossier, pour chaque .yml.backup-* (dans backups/) restaure sur le .yml cible. */
     private int restoreBackupsIn(File dir) {
         int restored = 0;
-        File[] backups = dir.listFiles((d, n) -> n.contains(".yml.backup-"));
+        File backupDir = getBackupDirFor(dir);
+        if (backupDir == null || !backupDir.exists()) return 0;
+        File[] backups = backupDir.listFiles((d, n) -> n.contains(".yml.backup-"));
         if (backups == null) return 0;
 
         // Groupe par nom cible, garde le backup le plus récent
@@ -233,7 +245,7 @@ public final class ShopSyncService {
                 Files.copy(backup.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 restored++;
                 // Nettoie tous les .backup-* correspondants après restauration réussie
-                File[] allBackups = dir.listFiles((d, nm) -> nm.startsWith(e.getKey() + ".backup-"));
+                File[] allBackups = backupDir.listFiles((d, nm) -> nm.startsWith(e.getKey() + ".backup-"));
                 if (allBackups != null) for (File bk : allBackups) bk.delete();
             } catch (IOException ioe) {
                 logger.warning("[Dashboard/Shop] Restore failed " + target.getName() + ": " + ioe.getMessage());
@@ -243,7 +255,9 @@ public final class ShopSyncService {
     }
 
     private File findLatestBackup(File dir, String name) {
-        File[] backups = dir.listFiles((d, n) -> n.startsWith(name + ".yml.backup-"));
+        File backupDir = getBackupDirFor(dir);
+        if (backupDir == null || !backupDir.exists()) return null;
+        File[] backups = backupDir.listFiles((d, n) -> n.startsWith(name + ".yml.backup-"));
         if (backups == null || backups.length == 0) return null;
         File latest = backups[0];
         for (File b : backups) if (b.lastModified() > latest.lastModified()) latest = b;
@@ -359,15 +373,101 @@ public final class ShopSyncService {
         }
     }
 
-    /** Backup d'un fichier avec timestamp (si existe). */
+    /**
+     * Backup d'un fichier dans esg/backups/&lt;chemin relatif&gt;/&lt;nom&gt;.backup-&lt;stamp&gt;.
+     * Exemples :
+     *   shops/farm.yml      → backups/shops/farm.yml.backup-20260511-143022
+     *   sections/farm.yml   → backups/sections/farm.yml.backup-20260511-143022
+     *   menu.yml            → backups/menu.yml.backup-20260511-143022
+     */
     private void backup(File file, String stamp) {
         if (!file.exists()) return;
         try {
-            File bak = new File(file.getParentFile(), file.getName() + ".backup-" + stamp);
+            File bakDir = getBackupDirFor(file.getParentFile());
+            if (bakDir == null) return;
+            File bak = new File(bakDir, file.getName() + ".backup-" + stamp);
             Files.copy(file.toPath(), bak.toPath(), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException ioe) {
             logger.warning("[Dashboard/Shop] Backup échoué: " + ioe.getMessage());
         }
+    }
+
+    /** Retourne le dossier racine des backups (esg/backups), le crée si besoin. */
+    private File getBackupsRoot() {
+        File esg = getESGFolder();
+        if (esg == null) return null;
+        File b = new File(esg, "backups");
+        if (!b.exists() && !b.mkdirs()) {
+            logger.warning("[Dashboard/Shop] Impossible de créer le dossier de backups: " + b);
+            return null;
+        }
+        return b;
+    }
+
+    /**
+     * Mappe un dossier ESG (shops/, sections/, ou racine) vers son dossier de backups dédié.
+     * Pour la racine ESG : backups/. Pour shops/ : backups/shops/. Etc.
+     */
+    private File getBackupDirFor(File targetDir) {
+        if (targetDir == null) return null;
+        File backupsRoot = getBackupsRoot();
+        if (backupsRoot == null) return null;
+        File esg = getESGFolder();
+        if (esg == null) return null;
+        File out;
+        try {
+            // Racine ESG → backups/ directement
+            if (targetDir.getCanonicalFile().equals(esg.getCanonicalFile())) {
+                out = backupsRoot;
+            } else {
+                java.nio.file.Path rel = esg.toPath().relativize(targetDir.toPath());
+                out = new File(backupsRoot, rel.toString());
+            }
+        } catch (IOException ioe) {
+            out = new File(backupsRoot, targetDir.getName());
+        }
+        if (!out.exists() && !out.mkdirs()) {
+            logger.warning("[Dashboard/Shop] Impossible de créer " + out);
+            return null;
+        }
+        return out;
+    }
+
+    /**
+     * Migre les anciens .yml.backup-* qui traînent dans la racine ESG, shops/ et
+     * sections/ vers le dossier dédié backups/. Idempotent : si plus rien à
+     * déplacer, ne fait rien. Retourne le nombre de fichiers déplacés.
+     */
+    private int migrateOldBackups() {
+        int moved = 0;
+        File esg = getESGFolder();
+        if (esg == null) return 0;
+        File backupsRoot = new File(esg, "backups");
+        File[] candidates = new File[]{ esg, new File(esg, "shops"), new File(esg, "sections") };
+        for (File dir : candidates) {
+            if (dir == null || !dir.exists() || !dir.isDirectory()) continue;
+            // Skip le dossier de backups lui-même
+            try {
+                if (dir.getCanonicalPath().startsWith(backupsRoot.getCanonicalPath())) continue;
+            } catch (IOException ignored) {}
+            File[] olds = dir.listFiles((d, n) -> n.contains(".yml.backup-"));
+            if (olds == null || olds.length == 0) continue;
+            File destDir = getBackupDirFor(dir);
+            if (destDir == null) continue;
+            for (File old : olds) {
+                try {
+                    File dest = new File(destDir, old.getName());
+                    Files.move(old.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    moved++;
+                } catch (IOException ioe) {
+                    logger.warning("[Dashboard/Shop] Migration backup " + old.getName() + ": " + ioe.getMessage());
+                }
+            }
+        }
+        if (moved > 0) {
+            logger.info("[Dashboard/Shop] " + moved + " backup(s) déplacé(s) vers " + backupsRoot.getName() + "/");
+        }
+        return moved;
     }
 
     /** Recharge ESG via la console — exécuté sur le main thread. */
