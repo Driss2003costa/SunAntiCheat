@@ -7,6 +7,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import sunanticheat.dashboard.HttpHelper;
+import sunanticheat.dashboard.audit.Audit;
+import sunanticheat.dashboard.auth.RateLimiter;
 import sunanticheat.dashboard.portal.PlayerAccountStore;
 import sunanticheat.dashboard.portal.PlayerJwtUtil;
 import sunanticheat.dashboard.portal.PortalActivityStore;
@@ -21,6 +23,14 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 public final class PublicRegisterHandler {
+
+    /** Rate limiter login portail : 5 tentatives par IP par fenêtre de 15 minutes. */
+    private static final RateLimiter LOGIN_LIMIT = new RateLimiter(5, 15 * 60 * 1000L);
+
+    /** Mot de passe portail : min 8 caractères contenant au moins une lettre ET un chiffre. */
+    private static final int PASSWORD_MIN_LENGTH = 8;
+    private static final String PASSWORD_RULE_MSG =
+            "Le mot de passe doit faire au moins 8 caractères et contenir au moins une lettre et un chiffre.";
 
     private final PlayerAccountStore accountStore;
     private final RegisterPinService pinService;
@@ -114,8 +124,8 @@ public final class PublicRegisterHandler {
             return;
         }
 
-        if (password.length() < 6) {
-            HttpHelper.error(ex, 400, "Le code PIN doit faire au moins 6 chiffres");
+        if (!isPasswordStrong(password)) {
+            HttpHelper.json(ex, 400, Map.of("error", "weak_password", "message", PASSWORD_RULE_MSG));
             return;
         }
 
@@ -156,8 +166,19 @@ public final class PublicRegisterHandler {
         }
     }
 
-    /** POST /api/public/register/login */
+    /** POST /api/public/register/login — rate-limité (5 tentatives / 15 min / IP). */
     public void login(HttpExchange ex) throws IOException {
+        String ip = ip(ex);
+
+        if (!LOGIN_LIMIT.tryAcquire(ip)) {
+            long retrySec = LOGIN_LIMIT.retryAfterMs(ip) / 1000;
+            ex.getResponseHeaders().add("Retry-After", String.valueOf(retrySec));
+            HttpHelper.error(ex, 429,
+                    "Trop de tentatives. Réessaie dans " + (retrySec / 60 + 1) + " min.");
+            Audit.system("PORTAL_LOGIN_RATE_LIMITED", ip, "5 tentatives dépassées sur cette IP");
+            return;
+        }
+
         Map<String, String> body = parseBody(ex);
         if (body == null) { HttpHelper.error(ex, 400, "Corps JSON requis"); return; }
 
@@ -169,7 +190,6 @@ public final class PublicRegisterHandler {
             return;
         }
 
-        String ip = ip(ex);
         Map<String, Object> account = accountStore.getByUsername(username);
         if (account == null) {
             if (activityStore != null) activityStore.logLogin(null, username, ip, false);
@@ -184,6 +204,8 @@ public final class PublicRegisterHandler {
             HttpHelper.error(ex, 401, "Pseudo ou mot de passe incorrect");
             return;
         }
+
+        LOGIN_LIMIT.reset(ip);
 
         String uuid = (String) account.get("uuid");
         String role = (String) account.get("role");
@@ -275,8 +297,8 @@ public final class PublicRegisterHandler {
             return;
         }
 
-        if (password.length() < 6) {
-            HttpHelper.error(ex, 400, "Le code PIN doit faire au moins 6 chiffres");
+        if (!isPasswordStrong(password)) {
+            HttpHelper.json(ex, 400, Map.of("error", "weak_password", "message", PASSWORD_RULE_MSG));
             return;
         }
 
@@ -310,6 +332,19 @@ public final class PublicRegisterHandler {
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    /** Min 8 caractères, au moins une lettre et un chiffre (rejette les PIN purement numériques). */
+    private static boolean isPasswordStrong(String pw) {
+        if (pw == null || pw.length() < PASSWORD_MIN_LENGTH) return false;
+        boolean hasLetter = false, hasDigit = false;
+        for (int i = 0; i < pw.length(); i++) {
+            char c = pw.charAt(i);
+            if (Character.isLetter(c))      hasLetter = true;
+            else if (Character.isDigit(c))  hasDigit  = true;
+            if (hasLetter && hasDigit) return true;
+        }
+        return false;
+    }
 
     @SuppressWarnings("unchecked")
     private Map<String, String> parseBody(HttpExchange ex) throws IOException {

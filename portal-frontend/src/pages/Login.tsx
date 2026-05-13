@@ -2,17 +2,17 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, saveToken, getToken } from '../api/client'
-import OtpInput from '../components/OtpInput'
 import { Button } from '../components/ui'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 
 export default function Login() {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const [username, setUsername] = useState('')
-  const [pin, setPin]           = useState('')
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
+  const [username, setUsername]         = useState('')
+  const [password, setPassword]         = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState('')
 
   useEffect(() => {
     if (getToken()) navigate('/profile', { replace: true })
@@ -20,14 +20,15 @@ export default function Login() {
 
   async function handleLogin() {
     if (!username.trim()) { setError(t('login.errorNoUsername')); return }
-    if (pin.replace(/\D/g, '').length < 6) { setError(t('login.errorNoPin')); return }
+    if (!password)        { setError(t('login.errorNoPassword')); return }
     setLoading(true); setError('')
     try {
-      const res = await api.login(username.trim(), pin)
+      const res = await api.login(username.trim(), password)
       saveToken(res.token)
       navigate('/profile', { replace: true })
     } catch (e: any) {
-      setError(e.message || t('login.errorInvalid'))
+      if (e.status === 429) setError(e.message || t('login.errorRateLimit'))
+      else setError(e.message || t('login.errorInvalid'))
     }
     setLoading(false)
   }
@@ -119,10 +120,29 @@ export default function Login() {
               />
             </label>
 
-            <div>
-              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">{t('login.pinLabel')}</span>
-              <OtpInput value={pin} onChange={setPin} length={6} />
-            </div>
+            <label className="block">
+              <span className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-2">{t('login.passwordLabel')}</span>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  placeholder={t('login.passwordPlaceholder') as string}
+                  autoComplete="current-password"
+                  className="w-full h-12 px-4 pr-12 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(s => !s)}
+                  tabIndex={-1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/55 hover:text-white/80 transition"
+                >
+                  {showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                </button>
+              </div>
+            </label>
 
             {error && (
               <div

@@ -11,14 +11,19 @@ type Step = 'username' | 'pin' | 'success'
 export default function ForgotPassword() {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const [step, setStep]           = useState<Step>('username')
-  const [username, setUsername]   = useState('')
-  const [uuid, setUuid]           = useState('')
-  const [verifyPin, setVerifyPin] = useState('')
-  const [newPin, setNewPin]       = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState('')
-  const [countdown, setCountdown] = useState(0)
+  const [step, setStep]                 = useState<Step>('username')
+  const [username, setUsername]         = useState('')
+  const [uuid, setUuid]                 = useState('')
+  const [verifyPin, setVerifyPin]       = useState('')
+  const [newPassword, setNewPassword]   = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState('')
+  const [countdown, setCountdown]       = useState(0)
+
+  function isPasswordStrong(pw: string): boolean {
+    return pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw)
+  }
 
   async function handleForgot() {
     if (!username.trim()) return
@@ -47,17 +52,18 @@ export default function ForgotPassword() {
 
   async function handleReset() {
     if (verifyPin.replace(/\D/g, '').length < 6) { setError(t('forgotPassword.errorPinFormat')); return }
-    if (newPin.replace(/\D/g, '').length < 6)    { setError(t('forgotPassword.errorNewPinFormat')); return }
+    if (!isPasswordStrong(newPassword))           { setError(t('forgotPassword.errorPasswordWeak')); return }
     setLoading(true); setError('')
     try {
-      const res = await api.resetPassword(uuid, verifyPin, newPin)
+      const res = await api.resetPassword(uuid, verifyPin, newPassword)
       saveToken(res.token); setStep('success')
       setTimeout(() => navigate('/profile', { replace: true }), 2000)
     } catch (e: any) {
       const msg: Record<string, string> = {
-        pin_expired:  t('forgotPassword.errorExpired'),
-        max_attempts: t('forgotPassword.errorMaxAttempts'),
-        invalid_pin:  t('forgotPassword.errorInvalid', { count: e.attempts_left ?? 0 }),
+        pin_expired:   t('forgotPassword.errorExpired'),
+        max_attempts:  t('forgotPassword.errorMaxAttempts'),
+        invalid_pin:   t('forgotPassword.errorInvalid', { count: e.attempts_left ?? 0 }),
+        weak_password: t('forgotPassword.errorPasswordWeak'),
       }
       setError(msg[e.error] ?? e.message ?? t('shop.errorCheckout'))
     }
@@ -192,9 +198,29 @@ export default function ForgotPassword() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">
-                    {t('forgotPassword.step2NewPinLabel')}
+                    {t('forgotPassword.step2NewPasswordLabel')}
                   </label>
-                  <OtpInput value={newPin} onChange={setNewPin} length={6} />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleReset()}
+                      placeholder={t('forgotPassword.step2NewPasswordPlaceholder') as string}
+                      autoComplete="new-password"
+                      className="w-full h-12 px-4 pr-12 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(s => !s)}
+                      tabIndex={-1}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/55 hover:text-white/80 transition"
+                    >
+                      {showPassword ? t('forgotPassword.hidePassword') : t('forgotPassword.showPassword')}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-white/55 mt-2">{t('forgotPassword.step2NewPasswordHint')}</p>
                 </div>
 
                 {error && (
@@ -211,7 +237,7 @@ export default function ForgotPassword() {
                 </Button>
 
                 <button
-                  onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setNewPin('') }}
+                  onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setNewPassword('') }}
                   className="block w-full text-center text-xs text-white/55 hover:text-white/80 transition-colors"
                 >
                   {t('forgotPassword.step2Resend')}

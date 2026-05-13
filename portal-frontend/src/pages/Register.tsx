@@ -11,17 +11,22 @@ type Step = 'username' | 'pin' | 'success'
 export default function Register() {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const [step, setStep]           = useState<Step>('username')
-  const [username, setUsername]   = useState('')
-  const [uuid, setUuid]           = useState('')
-  const [exactName, setExactName] = useState('')
-  const [verifyPin, setVerifyPin] = useState('')
-  const [loginPin, setLoginPin]   = useState('')
-  const [countdown, setCountdown] = useState(0)
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState('')
-  const [refCode, setRefCode]     = useState('')
-  const [refValid, setRefValid]   = useState<boolean | null>(null)
+  const [step, setStep]                 = useState<Step>('username')
+  const [username, setUsername]         = useState('')
+  const [uuid, setUuid]                 = useState('')
+  const [exactName, setExactName]       = useState('')
+  const [verifyPin, setVerifyPin]       = useState('')
+  const [password, setPassword]         = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [countdown, setCountdown]       = useState(0)
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState('')
+  const [refCode, setRefCode]           = useState('')
+  const [refValid, setRefValid]         = useState<boolean | null>(null)
+
+  function isPasswordStrong(pw: string): boolean {
+    return pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw)
+  }
 
   useEffect(() => {
     if (getToken()) navigate('/profile', { replace: true })
@@ -69,10 +74,10 @@ export default function Register() {
 
   async function handleVerify() {
     if (verifyPin.replace(/\D/g, '').length < 6) { setError(t('register.errorVerifyPin')); return }
-    if (loginPin.replace(/\D/g, '').length < 6)  { setError(t('register.errorLoginPin')); return }
+    if (!isPasswordStrong(password))             { setError(t('register.errorPasswordWeak')); return }
     setLoading(true); setError('')
     try {
-      const body: Record<string, string> = { uuid, pin: verifyPin, password: loginPin }
+      const body: Record<string, string> = { uuid, pin: verifyPin, password }
       if (refCode && refValid) body.ref_code = refCode
       const res = await fetch('/api/public/register/verify', {
         method: 'POST',
@@ -81,9 +86,10 @@ export default function Register() {
       }).then(async r => { const d = await r.json(); if (!r.ok) throw d; return d })
       saveToken(res.token); setStep('success')
     } catch (e: any) {
-      if (e.error === 'pin_expired')      setError(t('register.errorExpired'))
-      else if (e.error === 'max_attempts') setError(t('register.errorMaxAttempts'))
-      else if (e.error === 'invalid_pin')  setError(t('register.errorInvalid', { count: e.attempts_left ?? 0 }))
+      if (e.error === 'pin_expired')        setError(t('register.errorExpired'))
+      else if (e.error === 'max_attempts')  setError(t('register.errorMaxAttempts'))
+      else if (e.error === 'invalid_pin')   setError(t('register.errorInvalid', { count: e.attempts_left ?? 0 }))
+      else if (e.error === 'weak_password') setError(t('register.errorPasswordWeak'))
       else setError(e.message || t('register.errorUnexpected'))
     }
     setLoading(false)
@@ -306,10 +312,29 @@ export default function Register() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">
-                      {t('register.step2NewPinLabel')}
+                      {t('register.step2NewPasswordLabel')}
                     </label>
-                    <OtpInput value={loginPin} onChange={setLoginPin} length={6} />
-                    <p className="text-[11px] text-white/55 mt-2">{t('register.step2NewPinHint')}</p>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleVerify()}
+                        placeholder={t('register.step2NewPasswordPlaceholder') as string}
+                        autoComplete="new-password"
+                        className="w-full h-12 px-4 pr-12 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(s => !s)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/55 hover:text-white/80 transition"
+                      >
+                        {showPassword ? t('register.hidePassword') : t('register.showPassword')}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-white/55 mt-2">{t('register.step2NewPasswordHint')}</p>
                   </div>
 
                   {error && (
@@ -326,7 +351,7 @@ export default function Register() {
                   </Button>
 
                   <button
-                    onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setLoginPin('') }}
+                    onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setPassword('') }}
                     className="block w-full text-center text-xs text-white/55 hover:text-white/80 transition-colors"
                   >
                     {t('register.step2Back')}
