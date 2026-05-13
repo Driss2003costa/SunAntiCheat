@@ -214,15 +214,30 @@ public final class PlayerAccountStore {
         m.put("role",       rs.getString("role"));
         String bio = rs.getString("bio");
         m.put("bio", bio != null ? bio : "");
-        long bannedUntil = rs.getLong("banned_until");
-        m.put("banned_until", rs.wasNull() ? null : bannedUntil);
-        m.put("ban_reason",   rs.getString("ban_reason"));
-        m.put("section_restrictions", rs.getInt("section_restrictions"));
-        m.put("must_reset_password",  rs.getInt("must_reset_password") == 1);
-        m.put("failed_login_count",   rs.getInt("failed_login_count"));
-        long lastFailed = rs.getLong("last_failed_login");
-        m.put("last_failed_login", rs.wasNull() ? null : lastFailed);
+        // Colonnes v3 — lectures défensives au cas où la migration ne serait pas
+        // encore passée sur l'instance (ex: rollback partiel, vieille DB).
+        m.put("banned_until",         readOptionalLong   (rs, "banned_until"));
+        m.put("ban_reason",           readOptionalString (rs, "ban_reason"));
+        m.put("section_restrictions", readIntOr0         (rs, "section_restrictions"));
+        m.put("must_reset_password",  readIntOr0         (rs, "must_reset_password") == 1);
+        m.put("failed_login_count",   readIntOr0         (rs, "failed_login_count"));
+        m.put("last_failed_login",    readOptionalLong   (rs, "last_failed_login"));
         return m;
+    }
+
+    private static Long readOptionalLong(ResultSet rs, String col) {
+        try {
+            long v = rs.getLong(col);
+            return rs.wasNull() ? null : v;
+        } catch (SQLException e) { return null; }
+    }
+
+    private static String readOptionalString(ResultSet rs, String col) {
+        try { return rs.getString(col); } catch (SQLException e) { return null; }
+    }
+
+    private static int readIntOr0(ResultSet rs, String col) {
+        try { return rs.getInt(col); } catch (SQLException e) { return 0; }
     }
 
     // ── Sanctions & contrôle d'accès ─────────────────────────────────────────
