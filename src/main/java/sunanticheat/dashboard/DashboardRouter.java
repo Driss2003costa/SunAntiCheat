@@ -208,6 +208,13 @@ public final class DashboardRouter implements HttpHandler {
         this.adminPortalAccountsHandler = h;
     }
 
+    private sunanticheat.dashboard.portal.PlayerAccountStore playerAccountStore;
+
+    /** Injecté après construction — utilisé pour vérifier ban & restrictions par section au niveau du router. */
+    public void setPlayerAccountStore(sunanticheat.dashboard.portal.PlayerAccountStore s) {
+        this.playerAccountStore = s;
+    }
+
     /**
      * Routes toujours autorisées même en mode maintenance globale, pour que le portail
      * puisse afficher l'écran lockdown et que les OP puissent se connecter.
@@ -261,6 +268,90 @@ public final class DashboardRouter implements HttpHandler {
         return null;
     }
 
+    /**
+     * Mapping chemin → section pour l'enforcement des restrictions par compte
+     * ({@link sunanticheat.dashboard.portal.PortalSection}). Distinct de
+     * {@link #sectionKeyFor(String)} qui sert au gate maintenance global par section.
+     */
+    private static sunanticheat.dashboard.portal.PortalSection accountSectionFor(String path) {
+        if (path.startsWith("/api/public/leaderboard"))           return sunanticheat.dashboard.portal.PortalSection.LEADERBOARD;
+        if (path.startsWith("/api/public/profile/"))              return sunanticheat.dashboard.portal.PortalSection.PROFILE;
+        if (path.startsWith("/api/public/quests"))                return sunanticheat.dashboard.portal.PortalSection.QUESTS;
+        if (path.startsWith("/api/public/games/arenas"))          return sunanticheat.dashboard.portal.PortalSection.MINIGAMES;
+        if (path.startsWith("/api/public/friends"))               return sunanticheat.dashboard.portal.PortalSection.FRIENDS;
+        if (path.startsWith("/api/public/messages"))              return sunanticheat.dashboard.portal.PortalSection.MESSAGES;
+        if (path.startsWith("/api/public/crates/shop"))           return sunanticheat.dashboard.portal.PortalSection.SHOP;
+        if (path.startsWith("/api/public/player/me/crates"))      return sunanticheat.dashboard.portal.PortalSection.SHOP;
+        if (path.startsWith("/api/public/vip/"))                  return sunanticheat.dashboard.portal.PortalSection.SHOP;
+        if (path.startsWith("/api/public/player/me/daily"))       return sunanticheat.dashboard.portal.PortalSection.DAILY;
+        if (path.startsWith("/api/public/player/me/inventory"))   return sunanticheat.dashboard.portal.PortalSection.INVENTORY;
+        if (path.startsWith("/api/public/referral/"))             return sunanticheat.dashboard.portal.PortalSection.REFERRAL;
+        if (path.startsWith("/api/custom-jobs/me/"))              return sunanticheat.dashboard.portal.PortalSection.CAREER;
+        return null;
+    }
+
+    /**
+     * Vérifie le ban et les restrictions de section sur le compte du joueur
+     * authentifié (si un token portail est présent). Renvoie {@code false} et
+     * écrit la réponse 403 si l'accès doit être refusé.
+     *
+     * Notes :
+     *  - Si le joueur n'est pas authentifié, on laisse passer (les handlers
+     *    eux-mêmes renverront 401/200 selon leur logique propre).
+     *  - {@code /register/login} reste accessible aux comptes bannis pour leur
+     *    permettre de voir la raison du ban (le handler login renvoie 403 avec
+     *    les détails).
+     */
+    private boolean checkAccountRestrictions(HttpExchange ex, String path) throws IOException {
+        if (playerAccountStore == null || portalJwt == null) return true;
+        String authHeader = ex.getRequestHeaders().getFirst("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return true;
+
+        String uuid;
+        try {
+            uuid = portalJwt.validate(authHeader.substring(7)).getSubject();
+        } catch (Exception e) {
+            return true; // token invalide → géré par le handler cible
+        }
+
+        Map<String, Object> acc = playerAccountStore.getByUuid(uuid);
+        if (acc == null) return true;
+
+        // Ban portail global : bloque tout sauf endpoints exemptés.
+        if (playerAccountStore.isBanned(acc) && !isBanExempt(path)) {
+            Map<String, Object> resp = new java.util.LinkedHashMap<>();
+            resp.put("error",        "banned");
+            resp.put("message",      "Accès au portail révoqué.");
+            resp.put("reason",       acc.get("ban_reason") == null ? "" : acc.get("ban_reason"));
+            resp.put("banned_until", acc.get("banned_until"));
+            HttpHelper.json(ex, 403, resp);
+            return false;
+        }
+
+        // Restriction par section.
+        sunanticheat.dashboard.portal.PortalSection sec = accountSectionFor(path);
+        if (sec != null) {
+            int mask = ((Number) acc.get("section_restrictions")).intValue();
+            if (sunanticheat.dashboard.portal.PortalSection.isBlocked(mask, sec)) {
+                HttpHelper.json(ex, 403, Map.of(
+                    "error",   "section_blocked",
+                    "section", sec.key,
+                    "message", "Cette section t'est interdite par un administrateur."
+                ));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Endpoints qu'un joueur banni peut toujours appeler (pour voir l'écran de ban + se déconnecter). */
+    private static boolean isBanExempt(String path) {
+        return path.equals("/api/public/player/me")
+            || path.equals("/api/public/maintenance")
+            || path.equals("/api/public/sections")
+            || path.equals("/api/public/captcha");
+    }
+
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
@@ -304,6 +395,8 @@ public final class DashboardRouter implements HttpHandler {
                         return;
                     }
                 }
+                // Gate ban + restrictions par section au niveau du compte.
+                if (!checkAccountRestrictions(exchange, path)) return;
                 dispatch(exchange, path, method);
                 return;
             }
@@ -320,6 +413,7 @@ public final class DashboardRouter implements HttpHandler {
                         return;
                     }
                 }
+                if (!checkAccountRestrictions(exchange, path)) return;
                 dispatch(exchange, path, method);
                 return;
             }

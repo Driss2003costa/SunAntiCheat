@@ -570,6 +570,7 @@ public final class DashboardModule {
         router.setPortalMaintenance(portalMaintenanceMode, portalMaintenanceHandler);
         router.setAdminPortalAccountsHandler(new sunanticheat.dashboard.handlers.AdminPortalAccountsHandler(
                 playerAccountStore, portalActivityStore));
+        router.setPlayerAccountStore(playerAccountStore);
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

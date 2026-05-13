@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, saveToken, getToken, type CaptchaChallenge } from '../api/client'
+import { api, saveToken, saveRestrictions, getToken, type CaptchaChallenge } from '../api/client'
 import { Button } from '../components/ui'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 
@@ -33,6 +33,7 @@ export default function Login() {
         captcha ? { id: captcha.id, answer: captchaAnswer.trim() } : undefined,
       )
       saveToken(res.token)
+      saveRestrictions(res.restrictions ?? [])
       if (res.must_reset_password) {
         // L'admin a forcé une réinitialisation : on redirige vers /forgot avec un préfill du pseudo.
         navigate('/forgot?force=1', { replace: true, state: { username: res.username } })

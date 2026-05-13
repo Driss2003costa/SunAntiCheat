@@ -16,6 +16,22 @@ function handleMaintenance(status: number, data: any): boolean {
   return false
 }
 
+/**
+ * Détecte les 403 liés au statut du compte (banni, section bloquée) et notifie
+ * l'app via des événements. Le caller reçoit toujours l'erreur via throw pour
+ * pouvoir l'afficher localement si besoin.
+ */
+function handleAccountStatus(status: number, data: any) {
+  if (status !== 403 || !data) return
+  if (data.error === 'banned') {
+    try { window.dispatchEvent(new CustomEvent('portal:banned', { detail: data })) } catch {}
+    // Côté authentifié : on retire le token pour que le portail bascule sur l'écran de ban
+    clearToken()
+  } else if (data.error === 'section_blocked') {
+    try { window.dispatchEvent(new CustomEvent('portal:section-blocked', { detail: data })) } catch {}
+  }
+}
+
 async function post<T>(url: string, body: object): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
@@ -25,6 +41,7 @@ async function post<T>(url: string, body: object): Promise<T> {
   const data = await res.json()
   if (!res.ok) {
     handleMaintenance(res.status, data)
+    handleAccountStatus(res.status, data)
     throw { status: res.status, ...data }
   }
   return data as T
@@ -43,6 +60,7 @@ async function get<T>(url: string, token?: string): Promise<T> {
   const data = await res.json()
   if (!res.ok) {
     handleMaintenance(res.status, data)
+    handleAccountStatus(res.status, data)
     throw { status: res.status, ...data }
   }
   return data as T
@@ -61,6 +79,7 @@ async function authPost<T>(url: string, token: string, body: object, redirectOn4
   const data = await res.json()
   if (!res.ok) {
     handleMaintenance(res.status, data)
+    handleAccountStatus(res.status, data)
     throw { status: res.status, ...data }
   }
   return data as T
@@ -87,6 +106,8 @@ export type PlayerProfile = {
   playtime_seconds?: number; playtime_formatted?: string
   balance?: number
   active_sanctions?: ActiveSanction[]
+  restrictions?: string[]
+  is_banned?: boolean
 }
 
 // ── Sections / status portail ────────────────────────────────────────────────
@@ -296,4 +317,20 @@ export type ReferralInfo = { code: string; total: number; validated: number }
 
 export function saveToken(token: string) { localStorage.setItem('portal_token', token) }
 export function getToken(): string | null  { return localStorage.getItem('portal_token') }
-export function clearToken()              { localStorage.removeItem('portal_token') }
+export function clearToken()              {
+  localStorage.removeItem('portal_token')
+  localStorage.removeItem('portal_restrictions')
+}
+
+export function saveRestrictions(keys: string[]) {
+  localStorage.setItem('portal_restrictions', JSON.stringify(keys ?? []))
+}
+export function getRestrictions(): string[] {
+  try {
+    const raw = localStorage.getItem('portal_restrictions')
+    return raw ? JSON.parse(raw) as string[] : []
+  } catch { return [] }
+}
+export function isSectionBlocked(key: string): boolean {
+  return getRestrictions().includes(key)
+}

@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import LanguageSwitcher from './LanguageSwitcher'
+import { isSectionBlocked } from '../api/client'
 
 export default function Navbar() {
   const { pathname } = useLocation()
@@ -10,6 +11,7 @@ export default function Navbar() {
     {
       label: t('navbar.home'),
       to: '/home',
+      section: null as string | null,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
           <path d="M3 12L12 3l9 9" /><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9" />
@@ -19,6 +21,7 @@ export default function Navbar() {
     {
       label: t('navbar.career'),
       to: '/career',
+      section: 'career',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -28,6 +31,7 @@ export default function Navbar() {
     {
       label: t('navbar.quests'),
       to: '/quests',
+      section: 'quests',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
           <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
@@ -37,6 +41,7 @@ export default function Navbar() {
     {
       label: t('navbar.friends'),
       to: '/friends',
+      section: 'friends',
       matchPaths: ['/friends', '/messages'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -47,6 +52,7 @@ export default function Navbar() {
     {
       label: t('navbar.shop'),
       to: '/shop',
+      section: 'shop',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
           <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 01-8 0" />
@@ -56,6 +62,7 @@ export default function Navbar() {
     {
       label: t('navbar.profile'),
       to: '/profile',
+      section: null as string | null,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
           <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
@@ -71,7 +78,7 @@ export default function Navbar() {
         style={{ background: 'rgba(10,16,32,0.9)', borderColor: 'rgba(251,191,36,0.1)' }}
       />
       <div className="relative flex items-stretch max-w-screen-sm mx-auto px-1">
-        {items.map(item => {
+        {items.filter(it => !it.section || !isSectionBlocked(it.section)).map(item => {
           const active = pathname === item.to
             || (item.to === '/profile' && pathname === '/')
             || ('matchPaths' in item && Array.isArray((item as any).matchPaths) && (item as any).matchPaths.some((p: string) => pathname.startsWith(p)))
