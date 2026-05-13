@@ -32,12 +32,26 @@ function handleAccountStatus(status: number, data: any) {
   }
 }
 
+/**
+ * Capture le header `X-Refresh-Token` émis par le backend quand le token
+ * portail approche son expiration (15 min). Le nouveau token écrase l'ancien
+ * dans le localStorage pour maintenir la session active tant que l'utilisateur
+ * navigue. Idle &gt; 15 min → reconnexion forcée.
+ */
+function consumeRefreshToken(res: Response) {
+  try {
+    const fresh = res.headers.get('X-Refresh-Token')
+    if (fresh && getToken()) localStorage.setItem('portal_token', fresh)
+  } catch { /* localStorage indisponible */ }
+}
+
 async function post<T>(url: string, body: object): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  consumeRefreshToken(res)
   const data = await res.json()
   if (!res.ok) {
     handleMaintenance(res.status, data)
@@ -56,6 +70,7 @@ async function get<T>(url: string, token?: string): Promise<T> {
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
+  consumeRefreshToken(res)
   if (res.status === 401 && token) { on401(); throw { status: 401 } }
   const data = await res.json()
   if (!res.ok) {
@@ -72,6 +87,7 @@ async function authPost<T>(url: string, token: string, body: object, redirectOn4
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  consumeRefreshToken(res)
   if (res.status === 401) {
     if (redirectOn401) { on401() }
     throw { status: 401 }

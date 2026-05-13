@@ -11,7 +11,14 @@ import java.util.Date;
 
 public final class PlayerJwtUtil {
 
-    private static final long EXPIRY_MS = 30L * 24 * 3600 * 1000; // 30 jours
+    /** Durée de vie d'un token portail : 15 min (sécurité dure en cas de vol). */
+    public  static final long EXPIRY_MS = 15L * 60 * 1000;
+    /**
+     * Fenêtre pendant laquelle on émet un token rafraîchi à chaque appel
+     * authentifié pour maintenir la session active sans demander de reconnexion.
+     * Tant que l'utilisateur navigue, son token est renouvelé.
+     */
+    public  static final long REFRESH_AFTER_MS = 5L * 60 * 1000;
     private final SecretKey key;
 
     public PlayerJwtUtil(String secret) {
@@ -37,5 +44,17 @@ public final class PlayerJwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    /**
+     * Décide si un token doit être rafraîchi : retourne {@code true} dès que
+     * l'expiration est dans moins de {@link #REFRESH_AFTER_MS}.
+     * Permet une expiration glissante : tant que l'utilisateur fait des
+     * requêtes, son token est renouvelé ; idle &gt; 15 min → reconnexion.
+     */
+    public boolean shouldRefresh(Claims claims) {
+        if (claims == null || claims.getExpiration() == null) return false;
+        long remaining = claims.getExpiration().getTime() - System.currentTimeMillis();
+        return remaining > 0 && remaining < (EXPIRY_MS - REFRESH_AFTER_MS);
     }
 }

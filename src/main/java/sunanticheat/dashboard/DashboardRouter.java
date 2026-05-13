@@ -344,6 +344,28 @@ public final class DashboardRouter implements HttpHandler {
         return true;
     }
 
+    /**
+     * Émet un token portail rafraîchi via le header {@code X-Refresh-Token}
+     * quand l'expiration approche, pour maintenir une session active sans
+     * forcer de reconnexion. Utilisé sur les routes {@code /api/custom-jobs/me/*}
+     * qui n'entrent pas dans le middleware page-views.
+     */
+    private void emitRefreshTokenIfNeeded(HttpExchange ex) {
+        if (portalJwt == null) return;
+        String authHeader = ex.getRequestHeaders().getFirst("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return;
+        try {
+            var claims = portalJwt.validate(authHeader.substring(7));
+            if (!portalJwt.shouldRefresh(claims)) return;
+            String uuid = claims.getSubject();
+            String name = claims.get("username", String.class);
+            String role = claims.get("role", String.class);
+            String fresh = portalJwt.generate(uuid, name, role != null ? role : "PLAYER");
+            ex.getResponseHeaders().add("X-Refresh-Token", fresh);
+            ex.getResponseHeaders().add("Access-Control-Expose-Headers", "X-Refresh-Token");
+        } catch (Exception ignored) { /* token invalide → géré ailleurs */ }
+    }
+
     /** Endpoints qu'un joueur banni peut toujours appeler (pour voir l'écran de ban + se déconnecter). */
     private static boolean isBanExempt(String path) {
         return path.equals("/api/public/player/me")
@@ -379,6 +401,17 @@ public final class DashboardRouter implements HttpHandler {
                             String pvUuid = claims.getSubject();
                             String pvName = claims.get("username", String.class);
                             portalActivityStore.logPageView(pvUuid, pvName, path, method);
+                            // Expiration glissante : si le token entre dans la fenêtre de
+                            // refresh, on en émet un neuf via un header. Le frontend l'écrase
+                            // dans son localStorage pour maintenir la session active sans
+                            // forcer de reconnexion pendant la navigation.
+                            if (portalJwt.shouldRefresh(claims)) {
+                                String role  = claims.get("role", String.class);
+                                String fresh = portalJwt.generate(pvUuid, pvName,
+                                        role != null ? role : "PLAYER");
+                                exchange.getResponseHeaders().add("X-Refresh-Token", fresh);
+                                exchange.getResponseHeaders().add("Access-Control-Expose-Headers", "X-Refresh-Token");
+                            }
                         }
                     } catch (Exception ignored) { /* token invalide ou absent — pas de log */ }
                 }
@@ -406,6 +439,7 @@ public final class DashboardRouter implements HttpHandler {
             // Ne pas faire passer par le pare-feu VIEWER (JWT admin).
             if (path.startsWith("/api/custom-jobs/me/")) {
                 if (!checkGlobalMaintenance(exchange)) return;
+                emitRefreshTokenIfNeeded(exchange);
                 String sec = sectionKeyFor(path);
                 if (sec != null && portalSectionsStore != null && portalJwt != null) {
                     if (!sunanticheat.dashboard.portal.PortalSectionGate.checkOrFail(
