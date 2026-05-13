@@ -245,9 +245,42 @@ function RegisterGuard({ children }: { children: React.ReactNode }) {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+/**
+ * Toast global qui s'affiche quand le backend renvoie 403 section_blocked
+ * (côté API client, un event `portal:section-blocked` est émis).
+ */
+function SectionBlockedToast() {
+  const [msg, setMsg] = useState<string>('')
+  useEffect(() => {
+    function onBlocked(e: Event) {
+      const detail = (e as CustomEvent<any>).detail
+      setMsg(detail?.message || 'Cette section t\'est interdite par un administrateur.')
+      setTimeout(() => setMsg(''), 5000)
+    }
+    function onBanned() {
+      // L'API client a déjà retiré le token. On force un retour à l'accueil.
+      window.location.replace('/portal/login')
+    }
+    window.addEventListener('portal:section-blocked', onBlocked as EventListener)
+    window.addEventListener('portal:banned',          onBanned as EventListener)
+    return () => {
+      window.removeEventListener('portal:section-blocked', onBlocked as EventListener)
+      window.removeEventListener('portal:banned',          onBanned as EventListener)
+    }
+  }, [])
+  if (!msg) return null
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl shadow-lg max-w-md text-center"
+         style={{ background: 'rgba(239,68,68,0.95)', color: '#fff', fontSize: 14 }}>
+      🔒 {msg}
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter basename="/portal">
+      <SectionBlockedToast />
       <SectionsProvider>
         <Routes>
           <Route path="/" element={

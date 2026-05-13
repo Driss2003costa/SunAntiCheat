@@ -7,6 +7,7 @@ import sunanticheat.SunAntiCheat;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.portal.PlayerAccountStore;
 import sunanticheat.dashboard.portal.PlayerJwtUtil;
+import sunanticheat.dashboard.portal.PortalSection;
 import sunanticheat.dashboard.sanctions.SanctionEntry;
 
 import java.io.IOException;
@@ -60,6 +61,11 @@ public final class PublicPlayerHandler {
         Map<String, Object> result = new LinkedHashMap<>(account);
         result.put("online", online);
         result.put("isOp", isOp);
+        // Expose les restrictions sous forme de liste de clés pour le frontend
+        // (le bitmask brut `section_restrictions` reste pour debug).
+        int mask = ((Number) account.get("section_restrictions")).intValue();
+        result.put("restrictions", PortalSection.keysFromMask(mask));
+        result.put("is_banned", accountStore.isBanned(account));
 
         // Playtime
         try {

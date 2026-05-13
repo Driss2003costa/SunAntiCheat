@@ -528,6 +528,29 @@ export const api = {
     return request<any>(`/api/portal/activity/referrals${qs ? '?' + qs : ''}`)
   },
 
+  // ── Portal accounts (admin) ───────────────────────────────────────────────
+  portalAccountsSections: () => request<{ sections: { key: string; bit: number; name: string }[] }>(
+    '/api/admin/portal/sections'),
+  portalAccountsList: (p: { search?: string; limit?: number; offset?: number } = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]))).toString()
+    return request<{
+      accounts: any[]; total: number; limit: number; offset: number
+    }>(`/api/admin/portal/accounts${qs ? '?' + qs : ''}`)
+  },
+  portalAccountDetail: (uuid: string) => request<any>(`/api/admin/portal/accounts/${uuid}`),
+  portalAccountBan:    (uuid: string, body: { duration_ms?: number | null; reason?: string }) =>
+    request<any>(`/api/admin/portal/accounts/${uuid}/ban`, { method: 'POST', body: JSON.stringify(body) }),
+  portalAccountUnban:  (uuid: string) =>
+    request<any>(`/api/admin/portal/accounts/${uuid}/unban`, { method: 'POST' }),
+  portalAccountRestrictions: (uuid: string, sections: string[]) =>
+    request<any>(`/api/admin/portal/accounts/${uuid}/restrictions`,
+      { method: 'POST', body: JSON.stringify({ sections }) }),
+  portalAccountForceReset: (uuid: string, value: boolean) =>
+    request<any>(`/api/admin/portal/accounts/${uuid}/force-reset`,
+      { method: 'POST', body: JSON.stringify({ value }) }),
+  portalAccountResetFailed: (uuid: string) =>
+    request<any>(`/api/admin/portal/accounts/${uuid}/reset-failed`, { method: 'POST' }),
+
   // VIP — endpoints publics (pas d'auth, pour la page /buy)
   vipPublicPlans:  () => fetch('/api/public/vip/plans').then(r => r.json()) as Promise<any[]>,
   vipPublicCheckout: (planId: string, playerName: string, gateway: 'STRIPE' | 'PAYPAL') =>

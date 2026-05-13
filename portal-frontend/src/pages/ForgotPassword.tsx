@@ -15,7 +15,8 @@ export default function ForgotPassword() {
   const [username, setUsername]   = useState('')
   const [uuid, setUuid]           = useState('')
   const [verifyPin, setVerifyPin] = useState('')
-  const [newPin, setNewPin]       = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
   const [countdown, setCountdown] = useState(0)
@@ -47,10 +48,10 @@ export default function ForgotPassword() {
 
   async function handleReset() {
     if (verifyPin.replace(/\D/g, '').length < 6) { setError(t('forgotPassword.errorPinFormat')); return }
-    if (newPin.replace(/\D/g, '').length < 6)    { setError(t('forgotPassword.errorNewPinFormat')); return }
+    if (newPassword.length < 6)                  { setError(t('forgotPassword.errorNewPasswordFormat')); return }
     setLoading(true); setError('')
     try {
-      const res = await api.resetPassword(uuid, verifyPin, newPin)
+      const res = await api.resetPassword(uuid, verifyPin, newPassword)
       saveToken(res.token); setStep('success')
       setTimeout(() => navigate('/profile', { replace: true }), 2000)
     } catch (e: any) {
@@ -192,9 +193,27 @@ export default function ForgotPassword() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">
-                    {t('forgotPassword.step2NewPinLabel')}
+                    {t('forgotPassword.step2NewPasswordLabel')}
                   </label>
-                  <OtpInput value={newPin} onChange={setNewPin} length={6} />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder={t('login.passwordPlaceholder') as string}
+                      autoComplete="new-password"
+                      className="w-full h-12 px-4 pr-20 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wider text-white/55 hover:text-white/80 transition-colors"
+                    >
+                      {showPassword ? t('login.passwordHide') : t('login.passwordShow')}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-white/55 mt-2">{t('forgotPassword.step2NewPasswordHint')}</p>
                 </div>
 
                 {error && (
@@ -211,7 +230,7 @@ export default function ForgotPassword() {
                 </Button>
 
                 <button
-                  onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setNewPin('') }}
+                  onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setNewPassword('') }}
                   className="block w-full text-center text-xs text-white/55 hover:text-white/80 transition-colors"
                 >
                   {t('forgotPassword.step2Resend')}

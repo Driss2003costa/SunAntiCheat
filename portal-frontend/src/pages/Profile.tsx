@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, getToken, clearToken, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
+import { api, getToken, clearToken, saveRestrictions, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
 import Navbar from '../components/Navbar'
 import PageAura from '../components/PageAura'
 import { GridShell, ProfileHero, StatCard, SectionDivider, Card, Button, Tag } from '../components/ui'
@@ -49,7 +49,11 @@ export default function Profile() {
     const token = getToken()
     if (!token) { navigate('/login', { replace: true }); return }
     api.me(token)
-      .then(p => { setProfile(p); setBio((p as any).bio ?? '') })
+      .then(p => {
+        setProfile(p); setBio((p as any).bio ?? '')
+        // Synchronise les restrictions locales avec ce que dit le serveur.
+        try { saveRestrictions((p as any).restrictions ?? []) } catch {}
+      })
       .catch(e => {
         if (e.status === 401) { clearToken(); navigate('/login', { replace: true }) }
         else setError(e.message || 'Erreur de chargement.')

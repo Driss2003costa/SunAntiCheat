@@ -16,6 +16,22 @@ function handleMaintenance(status: number, data: any): boolean {
   return false
 }
 
+/**
+ * Détecte les 403 liés au statut du compte (banni, section bloquée) et notifie
+ * l'app via des événements. Le caller reçoit toujours l'erreur via throw pour
+ * pouvoir l'afficher localement si besoin.
+ */
+function handleAccountStatus(status: number, data: any) {
+  if (status !== 403 || !data) return
+  if (data.error === 'banned') {
+    try { window.dispatchEvent(new CustomEvent('portal:banned', { detail: data })) } catch {}
+    // Côté authentifié : on retire le token pour que le portail bascule sur l'écran de ban
+    clearToken()
+  } else if (data.error === 'section_blocked') {
+    try { window.dispatchEvent(new CustomEvent('portal:section-blocked', { detail: data })) } catch {}
+  }
+}
+
 async function post<T>(url: string, body: object): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
@@ -25,6 +41,7 @@ async function post<T>(url: string, body: object): Promise<T> {
   const data = await res.json()
   if (!res.ok) {
     handleMaintenance(res.status, data)
+    handleAccountStatus(res.status, data)
     throw { status: res.status, ...data }
   }
   return data as T
@@ -43,6 +60,7 @@ async function get<T>(url: string, token?: string): Promise<T> {
   const data = await res.json()
   if (!res.ok) {
     handleMaintenance(res.status, data)
+    handleAccountStatus(res.status, data)
     throw { status: res.status, ...data }
   }
   return data as T
@@ -61,6 +79,7 @@ async function authPost<T>(url: string, token: string, body: object, redirectOn4
   const data = await res.json()
   if (!res.ok) {
     handleMaintenance(res.status, data)
+    handleAccountStatus(res.status, data)
     throw { status: res.status, ...data }
   }
   return data as T
@@ -68,7 +87,12 @@ async function authPost<T>(url: string, token: string, body: object, redirectOn4
 
 export type RegisterRequestResult = { uuid: string; username: string; expires_in: number }
 export type RegisterVerifyResult  = { token: string; uuid: string; username: string; role: string }
-export type LoginResult           = { token: string; uuid: string; username: string; role: string }
+export type CaptchaChallenge      = { id: string; question: string; expires_in: number }
+export type LoginResult           = {
+  token: string; uuid: string; username: string; role: string
+  restrictions?: string[]
+  must_reset_password?: boolean
+}
 export type ForgotResult          = { uuid?: string; expires_in?: number; message: string }
 export type ResetResult           = { token: string; uuid: string; username: string; role: string }
 export type ActiveSanction = {
@@ -82,6 +106,8 @@ export type PlayerProfile = {
   playtime_seconds?: number; playtime_formatted?: string
   balance?: number
   active_sanctions?: ActiveSanction[]
+  restrictions?: string[]
+  is_banned?: boolean
 }
 
 // ── Sections / status portail ────────────────────────────────────────────────
@@ -199,8 +225,13 @@ export const api = {
   verifyPin: (uuid: string, pin: string, password: string) =>
     post<RegisterVerifyResult>(`${BASE}/register/verify`, { uuid, pin, password }),
 
-  login: (username: string, password: string) =>
-    post<LoginResult>(`${BASE}/register/login`, { username, password }),
+  login: (username: string, password: string, captcha?: { id: string; answer: string }) =>
+    post<LoginResult>(`${BASE}/register/login`,
+      captcha
+        ? { username, password, captcha_id: captcha.id, captcha_answer: captcha.answer }
+        : { username, password }),
+
+  fetchCaptcha: () => get<CaptchaChallenge>(`${BASE}/captcha`),
 
   forgotPassword: (username: string) =>
     post<ForgotResult>(`${BASE}/register/forgot`, { username }),
@@ -286,4 +317,20 @@ export type ReferralInfo = { code: string; total: number; validated: number }
 
 export function saveToken(token: string) { localStorage.setItem('portal_token', token) }
 export function getToken(): string | null  { return localStorage.getItem('portal_token') }
-export function clearToken()              { localStorage.removeItem('portal_token') }
+export function clearToken()              {
+  localStorage.removeItem('portal_token')
+  localStorage.removeItem('portal_restrictions')
+}
+
+export function saveRestrictions(keys: string[]) {
+  localStorage.setItem('portal_restrictions', JSON.stringify(keys ?? []))
+}
+export function getRestrictions(): string[] {
+  try {
+    const raw = localStorage.getItem('portal_restrictions')
+    return raw ? JSON.parse(raw) as string[] : []
+  } catch { return [] }
+}
+export function isSectionBlocked(key: string): boolean {
+  return getRestrictions().includes(key)
+}
