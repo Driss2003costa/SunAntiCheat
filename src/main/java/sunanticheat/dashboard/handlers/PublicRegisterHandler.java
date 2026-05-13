@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import sunanticheat.dashboard.HttpHelper;
+import sunanticheat.dashboard.auth.RateLimiter;
 import sunanticheat.dashboard.portal.PlayerAccountStore;
 import sunanticheat.dashboard.portal.PlayerJwtUtil;
 import sunanticheat.dashboard.portal.PortalActivityStore;
@@ -30,6 +31,11 @@ public final class PublicRegisterHandler {
     private final ReferralStore referralStore;
     private final QuestStore questStore;
     private PortalActivityStore activityStore;
+
+    /** Rate limit login portail : 10 tentatives / 15 min par IP. */
+    private static final RateLimiter LOGIN_IP_LIMIT   = new RateLimiter(10, 15 * 60_000L);
+    /** Rate limit login portail : 5 tentatives / 15 min par pseudo (anti-brute-force ciblé). */
+    private static final RateLimiter LOGIN_USER_LIMIT = new RateLimiter(5,  15 * 60_000L);
 
     public PublicRegisterHandler(PlayerAccountStore accountStore, RegisterPinService pinService,
                                   PlayerJwtUtil playerJwt, Plugin plugin, Logger logger,
@@ -158,6 +164,18 @@ public final class PublicRegisterHandler {
 
     /** POST /api/public/register/login */
     public void login(HttpExchange ex) throws IOException {
+        String ip = ip(ex);
+
+        // Rate limit par IP (avant toute lecture du corps : repousse le spam au plus tôt)
+        if (!LOGIN_IP_LIMIT.tryAcquire(ip)) {
+            long retrySec = LOGIN_IP_LIMIT.retryAfterMs(ip) / 1000;
+            ex.getResponseHeaders().add("Retry-After", String.valueOf(retrySec));
+            HttpHelper.error(ex, 429,
+                    "Trop de tentatives. Réessaie dans " + (retrySec / 60 + 1) + " min.");
+            logger.warning("[Portal] Login rate-limit IP atteint pour " + ip);
+            return;
+        }
+
         Map<String, String> body = parseBody(ex);
         if (body == null) { HttpHelper.error(ex, 400, "Corps JSON requis"); return; }
 
@@ -169,7 +187,17 @@ public final class PublicRegisterHandler {
             return;
         }
 
-        String ip = ip(ex);
+        // Rate limit par pseudo (anti-brute-force ciblé, indépendant de l'IP)
+        String userKey = username.toLowerCase();
+        if (!LOGIN_USER_LIMIT.tryAcquire(userKey)) {
+            long retrySec = LOGIN_USER_LIMIT.retryAfterMs(userKey) / 1000;
+            ex.getResponseHeaders().add("Retry-After", String.valueOf(retrySec));
+            HttpHelper.error(ex, 429,
+                    "Trop de tentatives pour ce compte. Réessaie dans " + (retrySec / 60 + 1) + " min.");
+            logger.warning("[Portal] Login rate-limit pseudo atteint pour " + username + " (IP " + ip + ")");
+            return;
+        }
+
         Map<String, Object> account = accountStore.getByUsername(username);
         if (account == null) {
             if (activityStore != null) activityStore.logLogin(null, username, ip, false);
@@ -187,6 +215,11 @@ public final class PublicRegisterHandler {
 
         String uuid = (String) account.get("uuid");
         String role = (String) account.get("role");
+
+        // Connexion réussie : on libère les compteurs pour cette IP et ce pseudo
+        LOGIN_IP_LIMIT.reset(ip);
+        LOGIN_USER_LIMIT.reset(userKey);
+
         accountStore.updateLastLogin(uuid);
         if (activityStore != null) activityStore.logLogin(uuid, username, ip, true);
         String token = playerJwt.generate(uuid, username, role);
