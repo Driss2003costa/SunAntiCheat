@@ -16,7 +16,8 @@ export default function Register() {
   const [uuid, setUuid]           = useState('')
   const [exactName, setExactName] = useState('')
   const [verifyPin, setVerifyPin] = useState('')
-  const [loginPin, setLoginPin]   = useState('')
+  const [password, setPassword]   = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
@@ -69,10 +70,10 @@ export default function Register() {
 
   async function handleVerify() {
     if (verifyPin.replace(/\D/g, '').length < 6) { setError(t('register.errorVerifyPin')); return }
-    if (loginPin.replace(/\D/g, '').length < 6)  { setError(t('register.errorLoginPin')); return }
+    if (password.length < 6)                     { setError(t('register.errorPassword')); return }
     setLoading(true); setError('')
     try {
-      const body: Record<string, string> = { uuid, pin: verifyPin, password: loginPin }
+      const body: Record<string, string> = { uuid, pin: verifyPin, password }
       if (refCode && refValid) body.ref_code = refCode
       const res = await fetch('/api/public/register/verify', {
         method: 'POST',
@@ -306,10 +307,27 @@ export default function Register() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-white/55 mb-3">
-                      {t('register.step2NewPinLabel')}
+                      {t('register.step2NewPasswordLabel')}
                     </label>
-                    <OtpInput value={loginPin} onChange={setLoginPin} length={6} />
-                    <p className="text-[11px] text-white/55 mt-2">{t('register.step2NewPinHint')}</p>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder={t('login.passwordPlaceholder') as string}
+                        autoComplete="new-password"
+                        className="w-full h-12 px-4 pr-20 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold uppercase tracking-wider text-white/55 hover:text-white/80 transition-colors"
+                      >
+                        {showPassword ? t('login.passwordHide') : t('login.passwordShow')}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-white/55 mt-2">{t('register.step2NewPasswordHint')}</p>
                   </div>
 
                   {error && (
@@ -326,7 +344,7 @@ export default function Register() {
                   </Button>
 
                   <button
-                    onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setLoginPin('') }}
+                    onClick={() => { setStep('username'); setError(''); setVerifyPin(''); setPassword('') }}
                     className="block w-full text-center text-xs text-white/55 hover:text-white/80 transition-colors"
                   >
                     {t('register.step2Back')}
