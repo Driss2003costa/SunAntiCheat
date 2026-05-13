@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, getToken, clearToken, saveRestrictions, type PlayerProfile, type ActiveSanction, type DailyStatus, type DailyClaimResult, type ReferralInfo } from '../api/client'
 import Navbar from '../components/Navbar'
@@ -56,7 +56,13 @@ export default function Profile() {
       })
       .catch(e => {
         if (e.status === 401) { clearToken(); navigate('/login', { replace: true }) }
-        else setError(e.message || 'Erreur de chargement.')
+        else {
+          // Affiche le vrai message d'erreur du backend pour pouvoir diagnostiquer
+          // au lieu d'un opaque "Erreur de chargement."
+          const detail = e?.message || e?.error || e?.reason
+          const status = e?.status ? ` (HTTP ${e.status})` : ''
+          setError((detail || 'Erreur de chargement.') + status)
+        }
       })
       .finally(() => setLoading(false))
     api.dailyStatus(token).then(setDaily).catch(() => {})
@@ -122,8 +128,21 @@ export default function Profile() {
   )
   if (error || !profile) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 pb-28" style={{ background: '#080d19' }}>
-      <p className="text-red-400 text-center">{error || t('profile.errorNotFound')}</p>
-      <Link to="/login" className="text-sm" style={{ color: '#fbbf24' }}>{t('profile.errorLink')}</Link>
+      <p className="text-red-400 text-center max-w-md">{error || t('profile.errorNotFound')}</p>
+      {/* On efface le token avant de retourner au login, sinon Login.tsx redirige
+          immédiatement vers /profile et l'utilisateur reste coincé dans la boucle. */}
+      <button
+        onClick={() => { clearToken(); navigate('/login', { replace: true }) }}
+        className="text-sm hover:underline"
+        style={{ color: '#fbbf24' }}>
+        {t('profile.errorLink')}
+      </button>
+      <button
+        onClick={() => window.location.reload()}
+        className="text-xs"
+        style={{ color: '#9ca3af' }}>
+        Réessayer
+      </button>
       <Navbar />
     </div>
   )

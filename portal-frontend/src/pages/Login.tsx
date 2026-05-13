@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, saveToken, saveRestrictions, getToken, type CaptchaChallenge } from '../api/client'
+import { api, saveToken, saveRestrictions, getToken, clearToken, type CaptchaChallenge } from '../api/client'
 import { Button } from '../components/ui'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 
@@ -18,7 +18,20 @@ export default function Login() {
   const [banInfo, setBanInfo]     = useState<{ reason: string; until: number } | null>(null)
 
   useEffect(() => {
-    if (getToken()) navigate('/profile', { replace: true })
+    // On valide le token avant de rediriger : sinon un token banni / expiré /
+    // corrompu fait boucler Login → Profile → Login.
+    const tok = getToken()
+    if (!tok) return
+    api.me(tok)
+      .then(p => {
+        try { saveRestrictions((p as any).restrictions ?? []) } catch {}
+        navigate('/profile', { replace: true })
+      })
+      .catch(() => {
+        // En cas d'échec, on purge le token (api/client le fait déjà sur 401
+        // et 403 banned, mais on couvre aussi les 4xx/5xx restants).
+        clearToken()
+      })
   }, [navigate])
 
   async function handleLogin() {

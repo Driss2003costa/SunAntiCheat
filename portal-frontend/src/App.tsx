@@ -258,8 +258,11 @@ function SectionBlockedToast() {
       setTimeout(() => setMsg(''), 5000)
     }
     function onBanned() {
-      // L'API client a déjà retiré le token. On force un retour à l'accueil.
-      window.location.replace('/portal/login')
+      // L'API client a déjà retiré le token. On force un retour à l'accueil,
+      // sauf si on y est déjà (évite un reload en boucle).
+      if (window.location.pathname !== '/portal/login') {
+        window.location.replace('/portal/login')
+      }
     }
     window.addEventListener('portal:section-blocked', onBlocked as EventListener)
     window.addEventListener('portal:banned',          onBanned as EventListener)
