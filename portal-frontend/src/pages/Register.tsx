@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, saveToken, getToken } from '../api/client'
+import { api, saveToken, getToken, clearToken } from '../api/client'
 import OtpInput from '../components/OtpInput'
 import { Button } from '../components/ui'
 import LanguageSwitcher from '../components/LanguageSwitcher'
@@ -25,7 +25,14 @@ export default function Register() {
   const [refValid, setRefValid]   = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (getToken()) navigate('/profile', { replace: true })
+    // Valide le token au lieu de rediriger aveuglément (sinon un token
+    // invalide piège l'utilisateur sur Register → Profile → Register).
+    const tok = getToken()
+    if (tok) {
+      api.me(tok)
+        .then(() => navigate('/profile', { replace: true }))
+        .catch(() => clearToken())
+    }
     const params = new URLSearchParams(window.location.search)
     const ref = params.get('ref')
     if (ref) {
