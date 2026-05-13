@@ -226,7 +226,15 @@
     "buttonLoading": "Connexion…",
     "linkForgot": "Mot de passe oublié ?",
     "noAccount": "Pas encore de compte ?",
-    "createAccount": "Créer un compte"
+    "createAccount": "Créer un compte",
+    "captchaLabel": "Vérification de sécurité",
+    "captchaHint": "Plusieurs tentatives ont échoué. Résous cette opération pour continuer.",
+    "captchaRefresh": "Nouveau défi",
+    "errorCaptcha": "Saisis le résultat du défi.",
+    "errorCaptchaRequired": "Une vérification de sécurité est requise.",
+    "banned": "Accès au portail révoqué",
+    "bannedPermanent": "Ce ban est permanent.",
+    "bannedUntil": "Levé le {{date}}"
   },
   "register": {
     "errorOffline": "Tu dois être connecté sur le serveur Minecraft pour t'inscrire.",

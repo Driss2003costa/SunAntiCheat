@@ -68,7 +68,12 @@ async function authPost<T>(url: string, token: string, body: object, redirectOn4
 
 export type RegisterRequestResult = { uuid: string; username: string; expires_in: number }
 export type RegisterVerifyResult  = { token: string; uuid: string; username: string; role: string }
-export type LoginResult           = { token: string; uuid: string; username: string; role: string }
+export type CaptchaChallenge      = { id: string; question: string; expires_in: number }
+export type LoginResult           = {
+  token: string; uuid: string; username: string; role: string
+  restrictions?: string[]
+  must_reset_password?: boolean
+}
 export type ForgotResult          = { uuid?: string; expires_in?: number; message: string }
 export type ResetResult           = { token: string; uuid: string; username: string; role: string }
 export type ActiveSanction = {
@@ -199,8 +204,13 @@ export const api = {
   verifyPin: (uuid: string, pin: string, password: string) =>
     post<RegisterVerifyResult>(`${BASE}/register/verify`, { uuid, pin, password }),
 
-  login: (username: string, password: string) =>
-    post<LoginResult>(`${BASE}/register/login`, { username, password }),
+  login: (username: string, password: string, captcha?: { id: string; answer: string }) =>
+    post<LoginResult>(`${BASE}/register/login`,
+      captcha
+        ? { username, password, captcha_id: captcha.id, captcha_answer: captcha.answer }
+        : { username, password }),
+
+  fetchCaptcha: () => get<CaptchaChallenge>(`${BASE}/captcha`),
 
   forgotPassword: (username: string) =>
     post<ForgotResult>(`${BASE}/register/forgot`, { username }),

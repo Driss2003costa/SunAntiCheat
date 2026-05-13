@@ -91,6 +91,7 @@ const NAV_CATEGORIES = [
     items: [
       { to: '/portal-sections', label: 'Sections',  icon: '🔀' },
       { to: '/portal-activity', label: 'Activité',  icon: '📊' },
+      { to: '/portal-accounts', label: 'Comptes',   icon: '🛡️' },
     ],
   },
   {

@@ -8,9 +8,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import sunanticheat.dashboard.HttpHelper;
 import sunanticheat.dashboard.auth.RateLimiter;
+import sunanticheat.dashboard.portal.CaptchaService;
 import sunanticheat.dashboard.portal.PlayerAccountStore;
 import sunanticheat.dashboard.portal.PlayerJwtUtil;
 import sunanticheat.dashboard.portal.PortalActivityStore;
+import sunanticheat.dashboard.portal.PortalSection;
 import sunanticheat.dashboard.portal.RegisterPinService;
 import sunanticheat.dashboard.portal.RegisterPinService.VerifyResult;
 import sunanticheat.dashboard.quests.Quest;
@@ -18,7 +20,9 @@ import sunanticheat.dashboard.quests.QuestStore;
 import sunanticheat.dashboard.social.ReferralStore;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 public final class PublicRegisterHandler {
@@ -30,23 +34,31 @@ public final class PublicRegisterHandler {
     private final Logger logger;
     private final ReferralStore referralStore;
     private final QuestStore questStore;
+    private final CaptchaService captchaService;
     private PortalActivityStore activityStore;
 
-    /** Rate limit login portail : 10 tentatives / 15 min par IP. */
-    private static final RateLimiter LOGIN_IP_LIMIT   = new RateLimiter(10, 15 * 60_000L);
-    /** Rate limit login portail : 5 tentatives / 15 min par pseudo (anti-brute-force ciblé). */
-    private static final RateLimiter LOGIN_USER_LIMIT = new RateLimiter(5,  15 * 60_000L);
+    /** Rate limit login portail : 20 essais / 15 min par IP (bloque le flood). */
+    private static final RateLimiter LOGIN_IP_LIMIT   = new RateLimiter(20, 15 * 60_000L);
+    /** Rate limit login portail : 10 essais / 15 min par pseudo (bloque le brute-force ciblé). */
+    private static final RateLimiter LOGIN_USER_LIMIT = new RateLimiter(10, 15 * 60_000L);
+
+    /** Seuil de tentatives ratées (persistantes ou par IP) qui déclenche le CAPTCHA. */
+    private static final int CAPTCHA_THRESHOLD = 5;
+    /** Seuil persistant qui déclenche une notification au joueur en jeu. */
+    private static final int NOTIFY_THRESHOLD  = 3;
 
     public PublicRegisterHandler(PlayerAccountStore accountStore, RegisterPinService pinService,
                                   PlayerJwtUtil playerJwt, Plugin plugin, Logger logger,
-                                  ReferralStore referralStore, QuestStore questStore) {
-        this.accountStore  = accountStore;
-        this.pinService    = pinService;
-        this.playerJwt     = playerJwt;
-        this.plugin        = plugin;
-        this.logger        = logger;
-        this.referralStore = referralStore;
-        this.questStore    = questStore;
+                                  ReferralStore referralStore, QuestStore questStore,
+                                  CaptchaService captchaService) {
+        this.accountStore   = accountStore;
+        this.pinService     = pinService;
+        this.playerJwt      = playerJwt;
+        this.plugin         = plugin;
+        this.logger         = logger;
+        this.referralStore  = referralStore;
+        this.questStore     = questStore;
+        this.captchaService = captchaService;
     }
 
     public void setActivityStore(PortalActivityStore store) { this.activityStore = store; }
@@ -162,11 +174,21 @@ public final class PublicRegisterHandler {
         }
     }
 
+    /** GET /api/public/captcha — émet un challenge captcha (utilisé après plusieurs échecs). */
+    public void captcha(HttpExchange ex) throws IOException {
+        CaptchaService.Challenge ch = captchaService.generate();
+        HttpHelper.json(ex, 200, Map.of(
+            "id",         ch.id(),
+            "question",   ch.question(),
+            "expires_in", ch.expiresIn()
+        ));
+    }
+
     /** POST /api/public/register/login */
     public void login(HttpExchange ex) throws IOException {
         String ip = ip(ex);
 
-        // Rate limit par IP (avant toute lecture du corps : repousse le spam au plus tôt)
+        // 1) Garde-fou anti-flood : rate-limit IP en premier (avant parsing).
         if (!LOGIN_IP_LIMIT.tryAcquire(ip)) {
             long retrySec = LOGIN_IP_LIMIT.retryAfterMs(ip) / 1000;
             ex.getResponseHeaders().add("Retry-After", String.valueOf(retrySec));
@@ -179,15 +201,17 @@ public final class PublicRegisterHandler {
         Map<String, String> body = parseBody(ex);
         if (body == null) { HttpHelper.error(ex, 400, "Corps JSON requis"); return; }
 
-        String username = body.get("username");
-        String password = body.get("password");
+        String username      = body.get("username");
+        String password      = body.get("password");
+        String captchaId     = body.get("captcha_id");
+        String captchaAnswer = body.get("captcha_answer");
 
         if (username == null || password == null) {
             HttpHelper.error(ex, 400, "username et password sont requis");
             return;
         }
 
-        // Rate limit par pseudo (anti-brute-force ciblé, indépendant de l'IP)
+        // 2) Rate-limit par pseudo (résiste à la rotation d'IP).
         String userKey = username.toLowerCase();
         if (!LOGIN_USER_LIMIT.tryAcquire(userKey)) {
             long retrySec = LOGIN_USER_LIMIT.retryAfterMs(userKey) / 1000;
@@ -198,33 +222,67 @@ public final class PublicRegisterHandler {
             return;
         }
 
+        // 3) Lookup compte + détermine si un CAPTCHA est requis pour cet essai.
         Map<String, Object> account = accountStore.getByUsername(username);
-        if (account == null) {
-            if (activityStore != null) activityStore.logLogin(null, username, ip, false);
-            HttpHelper.error(ex, 401, "Pseudo ou mot de passe incorrect");
+        int accountFails = account == null ? 0 : ((Number) account.get("failed_login_count")).intValue();
+        boolean captchaNeeded =
+                accountFails >= CAPTCHA_THRESHOLD ||
+                LOGIN_IP_LIMIT.currentAttempts(ip) > CAPTCHA_THRESHOLD;
+
+        if (captchaNeeded && !captchaService.verifyAndConsume(captchaId, captchaAnswer)) {
+            CaptchaService.Challenge ch = captchaService.generate();
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("error",   "captcha_required");
+            resp.put("message", "Résous le défi de sécurité pour continuer.");
+            resp.put("captcha", Map.of("id", ch.id(), "question", ch.question(), "expires_in", ch.expiresIn()));
+            HttpHelper.json(ex, 401, resp);
             return;
         }
 
-        BCrypt.Result bcResult = BCrypt.verifyer()
-                .verify(password.toCharArray(), (String) account.get("password_hash"));
-        if (!bcResult.verified) {
+        // 4) Compte inexistant : on log et on renvoie un message générique.
+        if (account == null) {
             if (activityStore != null) activityStore.logLogin(null, username, ip, false);
-            HttpHelper.error(ex, 401, "Pseudo ou mot de passe incorrect");
+            failureResponse(ex, ip, accountFails, false);
             return;
         }
 
         String uuid = (String) account.get("uuid");
         String role = (String) account.get("role");
 
-        // Connexion réussie : on libère les compteurs pour cette IP et ce pseudo
+        // 5) Ban portail.
+        if (accountStore.isBanned(account)) {
+            Object bannedUntil = account.get("banned_until");
+            String reason = (String) account.get("ban_reason");
+            if (activityStore != null) activityStore.logLogin(uuid, username, ip, false);
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("error",   "banned");
+            resp.put("message", "Accès au portail révoqué.");
+            resp.put("reason",  reason != null ? reason : "");
+            resp.put("banned_until", bannedUntil);
+            HttpHelper.json(ex, 403, resp);
+            return;
+        }
+
+        // 6) Vérification du mot de passe.
+        BCrypt.Result bcResult = BCrypt.verifyer()
+                .verify(password.toCharArray(), (String) account.get("password_hash"));
+        if (!bcResult.verified) {
+            int newCount = accountStore.incrementFailedLogin(uuid);
+            if (activityStore != null) activityStore.logLogin(uuid, username, ip, false);
+            if (newCount >= NOTIFY_THRESHOLD) notifyInGame(uuid, ip, newCount);
+            failureResponse(ex, ip, newCount, true);
+            return;
+        }
+
+        // 7) Connexion valide.
         LOGIN_IP_LIMIT.reset(ip);
         LOGIN_USER_LIMIT.reset(userKey);
-
+        accountStore.resetFailedLogin(uuid);
         accountStore.updateLastLogin(uuid);
         if (activityStore != null) activityStore.logLogin(uuid, username, ip, true);
         String token = playerJwt.generate(uuid, username, role);
 
-        // Validation du parrainage si le compte a plus de 24h
+        // Validation du parrainage si le compte a plus de 24h.
         String referrerUuid = referralStore.validateIfReady(uuid);
         if (referrerUuid != null) {
             int count = referralStore.getValidatedCount(referrerUuid);
@@ -232,12 +290,48 @@ public final class PublicRegisterHandler {
             logger.info("[Portal] Parrainage validé : " + username + " → parrain " + referrerUuid + " (" + count + " filleul(s))");
         }
 
-        HttpHelper.json(ex, 200, Map.of(
-            "token",    token,
-            "uuid",     uuid,
-            "username", account.get("username"),
-            "role",     role
-        ));
+        int restrictions = ((Number) account.get("section_restrictions")).intValue();
+        boolean mustReset = Boolean.TRUE.equals(account.get("must_reset_password"));
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("token",    token);
+        resp.put("uuid",     uuid);
+        resp.put("username", account.get("username"));
+        resp.put("role",     role);
+        resp.put("restrictions",        PortalSection.keysFromMask(restrictions));
+        resp.put("must_reset_password", mustReset);
+        HttpHelper.json(ex, 200, resp);
+    }
+
+    /** Réponse d'échec mot-de-passe (avec, le cas échéant, un captcha pour le prochain essai). */
+    private void failureResponse(HttpExchange ex, String ip, int failCount, boolean accountExists)
+            throws IOException {
+        boolean nextNeedsCaptcha =
+                (accountExists && failCount >= CAPTCHA_THRESHOLD) ||
+                LOGIN_IP_LIMIT.currentAttempts(ip) >= CAPTCHA_THRESHOLD;
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("error",   "invalid_credentials");
+        resp.put("message", "Pseudo ou mot de passe incorrect");
+        if (nextNeedsCaptcha) {
+            CaptchaService.Challenge ch = captchaService.generate();
+            resp.put("captcha_required", true);
+            resp.put("captcha", Map.of("id", ch.id(), "question", ch.question(), "expires_in", ch.expiresIn()));
+        }
+        HttpHelper.json(ex, 401, resp);
+    }
+
+    /** Avertit le joueur en jeu (s'il est connecté) qu'on tente de forcer son compte portail. */
+    private void notifyInGame(String uuid, String ip, int failCount) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            try {
+                Player p = Bukkit.getPlayer(UUID.fromString(uuid));
+                if (p == null || !p.isOnline()) return;
+                p.sendMessage(net.kyori.adventure.text.Component.text(
+                    "§8[§6SunAntiCheat§8] §c⚠ Portail : §f" + failCount +
+                    " §ctentatives de connexion ratées sur ton compte §7(dernière IP §f" + ip +
+                    "§7). §cSi ce n'est pas toi, change ton mot de passe via §e/forgot§c sur le portail."));
+            } catch (IllegalArgumentException ignored) { /* UUID invalide */ }
+        });
     }
 
     /** POST /api/public/register/forgot */
@@ -329,6 +423,8 @@ public final class PublicRegisterHandler {
             case VerifyResult.Ok(String username) -> {
                 String hash = BCrypt.withDefaults().hashToString(12, password.toCharArray());
                 accountStore.updatePassword(uuid, hash);
+                accountStore.setMustResetPassword(uuid, false);
+                accountStore.resetFailedLogin(uuid);
                 String token = playerJwt.generate(uuid, username, "PLAYER");
                 logger.info("[Portal] Mot de passe réinitialisé : " + username + " (" + uuid + ")");
                 HttpHelper.json(ex, 200, Map.of(

@@ -514,9 +514,11 @@ public final class DashboardModule {
         ReferralHandler referralHandler = new ReferralHandler(referralStore, playerJwtUtil);
         plugin.getLogger().info("[Dashboard] Système social (amis, chat, parrainage) activé.");
 
+        sunanticheat.dashboard.portal.CaptchaService captchaService =
+                new sunanticheat.dashboard.portal.CaptchaService();
         PublicRegisterHandler publicRegisterHandler = new PublicRegisterHandler(
                 playerAccountStore, registerPinService, playerJwtUtil, plugin, plugin.getLogger(),
-                referralStore, questStore);
+                referralStore, questStore, captchaService);
         PublicPlayerHandler publicPlayerHandler = new PublicPlayerHandler(playerAccountStore, playerJwtUtil, plugin);
         PublicProfileHandler publicProfileHandler = new PublicProfileHandler(playerAccountStore, plugin);
         publicProfileHandler.setDailyRewardStore(dailyRewardStore);
@@ -566,6 +568,8 @@ public final class DashboardModule {
         router.setPortalActivityDeps(portalActivityStore, playerJwtUtil);
         router.setPortalSectionsStore(portalSectionsStore);
         router.setPortalMaintenance(portalMaintenanceMode, portalMaintenanceHandler);
+        router.setAdminPortalAccountsHandler(new sunanticheat.dashboard.handlers.AdminPortalAccountsHandler(
+                playerAccountStore, portalActivityStore));
 
         File dashboardDir = new File(plugin.getDataFolder(), "dashboard");
         dashboardDir.mkdirs();

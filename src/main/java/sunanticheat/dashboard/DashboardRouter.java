@@ -201,6 +201,13 @@ public final class DashboardRouter implements HttpHandler {
         this.portalMaintenanceHandler = handler;
     }
 
+    private sunanticheat.dashboard.handlers.AdminPortalAccountsHandler adminPortalAccountsHandler;
+
+    /** Injecté après construction — gestion admin des comptes portail. */
+    public void setAdminPortalAccountsHandler(sunanticheat.dashboard.handlers.AdminPortalAccountsHandler h) {
+        this.adminPortalAccountsHandler = h;
+    }
+
     /**
      * Routes toujours autorisées même en mode maintenance globale, pour que le portail
      * puisse afficher l'écran lockdown et que les OP puissent se connecter.
@@ -211,6 +218,7 @@ public final class DashboardRouter implements HttpHandler {
         if (path.startsWith("/api/public/register/login"))          return true;
         if (path.startsWith("/api/public/register/forgot"))         return true;
         if (path.startsWith("/api/public/register/reset"))          return true;
+        if (path.equals("/api/public/captcha"))                     return true;
         if (path.equals("/api/public/player/me"))                   return true; // pour détecter isOp
         return false;
     }
@@ -685,6 +693,7 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/public/register/login")   && POST(method)) { publicRegisterHandler.login(ex);   return; }
         if (eq(path, "/api/public/register/forgot")  && POST(method)) { publicRegisterHandler.forgot(ex);  return; }
         if (eq(path, "/api/public/register/reset")   && POST(method)) { publicRegisterHandler.reset(ex);   return; }
+        if (eq(path, "/api/public/captcha")          && GET(method))  { publicRegisterHandler.captcha(ex); return; }
         if (eq(path, "/api/public/player/me")                  && GET(method))   { publicPlayerHandler.me(ex);               return; }
         if (eq(path, "/api/public/player/me/bio")             && PATCH(method)) { publicPlayerHandler.updateBio(ex);        return; }
         if (eq(path, "/api/public/player/me/daily/status")   && GET(method))   { publicDailyHandler.status(ex);            return; }
@@ -824,6 +833,18 @@ public final class DashboardRouter implements HttpHandler {
         if (eq(path, "/api/portal/activity/pageviews")  && GET(method)) { portalActivityHandler.pageViews(ex, jwt, users); return; }
         if (eq(path, "/api/portal/activity/referrals")  && GET(method)) { portalActivityHandler.referrals(ex, jwt, users); return; }
         if (eq(path, "/api/portal/activity/stats")      && GET(method)) { portalActivityHandler.stats(ex, jwt, users); return; }
+
+        // ── Comptes portail : gestion admin (ban, restrictions, force-reset) ─
+        if (adminPortalAccountsHandler != null) {
+            if (eq(path, "/api/admin/portal/sections") && GET(method))  { adminPortalAccountsHandler.sections(ex, jwt, users); return; }
+            if (eq(path, "/api/admin/portal/accounts") && GET(method))  { adminPortalAccountsHandler.list(ex, jwt, users); return; }
+            if (path.startsWith("/api/admin/portal/accounts/") && path.endsWith("/ban")          && POST(method))  { adminPortalAccountsHandler.ban         (ex, jwt, users, id(path, "/api/admin/portal/accounts/", "/ban"));          return; }
+            if (path.startsWith("/api/admin/portal/accounts/") && path.endsWith("/unban")        && POST(method))  { adminPortalAccountsHandler.unban       (ex, jwt, users, id(path, "/api/admin/portal/accounts/", "/unban"));        return; }
+            if (path.startsWith("/api/admin/portal/accounts/") && path.endsWith("/restrictions") && POST(method))  { adminPortalAccountsHandler.restrictions(ex, jwt, users, id(path, "/api/admin/portal/accounts/", "/restrictions")); return; }
+            if (path.startsWith("/api/admin/portal/accounts/") && path.endsWith("/force-reset")  && POST(method))  { adminPortalAccountsHandler.forceReset  (ex, jwt, users, id(path, "/api/admin/portal/accounts/", "/force-reset"));  return; }
+            if (path.startsWith("/api/admin/portal/accounts/") && path.endsWith("/reset-failed") && POST(method))  { adminPortalAccountsHandler.resetFailed (ex, jwt, users, id(path, "/api/admin/portal/accounts/", "/reset-failed")); return; }
+            if (path.startsWith("/api/admin/portal/accounts/") && GET(method))                                     { adminPortalAccountsHandler.detail      (ex, jwt, users, id(path, "/api/admin/portal/accounts/"));                  return; }
+        }
 
         // ── Parrainage (public) ───────────────────────────────────────────────
         if (eq(path, "/api/public/referral/me")                       && GET(method))    { referralHandler.myCode(ex); return; }

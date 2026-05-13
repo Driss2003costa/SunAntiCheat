@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, saveToken, getToken } from '../api/client'
+import { api, saveToken, getToken, type CaptchaChallenge } from '../api/client'
 import { Button } from '../components/ui'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 
@@ -13,23 +13,60 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
+  const [captcha, setCaptcha]     = useState<CaptchaChallenge | null>(null)
+  const [captchaAnswer, setCaptchaAnswer] = useState('')
+  const [banInfo, setBanInfo]     = useState<{ reason: string; until: number } | null>(null)
 
   useEffect(() => {
     if (getToken()) navigate('/profile', { replace: true })
   }, [navigate])
 
   async function handleLogin() {
-    if (!username.trim()) { setError(t('login.errorNoUsername')); return }
-    if (password.length < 6) { setError(t('login.errorNoPassword')); return }
-    setLoading(true); setError('')
+    if (!username.trim())       { setError(t('login.errorNoUsername')); return }
+    if (password.length < 6)    { setError(t('login.errorNoPassword')); return }
+    if (captcha && !captchaAnswer.trim()) { setError(t('login.errorCaptcha')); return }
+    setLoading(true); setError(''); setBanInfo(null)
     try {
-      const res = await api.login(username.trim(), password)
+      const res = await api.login(
+        username.trim(),
+        password,
+        captcha ? { id: captcha.id, answer: captchaAnswer.trim() } : undefined,
+      )
       saveToken(res.token)
+      if (res.must_reset_password) {
+        // L'admin a forcé une réinitialisation : on redirige vers /forgot avec un préfill du pseudo.
+        navigate('/forgot?force=1', { replace: true, state: { username: res.username } })
+        return
+      }
       navigate('/profile', { replace: true })
     } catch (e: any) {
-      setError(e.message || t('login.errorInvalid'))
+      // Cas 1 : un captcha est requis (ou il vient de devenir requis suite à cet essai)
+      if (e?.error === 'captcha_required' || e?.captcha_required) {
+        if (e.captcha) setCaptcha(e.captcha as CaptchaChallenge)
+        setCaptchaAnswer('')
+        setError(e.message || t('login.errorCaptchaRequired'))
+      }
+      // Cas 2 : compte banni
+      else if (e?.error === 'banned') {
+        setBanInfo({ reason: e.reason || '', until: e.banned_until ?? 0 })
+        setCaptcha(null)
+        setError('')
+      }
+      // Cas 3 : tentative échouée — la réponse peut inclure un captcha pour la prochaine
+      else {
+        if (e?.captcha) { setCaptcha(e.captcha as CaptchaChallenge); setCaptchaAnswer('') }
+        setError(e?.message || t('login.errorInvalid'))
+      }
     }
     setLoading(false)
+  }
+
+  async function refreshCaptcha() {
+    try {
+      const ch = await api.fetchCaptcha()
+      setCaptcha(ch)
+      setCaptchaAnswer('')
+    } catch { /* silencieux */ }
   }
 
   return (
@@ -142,7 +179,59 @@ export default function Login() {
               </div>
             </label>
 
-            {error && (
+            {captcha && !banInfo && (
+              <div
+                className="rounded-xl p-4"
+                style={{ background: 'rgba(255,179,71,0.08)', border: '1px solid rgba(255,179,71,0.30)' }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-sun-300">
+                    {t('login.captchaLabel')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={refreshCaptcha}
+                    className="text-[11px] text-sun-300 hover:text-sun-200 transition-colors"
+                  >
+                    {t('login.captchaRefresh')}
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="font-mono text-lg text-white font-semibold select-none">
+                    {captcha.question}
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={captchaAnswer}
+                    onChange={e => setCaptchaAnswer(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                    placeholder="?"
+                    className="w-24 h-10 px-3 rounded-lg text-white text-center placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-sun-300/40 transition"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  />
+                </div>
+                <p className="text-[11px] text-white/55 mt-2">{t('login.captchaHint')}</p>
+              </div>
+            )}
+
+            {banInfo && (
+              <div
+                className="px-4 py-3 rounded-xl text-sm"
+                style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#fca5a5' }}
+              >
+                <div className="font-semibold mb-1">{t('login.banned')}</div>
+                {banInfo.reason && <div className="text-xs mb-1">{banInfo.reason}</div>}
+                <div className="text-[11px] opacity-80">
+                  {banInfo.until === 0
+                    ? t('login.bannedPermanent')
+                    : t('login.bannedUntil', { date: new Date(banInfo.until).toLocaleString() })}
+                </div>
+              </div>
+            )}
+
+            {error && !banInfo && (
               <div
                 className="px-4 py-3 rounded-xl text-sm"
                 style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#fca5a5' }}
@@ -151,7 +240,7 @@ export default function Login() {
               </div>
             )}
 
-            <Button size="lg" fullWidth onClick={handleLogin} disabled={loading}>
+            <Button size="lg" fullWidth onClick={handleLogin} disabled={loading || !!banInfo}>
               {loading ? t('login.buttonLoading') : t('login.button')}
             </Button>
 

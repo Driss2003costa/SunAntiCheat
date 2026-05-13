@@ -226,7 +226,15 @@
     "buttonLoading": "Logging in…",
     "linkForgot": "Forgot password?",
     "noAccount": "No account yet?",
-    "createAccount": "Create an account"
+    "createAccount": "Create an account",
+    "captchaLabel": "Security check",
+    "captchaHint": "Several attempts failed. Solve this challenge to continue.",
+    "captchaRefresh": "New challenge",
+    "errorCaptcha": "Enter the challenge result.",
+    "errorCaptchaRequired": "A security check is required.",
+    "banned": "Portal access revoked",
+    "bannedPermanent": "This ban is permanent.",
+    "bannedUntil": "Lifted on {{date}}"
   },
   "register": {
     "errorOffline": "You must be connected to the Minecraft server to register.",
