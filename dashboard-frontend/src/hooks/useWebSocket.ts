@@ -1,7 +1,17 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
 
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:60036`
+// Aligne le protocole WS sur celui de la page : un dashboard servi en HTTPS
+// (ex: derrière un reverse proxy avec TLS) impose obligatoirement wss://,
+// sinon le navigateur bloque la connexion comme "mixed content".
+// Override possible via VITE_WS_URL au build pour pointer ailleurs.
+function defaultWsUrl(): string {
+  if (typeof window === 'undefined') return ''
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${proto}//${window.location.hostname}:60036`
+}
+
+const WS_URL = import.meta.env.VITE_WS_URL || defaultWsUrl()
 
 type MessageHandler = (msg: any) => void
 
@@ -13,7 +23,18 @@ export function useWebSocket(channels: string[], onMessage: MessageHandler) {
 
   const connect = useCallback(() => {
     if (!token) return
-    ws.current = new WebSocket(WS_URL)
+    // Le constructeur peut throw (mixed content, URL invalide, etc.).
+    // On capture pour ne pas planter l'arbre React qui appelle ce hook.
+    try {
+      ws.current = new WebSocket(WS_URL)
+    } catch (e) {
+      console.warn('[useWebSocket] connection failed:', e)
+      reconnectTimer.current = setTimeout(() => {
+        delay.current = Math.min(delay.current * 2, 30000)
+        connect()
+      }, delay.current)
+      return
+    }
 
     ws.current.onopen = () => {
       delay.current = 1000
