@@ -1,14 +1,19 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
 
-// Aligne le protocole WS sur celui de la page : un dashboard servi en HTTPS
-// (ex: derrière un reverse proxy avec TLS) impose obligatoirement wss://,
-// sinon le navigateur bloque la connexion comme "mixed content".
-// Override possible via VITE_WS_URL au build pour pointer ailleurs.
+// URL par défaut du WebSocket admin :
+//  - En production derrière un reverse proxy TLS (page en HTTPS) on passe par
+//    le même origin + le chemin `/ws/` que nginx proxifie vers le backend.
+//    Aucun port custom à exposer côté navigateur, pas de souci de mixed-content.
+//  - En dev (page en HTTP, typiquement localhost:5173) on tape directement le
+//    port 60036 du serveur Java.
+// Override possible via VITE_WS_URL au build pour les setups exotiques.
 function defaultWsUrl(): string {
   if (typeof window === 'undefined') return ''
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${window.location.hostname}:60036`
+  if (window.location.protocol === 'https:') {
+    return `wss://${window.location.host}/ws/`
+  }
+  return `ws://${window.location.hostname}:60036`
 }
 
 const WS_URL = import.meta.env.VITE_WS_URL || defaultWsUrl()
