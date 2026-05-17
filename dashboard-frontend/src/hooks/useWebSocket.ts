@@ -1,7 +1,19 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
 
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:60036`
+function defaultWsUrl(): string {
+  const isHttps = window.location.protocol === 'https:'
+  const onCustomPort = window.location.port !== '' && window.location.port !== '80' && window.location.port !== '443'
+  // Production via reverse proxy : même host, sous-chemin /ws/, wss:// auto sur HTTPS
+  if (!onCustomPort) {
+    const proto = isHttps ? 'wss' : 'ws'
+    return `${proto}://${window.location.host}/ws/`
+  }
+  // Dev / accès direct IP:port → port WS séparé (60036 par défaut)
+  return `ws://${window.location.hostname}:60036`
+}
+
+const WS_URL = import.meta.env.VITE_WS_URL || defaultWsUrl()
 
 type MessageHandler = (msg: any) => void
 
