@@ -56,3 +56,6 @@ dashboard/snapshots*.json
 
 # Build artifacts
 *.class
+
+# Generated download archives
+estelle-vitrine.zip
